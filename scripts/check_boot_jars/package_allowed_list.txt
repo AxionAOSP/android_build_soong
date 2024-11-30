@@ -276,6 +276,9 @@ com\.nvidia\..*
 # OPLUS adds
 com\.oplus\..*
 
+# LMOFreeform
+com\.libremobileos\..*
+
 # QC adds
 com.qualcomm.qti
 com.quicinc.tcmiface
