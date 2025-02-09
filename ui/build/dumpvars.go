@@ -172,6 +172,8 @@ var BannerVars = []string{
 	"GMS_MAKEFILE",
 	"MAINLINE_MODULES_MAKEFILE",
 	"PRODUCT_SOONG_NAMESPACES",
+	"PRODUCT_DEFAULT_DEV_CERTIFICATE",
+	"DEFAULT_SYSTEM_DEV_CERTIFICATE",
 }
 
 func Banner(make_vars map[string]string) string {
