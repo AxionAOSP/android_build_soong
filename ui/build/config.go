@@ -1616,7 +1616,7 @@ func (c *configImpl) DevicePreviousProductConfig() string {
 }
 
 func (c *configImpl) DevicePreviousGappsConfig() string {
-	return filepath.Join(c.ProductOut(), "previous_gapps_config.mk")
+	return filepath.Join(c.OutDir(), "previous_gapps_config.mk")
 }
 
 func (c *configImpl) KatiPackageMkDir() string {
