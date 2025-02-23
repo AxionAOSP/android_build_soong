@@ -1179,9 +1179,11 @@ func (c *configImpl) BuildFromTextStub() bool {
 }
 
 func (c *configImpl) TargetBuildGapps() bool {
-	if v, ok := c.environ.Get("AXION_BUILD_VARIANT"); ok {
+	if v, ok := c.environ.Get("WITH_GMS"); ok {
 		v = strings.TrimSpace(v)
-		return v == "GMS"
+		if v == "true" {
+			return true
+		}
 	}
 	return false
 }
