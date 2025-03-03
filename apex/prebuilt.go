@@ -21,6 +21,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/dexpreopt"
+	"android/soong/filesystem"
 	"android/soong/java"
 	"android/soong/provenance"
 
@@ -245,6 +246,7 @@ func (p *prebuiltCommon) installApexSystemServerFiles(ctx android.ModuleContext)
 		}
 		p.extraInstalledFiles = append(p.extraInstalledFiles, installedFile)
 		p.extraInstalledPairs = append(p.extraInstalledPairs, installPair{install.OutputPathOnHost, installedFile})
+		ctx.PackageFile(install.InstallDirOnDevice, install.InstallFileOnDevice, install.OutputPathOnHost)
 	}
 
 	for _, dexJar := range p.systemServerDexJars {
@@ -676,6 +678,8 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	ctx.SetOutputFiles(android.Paths{p.outputApex}, "")
+
+	android.SetProvider(ctx, filesystem.ApexKeyPathInfoProvider, filesystem.ApexKeyPathInfo{p.apexKeysPath})
 }
 
 func (p *Prebuilt) ProvenanceMetaDataFile() android.Path {
@@ -872,4 +876,6 @@ func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	ctx.SetOutputFiles(android.Paths{a.outputApex}, "")
+
+	android.SetProvider(ctx, filesystem.ApexKeyPathInfoProvider, filesystem.ApexKeyPathInfo{a.apexKeysPath})
 }

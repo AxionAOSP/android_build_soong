@@ -132,6 +132,8 @@ func (j *JavaFuzzTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	j.Test.GenerateAndroidBuildActions(ctx)
+
+	fuzz.SetFuzzPackagedModuleInfo(ctx, &j.fuzzPackagedModule)
 }
 
 type javaFuzzPackager struct {
@@ -150,6 +152,10 @@ func (s *javaFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 	ctx.VisitAllModules(func(module android.Module) {
 		// Discard non-fuzz targets.
 		javaFuzzModule, ok := module.(*JavaFuzzTest)
+		if !ok {
+			return
+		}
+		fuzzInfo, ok := android.OtherModuleProvider(ctx, module, fuzz.FuzzPackagedModuleInfoProvider)
 		if !ok {
 			return
 		}
@@ -179,7 +185,7 @@ func (s *javaFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		builder := android.NewRuleBuilder(pctx, ctx)
 
 		// Package the artifacts (data, corpus, config and dictionary) into a zipfile.
-		files = s.PackageArtifacts(ctx, module, javaFuzzModule.fuzzPackagedModule, archDir, builder)
+		files = s.PackageArtifacts(ctx, module, &fuzzInfo, archDir, builder)
 
 		// Add .jar
 		if !javaFuzzModule.Host() {
@@ -193,7 +199,7 @@ func (s *javaFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 			files = append(files, fuzz.FileToZip{SourceFilePath: fPath})
 		}
 
-		archDirs[archOs], ok = s.BuildZipFile(ctx, module, javaFuzzModule.fuzzPackagedModule, files, builder, archDir, archString, hostOrTargetString, archOs, archDirs)
+		archDirs[archOs], ok = s.BuildZipFile(ctx, module, &fuzzInfo, files, builder, archDir, archString, hostOrTargetString, archOs, archDirs)
 		if !ok {
 			return
 		}

@@ -931,6 +931,7 @@ func (b baseTestingComponent) maybeBuildParamsFromRule(rule string) (TestingBuil
 }
 
 func (b baseTestingComponent) buildParamsFromRule(rule string) TestingBuildParams {
+	b.t.Helper()
 	p, searchRules := b.maybeBuildParamsFromRule(rule)
 	if p.Rule == nil {
 		b.t.Fatalf("couldn't find rule %q.\nall rules:\n%s", rule, strings.Join(searchRules, "\n"))
@@ -950,6 +951,7 @@ func (b baseTestingComponent) maybeBuildParamsFromDescription(desc string) (Test
 }
 
 func (b baseTestingComponent) buildParamsFromDescription(desc string) TestingBuildParams {
+	b.t.Helper()
 	p, searchedDescriptions := b.maybeBuildParamsFromDescription(desc)
 	if p.Rule == nil {
 		b.t.Fatalf("couldn't find description %q\nall descriptions:\n%s", desc, strings.Join(searchedDescriptions, "\n"))
@@ -983,6 +985,7 @@ func (b baseTestingComponent) maybeBuildParamsFromOutput(file string) (TestingBu
 }
 
 func (b baseTestingComponent) buildParamsFromOutput(file string) TestingBuildParams {
+	b.t.Helper()
 	p, searchedOutputs := b.maybeBuildParamsFromOutput(file)
 	if p.Rule == nil {
 		b.t.Fatalf("couldn't find output %q.\nall outputs:\n    %s\n",
@@ -1008,6 +1011,7 @@ func (b baseTestingComponent) MaybeRule(rule string) TestingBuildParams {
 
 // Rule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Panics if no rule is found.
 func (b baseTestingComponent) Rule(rule string) TestingBuildParams {
+	b.t.Helper()
 	return b.buildParamsFromRule(rule)
 }
 
@@ -1021,6 +1025,7 @@ func (b baseTestingComponent) MaybeDescription(desc string) TestingBuildParams {
 // Description finds a call to ctx.Build with BuildParams.Description set to a the given string.  Panics if no rule is
 // found.
 func (b baseTestingComponent) Description(desc string) TestingBuildParams {
+	b.t.Helper()
 	return b.buildParamsFromDescription(desc)
 }
 
@@ -1034,6 +1039,7 @@ func (b baseTestingComponent) MaybeOutput(file string) TestingBuildParams {
 // Output finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
 // value matches the provided string.  Panics if no rule is found.
 func (b baseTestingComponent) Output(file string) TestingBuildParams {
+	b.t.Helper()
 	return b.buildParamsFromOutput(file)
 }
 
@@ -1161,7 +1167,7 @@ func SetKatiEnabledForTests(config Config) {
 	config.katiEnabled = true
 }
 
-func AndroidMkEntriesForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) []AndroidMkEntries {
+func AndroidMkEntriesForTest(t *testing.T, ctx *TestContext, mod Module) []AndroidMkEntries {
 	t.Helper()
 	var p AndroidMkEntriesProvider
 	var ok bool
@@ -1170,15 +1176,15 @@ func AndroidMkEntriesForTest(t *testing.T, ctx *TestContext, mod blueprint.Modul
 	}
 
 	entriesList := p.AndroidMkEntries()
-	aconfigUpdateAndroidMkEntries(ctx, mod.(Module), &entriesList)
+	aconfigUpdateAndroidMkEntries(ctx, mod, &entriesList)
 	for i := range entriesList {
 		entriesList[i].fillInEntries(ctx, mod)
 	}
 	return entriesList
 }
 
-func AndroidMkInfoForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) *AndroidMkProviderInfo {
-	if runtime.GOOS == "darwin" && mod.(Module).base().Os() != Darwin {
+func AndroidMkInfoForTest(t *testing.T, ctx *TestContext, mod Module) *AndroidMkProviderInfo {
+	if runtime.GOOS == "darwin" && mod.base().Os() != Darwin {
 		// The AndroidMkInfo provider is not set in this case.
 		t.Skip("AndroidMkInfo provider is not set on darwin")
 	}
@@ -1190,18 +1196,19 @@ func AndroidMkInfoForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) 
 	}
 
 	info := OtherModuleProviderOrDefault(ctx, mod, AndroidMkInfoProvider)
-	aconfigUpdateAndroidMkInfos(ctx, mod.(Module), info)
-	info.PrimaryInfo.fillInEntries(ctx, mod)
+	aconfigUpdateAndroidMkInfos(ctx, mod, info)
+	commonInfo, _ := OtherModuleProvider(ctx, mod, CommonModuleInfoKey)
+	info.PrimaryInfo.fillInEntries(ctx, mod, &commonInfo)
 	if len(info.ExtraInfo) > 0 {
 		for _, ei := range info.ExtraInfo {
-			ei.fillInEntries(ctx, mod)
+			ei.fillInEntries(ctx, mod, &commonInfo)
 		}
 	}
 
 	return info
 }
 
-func AndroidMkDataForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) AndroidMkData {
+func AndroidMkDataForTest(t *testing.T, ctx *TestContext, mod Module) AndroidMkData {
 	t.Helper()
 	var p AndroidMkDataProvider
 	var ok bool
@@ -1210,7 +1217,7 @@ func AndroidMkDataForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) 
 	}
 	data := p.AndroidMk()
 	data.fillInData(ctx, mod)
-	aconfigUpdateAndroidMkData(ctx, mod.(Module), &data)
+	aconfigUpdateAndroidMkData(ctx, mod, &data)
 	return data
 }
 

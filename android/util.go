@@ -102,13 +102,6 @@ func JoinWithPrefixSuffixAndSeparator(strs []string, prefix, suffix, sep string)
 	return buf.String()
 }
 
-// SortedStringKeys returns the keys of the given map in the ascending order.
-//
-// Deprecated: Use SortedKeys instead.
-func SortedStringKeys[V any](m map[string]V) []string {
-	return SortedKeys(m)
-}
-
 // SortedKeys returns the keys of the given map in the ascending order.
 func SortedKeys[T cmp.Ordered, V any](m map[T]V) []T {
 	if len(m) == 0 {

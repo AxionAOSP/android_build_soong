@@ -196,7 +196,7 @@ func IsDepInSameApex(ctx BaseModuleContext, module, dep Module) bool {
 		return false
 	}
 
-	if !ctx.EqualModules(ctx.Module(), module) {
+	if !EqualModules(ctx.Module(), module) {
 		if moduleInfo, ok := OtherModuleProvider(ctx, module, DepInSameApexInfoProvider); ok {
 			if !moduleInfo.Checker.OutgoingDepIsInSameApex(depTag) {
 				return false
@@ -282,11 +282,8 @@ type ApexModule interface {
 	// check-platform-availability mutator in the apex package.
 	SetNotAvailableForPlatform()
 
-	// Returns nil (success) if this module should support the given sdk version. Returns an
-	// error if not. No default implementation is provided for this method. A module type
-	// implementing this interface should provide an implementation. A module supports an sdk
-	// version when the module's min_sdk_version is equal to or less than the given sdk version.
-	ShouldSupportSdkVersion(ctx BaseModuleContext, sdkVersion ApiLevel) error
+	// Returns the min sdk version that the module supports, .
+	MinSdkVersionSupported(ctx BaseModuleContext) ApiLevel
 
 	// Returns true if this module needs a unique variation per apex, effectively disabling the
 	// deduping. This is turned on when, for example if use_apex_name_macro is set so that each
@@ -649,6 +646,13 @@ type ApexBundleDepsInfoIntf interface {
 	FullListPath() Path
 }
 
+type ApexBundleDepsData struct {
+	Updatable    bool
+	FlatListPath Path
+}
+
+var ApexBundleDepsDataProvider = blueprint.NewProvider[ApexBundleDepsData]()
+
 func (d *ApexBundleDepsInfo) FlatListPath() Path {
 	return d.flatListPath
 }
@@ -729,22 +733,21 @@ func CheckMinSdkVersion(ctx ModuleContext, minSdkVersion ApiLevel, walk WalkPayl
 		if !IsDepInSameApex(ctx, from, to) {
 			return false
 		}
-		if m, ok := to.(ModuleWithMinSdkVersionCheck); ok {
-			// This dependency performs its own min_sdk_version check, just make sure it sets min_sdk_version
-			// to trigger the check.
-			if !m.MinSdkVersion(ctx).Specified() {
-				ctx.OtherModuleErrorf(m, "must set min_sdk_version")
+		if info, ok := OtherModuleProvider(ctx, to, CommonModuleInfoKey); ok && info.ModuleWithMinSdkVersionCheck {
+			if info.MinSdkVersion.ApiLevel == nil || !info.MinSdkVersion.ApiLevel.Specified() {
+				// This dependency performs its own min_sdk_version check, just make sure it sets min_sdk_version
+				// to trigger the check.
+				ctx.OtherModuleErrorf(to, "must set min_sdk_version")
 			}
 			return false
 		}
-		if err := to.ShouldSupportSdkVersion(ctx, minSdkVersion); err != nil {
-			toName := ctx.OtherModuleName(to)
+		if err := ShouldSupportSdkVersion(ctx, to, minSdkVersion); err != nil {
 			ctx.OtherModuleErrorf(to, "should support min_sdk_version(%v) for %q: %v."+
 				"\n\nDependency path: %s\n\n"+
 				"Consider adding 'min_sdk_version: %q' to %q",
 				minSdkVersion, ctx.ModuleName(), err.Error(),
 				ctx.GetPathString(false),
-				minSdkVersion, toName)
+				minSdkVersion, ctx.OtherModuleName(to))
 			return false
 		}
 		return true
@@ -755,6 +758,24 @@ type MinSdkVersionFromValueContext interface {
 	Config() Config
 	DeviceConfig() DeviceConfig
 	ModuleErrorContext
+}
+
+// Returns nil (success) if this module should support the given sdk version. Returns an
+// error if not. No default implementation is provided for this method. A module type
+// implementing this interface should provide an implementation. A module supports an sdk
+// version when the module's min_sdk_version is equal to or less than the given sdk version.
+func ShouldSupportSdkVersion(ctx BaseModuleContext, module Module, sdkVersion ApiLevel) error {
+	info, ok := OtherModuleProvider(ctx, module, CommonModuleInfoKey)
+	if !ok || info.MinSdkVersionSupported.IsNone() {
+		return fmt.Errorf("min_sdk_version is not specified")
+	}
+	minVer := info.MinSdkVersionSupported
+
+	if minVer.GreaterThan(sdkVersion) {
+		return fmt.Errorf("newer SDK(%v)", minVer)
+	}
+
+	return nil
 }
 
 // Construct ApiLevel object from min_sdk_version string value

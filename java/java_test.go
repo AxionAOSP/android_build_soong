@@ -110,7 +110,7 @@ func defaultModuleToPath(name string) string {
 	case strings.HasSuffix(name, ".jar"):
 		return name
 	default:
-		return filepath.Join("out", "soong", ".intermediates", defaultJavaDir, name, "android_common", "turbine-combined", name+".jar")
+		return filepath.Join("out", "soong", ".intermediates", defaultJavaDir, name, "android_common", "turbine", name+".jar")
 	}
 }
 
@@ -240,11 +240,6 @@ func TestSimple(t *testing.T) {
 			srcs: ["d.java"],
 		}`
 
-	frameworkTurbineCombinedJars := []string{
-		"out/soong/.intermediates/default/java/ext/android_common/turbine-combined/ext.jar",
-		"out/soong/.intermediates/default/java/framework/android_common/turbine-combined/framework.jar",
-	}
-
 	frameworkTurbineJars := []string{
 		"out/soong/.intermediates/default/java/ext/android_common/turbine/ext.jar",
 		"out/soong/.intermediates/default/java/framework/android_common/turbine/framework.jar",
@@ -268,43 +263,6 @@ func TestSimple(t *testing.T) {
 		{
 			name:           "normal",
 			preparer:       android.NullFixturePreparer,
-			fooJavacInputs: []string{"a.java"},
-			fooJavacClasspath: slices.Concat(
-				frameworkTurbineCombinedJars,
-				[]string{
-					"out/soong/.intermediates/bar/android_common/turbine-combined/bar.jar",
-					"out/soong/.intermediates/baz/android_common/turbine-combined/baz.jar",
-				},
-			),
-			fooCombinedInputs: []string{
-				"out/soong/.intermediates/foo/android_common/javac/foo.jar",
-				"out/soong/.intermediates/baz/android_common/combined/baz.jar",
-			},
-
-			fooHeaderCombinedInputs: []string{
-				"out/soong/.intermediates/foo/android_common/turbine/foo.jar",
-				"out/soong/.intermediates/baz/android_common/turbine-combined/baz.jar",
-			},
-
-			barJavacInputs: []string{"b.java"},
-			barJavacClasspath: slices.Concat(
-				frameworkTurbineCombinedJars,
-				[]string{
-					"out/soong/.intermediates/quz/android_common/turbine-combined/quz.jar",
-				},
-			),
-			barCombinedInputs: []string{
-				"out/soong/.intermediates/bar/android_common/javac/bar.jar",
-				"out/soong/.intermediates/quz/android_common/javac/quz.jar",
-			},
-			barHeaderCombinedInputs: []string{
-				"out/soong/.intermediates/bar/android_common/turbine/bar.jar",
-				"out/soong/.intermediates/quz/android_common/turbine-combined/quz.jar",
-			},
-		},
-		{
-			name:           "transitive classpath",
-			preparer:       PrepareForTestWithTransitiveClasspathEnabled,
 			fooJavacInputs: []string{"a.java"},
 			fooJavacClasspath: slices.Concat(
 				frameworkTurbineJars,
@@ -627,6 +585,29 @@ func TestTest(t *testing.T) {
 	}
 }
 
+func TestHostCommonData(t *testing.T) {
+	t.Parallel()
+	ctx, _ := testJava(t, `
+		java_library_host {
+			name: "host",
+			srcs: ["a.java"],
+		}
+
+		java_test {
+			name: "foo",
+			srcs: ["a.java"],
+			host_common_data: [":host"],
+		}
+	`)
+
+	foo := ctx.ModuleForTests(t, "foo", "android_common").Module().(*Test)
+	host := ctx.ModuleForTests(t, "host", ctx.Config().BuildOSCommonTarget.String()).Module().(*Library)
+
+	if g, w := foo.data.RelativeToTop().Strings(), []string{host.outputFile.RelativeToTop().String()}; !slices.Equal(g, w) {
+		t.Errorf("expected test data %q, got %q\n", w, g)
+	}
+}
+
 func TestHostBinaryNoJavaDebugInfoOverride(t *testing.T) {
 	t.Parallel()
 	bp := `
@@ -726,11 +707,11 @@ func TestPrebuilts(t *testing.T) {
 	javac := fooModule.Rule("javac")
 	combineJar := ctx.ModuleForTests(t, "foo", "android_common").Description("for javac")
 	barModule := ctx.ModuleForTests(t, "bar", "android_common")
-	barJar := barModule.Output("combined/bar.jar").Output
+	barJar := barModule.Output("local-combined/bar.jar").Output
 	bazModule := ctx.ModuleForTests(t, "baz", "android_common")
-	bazJar := bazModule.Output("combined/baz.jar").Output
+	bazJar := bazModule.Output("local-combined/baz.jar").Output
 	sdklibStubsJar := ctx.ModuleForTests(t, "sdklib.stubs", "android_common").
-		Output("combined/sdklib.stubs.jar").Output
+		Output("local-combined/sdklib.stubs.jar").Output
 
 	fooLibrary := fooModule.Module().(*Library)
 	assertDeepEquals(t, "foo unique sources incorrect",
@@ -858,7 +839,7 @@ func TestDefaults(t *testing.T) {
 		t.Errorf(`foo inputs %v != ["a.java"]`, javac.Inputs)
 	}
 
-	barTurbine := filepath.Join("out", "soong", ".intermediates", "bar", "android_common", "turbine-combined", "bar.jar")
+	barTurbine := filepath.Join("out", "soong", ".intermediates", "bar", "android_common", "turbine", "bar.jar")
 	if !strings.Contains(javac.Args["classpath"], barTurbine) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], barTurbine)
 	}
@@ -1047,7 +1028,7 @@ func TestIncludeSrcs(t *testing.T) {
 		t.Errorf("bar combined resource jars %v does not contain %q", w, g)
 	}
 
-	if g, w := barResCombined.Output.String(), bar.Inputs.Strings(); !inList(g, w) {
+	if g, w := barRes.Output.String(), bar.Inputs.Strings(); !inList(g, w) {
 		t.Errorf("bar combined jars %v does not contain %q", w, g)
 	}
 
@@ -1131,7 +1112,7 @@ func TestTurbine(t *testing.T) {
 
 	android.AssertPathsRelativeToTopEquals(t, "foo inputs", []string{"a.java"}, fooTurbine.Inputs)
 
-	fooHeaderJar := filepath.Join("out", "soong", ".intermediates", "foo", "android_common", "turbine-combined", "foo.jar")
+	fooHeaderJar := filepath.Join("out", "soong", ".intermediates", "foo", "android_common", "turbine", "foo.jar")
 	barTurbineJar := filepath.Join("out", "soong", ".intermediates", "bar", "android_common", "turbine", "bar.jar")
 	android.AssertStringDoesContain(t, "bar turbine classpath", barTurbine.Args["turbineFlags"], fooHeaderJar)
 	android.AssertStringDoesContain(t, "bar javac classpath", barJavac.Args["classpath"], fooHeaderJar)
@@ -1251,16 +1232,18 @@ func TestJavaImport(t *testing.T) {
 
 	source := ctx.ModuleForTests(t, "source_library", "android_common")
 	sourceJar := source.Output("javac/source_library.jar")
-	sourceHeaderJar := source.Output("turbine-combined/source_library.jar")
+	sourceHeaderJar := source.Output("turbine/source_library.jar")
+	sourceCombinedHeaderJar := source.Output("turbine-combined/source_library.jar")
 	sourceJavaInfo, _ := android.OtherModuleProvider(ctx, source.Module(), JavaInfoProvider)
 
 	// The source library produces separate implementation and header jars
 	android.AssertPathsRelativeToTopEquals(t, "source library implementation jar",
 		[]string{sourceJar.Output.String()}, sourceJavaInfo.ImplementationAndResourcesJars)
 	android.AssertPathsRelativeToTopEquals(t, "source library header jar",
-		[]string{sourceHeaderJar.Output.String()}, sourceJavaInfo.HeaderJars)
+		[]string{sourceCombinedHeaderJar.Output.String()}, sourceJavaInfo.HeaderJars)
 
 	importWithNoDeps := ctx.ModuleForTests(t, "import_with_no_deps", "android_common")
+	importWithNoDepsLocalJar := importWithNoDeps.Output("local-combined/import_with_no_deps.jar")
 	importWithNoDepsJar := importWithNoDeps.Output("combined/import_with_no_deps.jar")
 	importWithNoDepsJavaInfo, _ := android.OtherModuleProvider(ctx, importWithNoDeps.Module(), JavaInfoProvider)
 
@@ -1270,10 +1253,14 @@ func TestJavaImport(t *testing.T) {
 	android.AssertPathsRelativeToTopEquals(t, "import with no deps header jar",
 		[]string{importWithNoDepsJar.Output.String()}, importWithNoDepsJavaInfo.HeaderJars)
 	android.AssertPathsRelativeToTopEquals(t, "import with no deps combined inputs",
-		[]string{"no_deps.jar"}, importWithNoDepsJar.Inputs)
+		[]string{importWithNoDepsLocalJar.Output.String()}, importWithNoDepsJar.Inputs)
+	android.AssertPathsRelativeToTopEquals(t, "import with no deps local combined inputs",
+		[]string{"no_deps.jar"}, importWithNoDepsLocalJar.Inputs)
 
 	importWithSourceDeps := ctx.ModuleForTests(t, "import_with_source_deps", "android_common")
+	importWithSourceDepsLocalJar := importWithSourceDeps.Output("local-combined/import_with_source_deps.jar")
 	importWithSourceDepsJar := importWithSourceDeps.Output("combined/import_with_source_deps.jar")
+	importWithSourceDepsLocalHeaderJar := importWithSourceDeps.Output("local-combined/import_with_source_deps.jar")
 	importWithSourceDepsHeaderJar := importWithSourceDeps.Output("turbine-combined/import_with_source_deps.jar")
 	importWithSourceDepsJavaInfo, _ := android.OtherModuleProvider(ctx, importWithSourceDeps.Module(), JavaInfoProvider)
 
@@ -1283,11 +1270,16 @@ func TestJavaImport(t *testing.T) {
 	android.AssertPathsRelativeToTopEquals(t, "import with source deps header jar",
 		[]string{importWithSourceDepsHeaderJar.Output.String()}, importWithSourceDepsJavaInfo.HeaderJars)
 	android.AssertPathsRelativeToTopEquals(t, "import with source deps combined implementation jar inputs",
-		[]string{"source_deps.jar", sourceJar.Output.String()}, importWithSourceDepsJar.Inputs)
+		[]string{importWithSourceDepsLocalJar.Output.String(), sourceJar.Output.String()}, importWithSourceDepsJar.Inputs)
 	android.AssertPathsRelativeToTopEquals(t, "import with source deps combined header jar inputs",
-		[]string{"source_deps.jar", sourceHeaderJar.Output.String()}, importWithSourceDepsHeaderJar.Inputs)
+		[]string{importWithSourceDepsLocalHeaderJar.Output.String(), sourceHeaderJar.Output.String()}, importWithSourceDepsHeaderJar.Inputs)
+	android.AssertPathsRelativeToTopEquals(t, "import with source deps local combined implementation jar inputs",
+		[]string{"source_deps.jar"}, importWithSourceDepsLocalJar.Inputs)
+	android.AssertPathsRelativeToTopEquals(t, "import with source deps local combined header jar inputs",
+		[]string{"source_deps.jar"}, importWithSourceDepsLocalHeaderJar.Inputs)
 
 	importWithImportDeps := ctx.ModuleForTests(t, "import_with_import_deps", "android_common")
+	importWithImportDepsLocalJar := importWithImportDeps.Output("local-combined/import_with_import_deps.jar")
 	importWithImportDepsJar := importWithImportDeps.Output("combined/import_with_import_deps.jar")
 	importWithImportDepsJavaInfo, _ := android.OtherModuleProvider(ctx, importWithImportDeps.Module(), JavaInfoProvider)
 
@@ -1297,7 +1289,9 @@ func TestJavaImport(t *testing.T) {
 	android.AssertPathsRelativeToTopEquals(t, "import with import deps header jar",
 		[]string{importWithImportDepsJar.Output.String()}, importWithImportDepsJavaInfo.HeaderJars)
 	android.AssertPathsRelativeToTopEquals(t, "import with import deps combined implementation jar inputs",
-		[]string{"import_deps.jar", importWithNoDepsJar.Output.String()}, importWithImportDepsJar.Inputs)
+		[]string{importWithImportDepsLocalJar.Output.String(), importWithNoDepsLocalJar.Output.String()}, importWithImportDepsJar.Inputs)
+	android.AssertPathsRelativeToTopEquals(t, "import with import deps local combined implementation jar inputs",
+		[]string{"import_deps.jar"}, importWithImportDepsLocalJar.Inputs)
 }
 
 var compilerFlagsTestCases = []struct {
@@ -1364,6 +1358,7 @@ func TestCompilerFlags(t *testing.T) {
 
 // TODO(jungjw): Consider making this more robust by ignoring path order.
 func checkPatchModuleFlag(t *testing.T, ctx *android.TestContext, moduleName string, expected string) {
+	t.Helper()
 	variables := ctx.ModuleForTests(t, moduleName, "android_common").VariablesForTestsRelativeToTop()
 	flags := strings.Split(variables["javacFlags"], " ")
 	got := ""
@@ -3107,7 +3102,6 @@ func TestCoverage(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		PrepareForTestWithJavaDefaultModules,
 		prepareForTestWithFrameworkJacocoInstrumentation,
-		PrepareForTestWithTransitiveClasspathEnabled,
 	).RunTestWithBp(t, `
 		android_app {
 			name: "foo",

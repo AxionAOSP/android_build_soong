@@ -564,7 +564,15 @@ func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *a
 		})
 	}
 	if apiVersions != nil {
-		cmd.FlagWithArg("--current-version ", ctx.Config().PlatformSdkVersion().String())
+		// We are migrating from a single API level to major.minor
+		// versions and PlatformSdkVersionFull is not yet set in all
+		// release configs. If it is not set, fall back on the single
+		// API level.
+		if fullSdkVersion := ctx.Config().PlatformSdkVersionFull(); len(fullSdkVersion) > 0 {
+			cmd.FlagWithArg("--current-version ", fullSdkVersion)
+		} else {
+			cmd.FlagWithArg("--current-version ", ctx.Config().PlatformSdkVersion().String())
+		}
 		if ctx.Config().PlatformSdkVersion().String() != "36" || ctx.Config().PlatformSdkCodename() != "Baklava" {
 			cmd.FlagWithArg("--current-codename ", ctx.Config().PlatformSdkCodename())
 		}

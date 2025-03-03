@@ -426,6 +426,45 @@ func TestRustFFIExportedIncludes(t *testing.T) {
 	android.AssertStringDoesContain(t, "cFlags for lib module", libfooStatic.Args["cFlags"], " -Irust_includes ")
 }
 
+// Make sure cc_rustlibs_for_make has the expected behavior, and that
+// cc_library_static does as well.
+// This is here instead of cc/library_test.go because the test needs to
+// define a rust_ffi module which can't be done in soong-cc to avoid the
+// circular dependency.
+func TestCCRustlibsForMake(t *testing.T) {
+	t.Parallel()
+	result := testRust(t, `
+		rust_ffi_static {
+			name: "libbar",
+			srcs: ["foo.rs"],
+			crate_name: "bar",
+			export_include_dirs: ["rust_includes"],
+			host_supported: true,
+		}
+
+		cc_rustlibs_for_make {
+			name: "libmakerustlibs",
+			whole_static_libs: ["libbar"],
+		}
+
+		cc_library_static {
+			name: "libccstatic",
+			whole_static_libs: ["libbar"],
+		}
+	`)
+
+	libmakerustlibs := result.ModuleForTests(t, "libmakerustlibs", "android_arm64_armv8-a_static").MaybeRule("rustc")
+	libccstatic := result.ModuleForTests(t, "libccstatic", "android_arm64_armv8-a_static").MaybeRule("rustc")
+
+	if libmakerustlibs.Output == nil {
+		t.Errorf("cc_rustlibs_for_make is not generating a  Rust staticlib when it should")
+	}
+
+	if libccstatic.Output != nil {
+		t.Errorf("cc_library_static is generating a Rust staticlib when it should not")
+	}
+}
+
 func TestRustVersionScript(t *testing.T) {
 	ctx := testRust(t, `
 	rust_library {

@@ -727,11 +727,8 @@ func (g *Module) AndroidMk() android.AndroidMkData {
 var _ android.ApexModule = (*Module)(nil)
 
 // Implements android.ApexModule
-func (g *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
-	sdkVersion android.ApiLevel) error {
-	// Because generated outputs are checked by client modules(e.g. cc_library, ...)
-	// we can safely ignore the check here.
-	return nil
+func (m *Module) MinSdkVersionSupported(ctx android.BaseModuleContext) android.ApiLevel {
+	return android.MinApiLevel
 }
 
 func generatorFactory(taskGenerator taskFunc, props ...interface{}) *Module {

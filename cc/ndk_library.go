@@ -560,6 +560,10 @@ func (stub *stubDecorator) nativeCoverage() bool {
 	return false
 }
 
+func (stub *stubDecorator) defaultDistFiles() []android.Path {
+	return nil
+}
+
 // Returns the install path for unversioned NDK libraries (currently only static
 // libraries).
 func getUnversionedLibraryInstallPath(ctx ModuleContext) android.OutputPath {

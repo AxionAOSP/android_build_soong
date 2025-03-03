@@ -50,13 +50,6 @@ func TestKotlin(t *testing.T) {
 			srcs: ["d.kt"],
 		}`
 
-	kotlinStdlibTurbineCombinedJars := []string{
-		"out/soong/.intermediates/default/java/kotlin-stdlib/android_common/turbine-combined/kotlin-stdlib.jar",
-		"out/soong/.intermediates/default/java/kotlin-stdlib-jdk7/android_common/turbine-combined/kotlin-stdlib-jdk7.jar",
-		"out/soong/.intermediates/default/java/kotlin-stdlib-jdk8/android_common/turbine-combined/kotlin-stdlib-jdk8.jar",
-		"out/soong/.intermediates/default/java/kotlin-annotations/android_common/turbine-combined/kotlin-annotations.jar",
-	}
-
 	kotlinStdlibTurbineJars := []string{
 		"out/soong/.intermediates/default/java/kotlin-stdlib/android_common/turbine/kotlin-stdlib.jar",
 		"out/soong/.intermediates/default/java/kotlin-stdlib-jdk7/android_common/turbine/kotlin-stdlib-jdk7.jar",
@@ -71,19 +64,9 @@ func TestKotlin(t *testing.T) {
 		"out/soong/.intermediates/default/java/kotlin-annotations/android_common/javac/kotlin-annotations.jar",
 	}
 
-	bootclasspathTurbineCombinedJars := []string{
-		"out/soong/.intermediates/default/java/stable.core.platform.api.stubs/android_common/turbine-combined/stable.core.platform.api.stubs.jar",
-		"out/soong/.intermediates/default/java/core-lambda-stubs/android_common/turbine-combined/core-lambda-stubs.jar",
-	}
-
 	bootclasspathTurbineJars := []string{
 		"out/soong/.intermediates/default/java/stable.core.platform.api.stubs/android_common/turbine/stable.core.platform.api.stubs.jar",
 		"out/soong/.intermediates/default/java/core-lambda-stubs/android_common/turbine/core-lambda-stubs.jar",
-	}
-
-	frameworkTurbineCombinedJars := []string{
-		"out/soong/.intermediates/default/java/ext/android_common/turbine-combined/ext.jar",
-		"out/soong/.intermediates/default/java/framework/android_common/turbine-combined/framework.jar",
 	}
 
 	frameworkTurbineJars := []string{
@@ -109,68 +92,8 @@ func TestKotlin(t *testing.T) {
 		barHeaderCombinedInputs []string
 	}{
 		{
-			name:             "normal",
-			preparer:         android.NullFixturePreparer,
-			fooKotlincInputs: []string{"a.java", "b.kt"},
-			fooJavacInputs:   []string{"a.java"},
-			fooKotlincClasspath: slices.Concat(
-				bootclasspathTurbineCombinedJars,
-				frameworkTurbineCombinedJars,
-				[]string{"out/soong/.intermediates/quz/android_common/turbine-combined/quz.jar"},
-				kotlinStdlibTurbineCombinedJars,
-			),
-			fooJavacClasspath: slices.Concat(
-				[]string{"out/soong/.intermediates/foo/android_common/kotlin_headers/foo.jar"},
-				frameworkTurbineCombinedJars,
-				[]string{"out/soong/.intermediates/quz/android_common/turbine-combined/quz.jar"},
-				kotlinStdlibTurbineCombinedJars,
-			),
-			fooCombinedInputs: slices.Concat(
-				[]string{
-					"out/soong/.intermediates/foo/android_common/kotlin/foo.jar",
-					"out/soong/.intermediates/foo/android_common/javac/foo.jar",
-					"out/soong/.intermediates/quz/android_common/combined/quz.jar",
-				},
-				kotlinStdlibJavacJars,
-			),
-			fooHeaderCombinedInputs: slices.Concat(
-				[]string{
-					"out/soong/.intermediates/foo/android_common/turbine/foo.jar",
-					"out/soong/.intermediates/foo/android_common/kotlin_headers/foo.jar",
-					"out/soong/.intermediates/quz/android_common/turbine-combined/quz.jar",
-				},
-				kotlinStdlibTurbineCombinedJars,
-			),
-
-			barKotlincInputs: []string{"b.kt"},
-			barKotlincClasspath: slices.Concat(
-				bootclasspathTurbineCombinedJars,
-				frameworkTurbineCombinedJars,
-				[]string{
-					"out/soong/.intermediates/foo/android_common/turbine-combined/foo.jar",
-					"out/soong/.intermediates/baz/android_common/turbine-combined/baz.jar",
-				},
-				kotlinStdlibTurbineCombinedJars,
-			),
-			barCombinedInputs: slices.Concat(
-				[]string{
-					"out/soong/.intermediates/bar/android_common/kotlin/bar.jar",
-					"out/soong/.intermediates/baz/android_common/combined/baz.jar",
-				},
-				kotlinStdlibJavacJars,
-				[]string{},
-			),
-			barHeaderCombinedInputs: slices.Concat(
-				[]string{
-					"out/soong/.intermediates/bar/android_common/kotlin_headers/bar.jar",
-					"out/soong/.intermediates/baz/android_common/turbine-combined/baz.jar",
-				},
-				kotlinStdlibTurbineCombinedJars,
-			),
-		},
-		{
 			name:             "transitive classpath",
-			preparer:         PrepareForTestWithTransitiveClasspathEnabled,
+			preparer:         android.NullFixturePreparer,
 			fooKotlincInputs: []string{"a.java", "b.kt"},
 			fooJavacInputs:   []string{"a.java"},
 			fooKotlincClasspath: slices.Concat(

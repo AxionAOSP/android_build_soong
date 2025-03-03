@@ -339,7 +339,7 @@ func TestSyspropLibrary(t *testing.T) {
 
 	// Java modules linking against system API should use public stub
 	javaSystemApiClient := result.ModuleForTests(t, "java-platform", "android_common").Rule("javac")
-	syspropPlatformPublic := result.ModuleForTests(t, "sysprop-platform_public", "android_common").Description("for turbine")
+	syspropPlatformPublic := result.ModuleForTests(t, "sysprop-platform_public", "android_common").Description("turbine")
 	if g, w := javaSystemApiClient.Implicits.Strings(), syspropPlatformPublic.Output.String(); !android.InList(w, g) {
 		t.Errorf("system api client should use public stub %q, got %q", w, g)
 	}

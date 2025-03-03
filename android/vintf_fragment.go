@@ -14,6 +14,8 @@
 
 package android
 
+import "github.com/google/blueprint"
+
 type vintfFragmentProperties struct {
 	// Vintf fragment XML file.
 	Src string `android:"path"`
@@ -36,6 +38,12 @@ func init() {
 func registerVintfFragmentComponents(ctx RegistrationContext) {
 	ctx.RegisterModuleType("vintf_fragment", vintfLibraryFactory)
 }
+
+type VintfFragmentInfo struct {
+	OutputFile Path
+}
+
+var VintfFragmentInfoProvider = blueprint.NewProvider[VintfFragmentInfo]()
 
 // vintf_fragment module processes vintf fragment file and installs under etc/vintf/manifest.
 // Vintf fragment files formerly listed in vintf_fragment property would be transformed into
@@ -68,6 +76,10 @@ func (m *VintfFragmentModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	m.outputFilePath = processedVintfFragment
 
 	ctx.InstallFile(m.installDirPath, processedVintfFragment.Base(), processedVintfFragment)
+
+	SetProvider(ctx, VintfFragmentInfoProvider, VintfFragmentInfo{
+		OutputFile: m.OutputFile(),
+	})
 }
 
 func (m *VintfFragmentModule) OutputFile() Path {
@@ -91,7 +103,6 @@ func (m *VintfFragmentModule) AndroidMkEntries() []AndroidMkEntries {
 var _ ApexModule = (*VintfFragmentModule)(nil)
 
 // Implements android.ApexModule
-func (m *VintfFragmentModule) ShouldSupportSdkVersion(ctx BaseModuleContext, sdkVersion ApiLevel) error {
-	// VintfFragmetModule is independent from the SDK version.
-	return nil
+func (m *VintfFragmentModule) MinSdkVersionSupported(ctx BaseModuleContext) ApiLevel {
+	return MinApiLevel
 }

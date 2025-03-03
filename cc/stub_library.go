@@ -43,9 +43,9 @@ func IsStubTarget(info *LinkableInfo) bool {
 }
 
 // Get target file name to be installed from this module
-func getInstalledFileName(ctx android.SingletonContext, m LinkableInterface) string {
+func getInstalledFileName(ctx android.SingletonContext, m android.ModuleProxy) string {
 	for _, ps := range android.OtherModuleProviderOrDefault(
-		ctx, m.Module(), android.InstallFilesProvider).PackagingSpecs {
+		ctx, m, android.InstallFilesProvider).PackagingSpecs {
 		if name := ps.FileName(); name != "" {
 			return name
 		}
@@ -57,18 +57,18 @@ func (s *stubLibraries) GenerateBuildActions(ctx android.SingletonContext) {
 	// Visit all generated soong modules and store stub library file names.
 	stubLibraryMap := make(map[string]bool)
 	vendorStubLibraryMap := make(map[string]bool)
-	ctx.VisitAllModules(func(module android.Module) {
-		if m, ok := module.(VersionedLinkableInterface); ok {
-			if IsStubTarget(android.OtherModuleProviderOrDefault(ctx, m, LinkableInfoProvider)) {
-				if name := getInstalledFileName(ctx, m); name != "" {
+	ctx.VisitAllModuleProxies(func(module android.ModuleProxy) {
+		if linkableInfo, ok := android.OtherModuleProvider(ctx, module, LinkableInfoProvider); ok {
+			if IsStubTarget(linkableInfo) {
+				if name := getInstalledFileName(ctx, module); name != "" {
 					stubLibraryMap[name] = true
-					if m.InVendor() {
+					if linkableInfo.InVendor {
 						vendorStubLibraryMap[name] = true
 					}
 				}
 			}
-			if m.CcLibraryInterface() && android.IsModulePreferred(m) {
-				if p := m.VersionedInterface().GetAPIListCoverageXMLPath().String(); p != "" {
+			if linkableInfo.CcLibraryInterface && android.IsModulePreferredProxy(ctx, module) {
+				if p := linkableInfo.APIListCoverageXMLPath.String(); p != "" {
 					s.apiListCoverageXmlPaths = append(s.apiListCoverageXmlPaths, p)
 				}
 			}

@@ -1117,11 +1117,18 @@ func (c *configImpl) ApiSurfacesOutDir() string {
 func (c *configImpl) PrebuiltOS() string {
 	switch runtime.GOOS {
 	case "linux":
-		return "linux-x86"
+		switch runtime.GOARCH {
+		case "amd64":
+			return "linux-x86"
+		case "arm64":
+			return "linux-arm64"
+		default:
+			panic(fmt.Errorf("Unknown GOARCH %s", runtime.GOARCH))
+		}
 	case "darwin":
 		return "darwin-x86"
 	default:
-		panic("Unknown GOOS")
+		panic(fmt.Errorf("Unknown GOOS %s", runtime.GOOS))
 	}
 }
 
@@ -1711,13 +1718,7 @@ func (c *configImpl) hostCrossOut() string {
 }
 
 func (c *configImpl) HostPrebuiltTag() string {
-	if runtime.GOOS == "linux" {
-		return "linux-x86"
-	} else if runtime.GOOS == "darwin" {
-		return "darwin-x86"
-	} else {
-		panic("Unsupported OS")
-	}
+	return c.PrebuiltOS()
 }
 
 func (c *configImpl) KatiBin() string {

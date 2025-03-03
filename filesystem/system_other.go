@@ -23,6 +23,12 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+var (
+	systemOtherPropFileTweaks = pctx.AndroidStaticRule("system_other_prop_file_tweaks", blueprint.RuleParams{
+		Command: `rm -rf $out && sed -e 's@^mount_point=/$$@mount_point=system_other@g' -e 's@^partition_name=system$$@partition_name=system_other@g' $in > $out`,
+	})
+)
+
 type SystemOtherImageProperties struct {
 	// The system_other image always requires a reference to the system image. The system_other
 	// partition gets built into the system partition's "b" slot in a/b partition builds. Thus, it
@@ -123,12 +129,23 @@ func (m *systemOtherImage) GenerateAndroidBuildActions(ctx android.ModuleContext
 	fec := ctx.Config().HostToolPath(ctx, "fec")
 	pathToolDirs := []string{filepath.Dir(fec.String())}
 
+	// In make, the exact same prop file is used for both system and system_other. However, I
+	// believe make goes through a different build_image code path that is based on the name of
+	// the output file. So it sees the output file is named system_other.img and makes some changes.
+	// We don't use that codepath, so make the changes manually to the prop file.
+	propFile := android.PathForModuleOut(ctx, "prop")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   systemOtherPropFileTweaks,
+		Input:  systemInfo.BuildImagePropFile,
+		Output: propFile,
+	})
+
 	builder = android.NewRuleBuilder(pctx, ctx)
 	builder.Command().
 		Textf("PATH=%s:$PATH", strings.Join(pathToolDirs, ":")).
 		BuiltTool("build_image").
 		Text(stagingDir.String()). // input directory
-		Input(systemInfo.BuildImagePropFile).
+		Input(propFile).
 		Implicits(systemInfo.BuildImagePropFileDeps).
 		Implicit(fec).
 		Implicit(stagingDirTimestamp).
@@ -140,7 +157,7 @@ func (m *systemOtherImage) GenerateAndroidBuildActions(ctx android.ModuleContext
 	// Create a hermetic system_other.img with pinned timestamps
 	builder = android.NewRuleBuilder(pctx, ctx)
 	outputHermetic := android.PathForModuleOut(ctx, "for_target_files", "system_other.img")
-	outputHermeticPropFile := m.propFileForHermeticImg(ctx, builder, systemInfo.BuildImagePropFile)
+	outputHermeticPropFile := m.propFileForHermeticImg(ctx, builder, propFile)
 	builder.Command().
 		Textf("PATH=%s:$PATH", strings.Join(pathToolDirs, ":")).
 		BuiltTool("build_image").
@@ -155,15 +172,30 @@ func (m *systemOtherImage) GenerateAndroidBuildActions(ctx android.ModuleContext
 	builder.Build("build_system_other_hermetic", "build system other")
 
 	fsInfo := FilesystemInfo{
-		Output:         output,
-		OutputHermetic: outputHermetic,
-		RootDir:        stagingDir,
+		Output:           output,
+		OutputHermetic:   outputHermetic,
+		RootDir:          stagingDir,
+		FilesystemConfig: m.generateFilesystemConfig(ctx, stagingDir, stagingDirTimestamp),
 	}
 
 	android.SetProvider(ctx, FilesystemProvider, fsInfo)
 
 	ctx.SetOutputFiles(android.Paths{output}, "")
 	ctx.CheckbuildFile(output)
+}
+
+func (s *systemOtherImage) generateFilesystemConfig(ctx android.ModuleContext, stagingDir, stagingDirTimestamp android.Path) android.Path {
+	out := android.PathForModuleOut(ctx, "filesystem_config.txt")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   fsConfigRule,
+		Input:  stagingDirTimestamp, // assemble the staging directory
+		Output: out,
+		Args: map[string]string{
+			"rootDir": stagingDir.String(),
+			"prefix":  "system/",
+		},
+	})
+	return out
 }
 
 func (f *systemOtherImage) propFileForHermeticImg(ctx android.ModuleContext, builder *android.RuleBuilder, inputPropFile android.Path) android.Path {

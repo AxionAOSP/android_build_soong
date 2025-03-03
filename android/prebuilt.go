@@ -357,6 +357,17 @@ func IsModulePreferred(module Module) bool {
 	return true
 }
 
+func IsModulePreferredProxy(ctx OtherModuleProviderContext, module ModuleProxy) bool {
+	if OtherModuleProviderOrDefault(ctx, module, CommonModuleInfoKey).ReplacedByPrebuilt {
+		// A source module that has been replaced by a prebuilt counterpart.
+		return false
+	}
+	if p, ok := OtherModuleProvider(ctx, module, PrebuiltModuleInfoProvider); ok {
+		return p.UsePrebuilt
+	}
+	return true
+}
+
 // IsModulePrebuilt returns true if the module implements PrebuiltInterface and
 // has been initialized as a prebuilt and so returns a non-nil value from the
 // PrebuiltInterface.Prebuilt() method.
@@ -401,7 +412,7 @@ func PrebuiltGetPreferred(ctx BaseModuleContext, module Module) Module {
 		if prebuiltMod != nil {
 			return false
 		}
-		if ctx.EqualModules(parent, ctx.Module()) {
+		if EqualModules(parent, ctx.Module()) {
 			// First level: Only recurse if the module is found as a direct dependency.
 			sourceModDepFound = child == module
 			return sourceModDepFound

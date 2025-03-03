@@ -41,6 +41,10 @@ func registerBootclasspathFragmentBuildComponents(ctx android.RegistrationContex
 	ctx.RegisterModuleType("prebuilt_bootclasspath_fragment", prebuiltBootclasspathFragmentFactory)
 }
 
+type BootclasspathFragmentInfo struct{}
+
+var BootclasspathFragmentInfoProvider = blueprint.NewProvider[BootclasspathFragmentInfo]()
+
 // BootclasspathFragmentSdkMemberType is the member type used to add bootclasspath_fragments to
 // the SDK snapshot. It is exported for use by apex.
 var BootclasspathFragmentSdkMemberType = &bootclasspathFragmentMemberType{
@@ -252,6 +256,8 @@ type BootclasspathFragmentModule struct {
 	profilePathErr error
 }
 
+var _ android.ApexModule = (*BootclasspathFragmentModule)(nil)
+
 // commonBootclasspathFragment defines the methods that are implemented by both source and prebuilt
 // bootclasspath fragment modules.
 type commonBootclasspathFragment interface {
@@ -454,8 +460,8 @@ func (b BootclasspathFragmentDepInSameApexChecker) OutgoingDepIsInSameApex(tag b
 	panic(fmt.Errorf("boot_image module should not have a dependency tag %s", android.PrettyPrintTag(tag)))
 }
 
-func (b *BootclasspathFragmentModule) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion android.ApiLevel) error {
-	return nil
+func (m *BootclasspathFragmentModule) MinSdkVersionSupported(ctx android.BaseModuleContext) android.ApiLevel {
+	return android.MinApiLevel
 }
 
 // ComponentDepsMutator adds dependencies onto modules before any prebuilt modules without a
@@ -555,6 +561,8 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 	if !ctx.IsFinalModule(ctx.Module()) {
 		b.HideFromMake()
 	}
+
+	android.SetProvider(ctx, BootclasspathFragmentInfoProvider, BootclasspathFragmentInfo{})
 }
 
 // getProfileProviderApex returns the name of the apex that provides a boot image profile, or an

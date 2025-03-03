@@ -72,8 +72,8 @@ func TestJavaFuzz(t *testing.T) {
 	}
 
 	baz := result.ModuleForTests(t, "baz", osCommonTarget).Rule("javac").Output.String()
-	barOut := filepath.Join("out", "soong", ".intermediates", "bar", osCommonTarget, "javac-header", "bar.jar")
-	bazOut := filepath.Join("out", "soong", ".intermediates", "baz", osCommonTarget, "javac-header", "baz.jar")
+	barOut := filepath.Join("out", "soong", ".intermediates", "bar", osCommonTarget, "local-javac-header", "bar.jar")
+	bazOut := filepath.Join("out", "soong", ".intermediates", "baz", osCommonTarget, "local-javac-header", "baz.jar")
 
 	android.AssertStringDoesContain(t, "foo classpath", javac.Args["classpath"], barOut)
 	android.AssertStringDoesContain(t, "foo classpath", javac.Args["classpath"], bazOut)

@@ -60,6 +60,12 @@ func registerBpfBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("bpf", BpfFactory)
 }
 
+type BpfInfo struct {
+	SubDir string
+}
+
+var BpfInfoProvider = blueprint.NewProvider[BpfInfo]()
+
 var PrepareForTestWithBpf = android.FixtureRegisterWithContext(registerBpfBuildComponents)
 
 // BpfModule interface is used by the apex package to gather information from a bpf module.
@@ -229,6 +235,10 @@ func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	for _, obj := range bpf.objs {
 		ctx.PackageFile(installDir, obj.Base(), obj)
 	}
+
+	android.SetProvider(ctx, BpfInfoProvider, BpfInfo{
+		SubDir: bpf.SubDir(),
+	})
 
 	ctx.SetOutputFiles(bpf.objs, "")
 }

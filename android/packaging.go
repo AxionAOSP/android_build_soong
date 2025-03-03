@@ -72,6 +72,9 @@ type PackagingSpec struct {
 	// tools that want to interact with these files outside of the build. You should not use it
 	// inside of the build. Will be nil if this module doesn't require a "full install".
 	fullInstallPath InstallPath
+
+	// String representation of the variation of the module where this packaging spec is output of
+	variation string
 }
 
 type packagingSpecGob struct {
@@ -86,6 +89,15 @@ type packagingSpecGob struct {
 	ArchType              ArchType
 	Overrides             []string
 	Owner                 string
+	Variation             string
+}
+
+func (p *PackagingSpec) Owner() string {
+	return p.owner
+}
+
+func (p *PackagingSpec) Variation() string {
+	return p.variation
 }
 
 func (p *PackagingSpec) ToGob() *packagingSpecGob {
@@ -101,6 +113,7 @@ func (p *PackagingSpec) ToGob() *packagingSpecGob {
 		ArchType:              p.archType,
 		Overrides:             p.overrides.ToSlice(),
 		Owner:                 p.owner,
+		Variation:             p.variation,
 	}
 }
 
@@ -116,6 +129,7 @@ func (p *PackagingSpec) FromGob(data *packagingSpecGob) {
 	p.archType = data.ArchType
 	p.overrides = uniquelist.Make(data.Overrides)
 	p.owner = data.Owner
+	p.variation = data.Variation
 }
 
 func (p *PackagingSpec) GobEncode() ([]byte, error) {
@@ -200,6 +214,11 @@ func (p *PackagingSpec) RequiresFullInstall() bool {
 // The source file to be copied to the FullInstallPath. Do not use, for the soong-only migration.
 func (p *PackagingSpec) SrcPath() Path {
 	return p.srcPath
+}
+
+// The symlink target of the PackagingSpec. Do not use, for the soong-only migration.
+func (p *PackagingSpec) SymlinkTarget() string {
+	return p.symlinkTarget
 }
 
 type PackageModule interface {

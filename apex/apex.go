@@ -82,10 +82,6 @@ type apexBundleProperties struct {
 	// /system/sepolicy/apex/<module_name>_file_contexts.
 	File_contexts *string `android:"path"`
 
-	// By default, file_contexts is amended by force-labelling / and /apex_manifest.pb as system_file
-	// to avoid mistakes. When set as true, no force-labelling.
-	Use_file_contexts_as_is *bool
-
 	// Path to the canned fs config file for customizing file's
 	// uid/gid/mod/capabilities. The content of this file is appended to the
 	// default config, so that the custom entries are preferred. The format is
@@ -624,7 +620,8 @@ type apexFile struct {
 }
 
 // TODO(jiyong): shorten the arglist using an option struct
-func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, androidMkModuleName string, installDir string, class apexFileClass, module android.Module) apexFile {
+func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, androidMkModuleName string,
+	installDir string, class apexFileClass, module android.Module) apexFile {
 	ret := apexFile{
 		builtFile:           builtFile,
 		installDir:          installDir,
@@ -1375,24 +1372,29 @@ func (a *apexBundle) AddSanitizerDependencies(ctx android.BottomUpMutatorContext
 	}
 }
 
+func setDirInApexForNativeBridge(commonInfo *android.CommonModuleInfo, dir *string) {
+	if commonInfo.Target.NativeBridge == android.NativeBridgeEnabled {
+		*dir = filepath.Join(*dir, commonInfo.Target.NativeBridgeRelativePath)
+	}
+}
+
 // apexFileFor<Type> functions below create an apexFile struct for a given Soong module. The
 // returned apexFile saves information about the Soong module that will be used for creating the
 // build rules.
-func apexFileForNativeLibrary(ctx android.BaseModuleContext, ccMod cc.VersionedLinkableInterface, handleSpecialLibs bool) apexFile {
+func apexFileForNativeLibrary(ctx android.BaseModuleContext, module android.Module,
+	commonInfo *android.CommonModuleInfo, ccMod *cc.LinkableInfo, handleSpecialLibs bool) apexFile {
 	// Decide the APEX-local directory by the multilib of the library In the future, we may
 	// query this to the module.
 	// TODO(jiyong): use the new PackagingSpec
 	var dirInApex string
-	switch ccMod.Multilib() {
+	switch ccMod.Multilib {
 	case "lib32":
 		dirInApex = "lib"
 	case "lib64":
 		dirInApex = "lib64"
 	}
-	if ccMod.Target().NativeBridge == android.NativeBridgeEnabled {
-		dirInApex = filepath.Join(dirInApex, ccMod.Target().NativeBridgeRelativePath)
-	}
-	if handleSpecialLibs && cc.InstallToBootstrap(ccMod.BaseModuleName(), ctx.Config()) {
+	setDirInApexForNativeBridge(commonInfo, &dirInApex)
+	if handleSpecialLibs && cc.InstallToBootstrap(commonInfo.BaseModuleName, ctx.Config()) {
 		// Special case for Bionic libs and other libs installed with them. This is to
 		// prevent those libs from being included in the search path
 		// /apex/com.android.runtime/${LIB}. This exclusion is required because those libs
@@ -1407,66 +1409,68 @@ func apexFileForNativeLibrary(ctx android.BaseModuleContext, ccMod cc.VersionedL
 	// This needs to go after the runtime APEX handling because otherwise we would get
 	// weird paths like lib64/rel_install_path/bionic rather than
 	// lib64/bionic/rel_install_path.
-	dirInApex = filepath.Join(dirInApex, ccMod.RelativeInstallPath())
+	dirInApex = filepath.Join(dirInApex, ccMod.RelativeInstallPath)
 
-	fileToCopy := android.OutputFileForModule(ctx, ccMod, "")
-	androidMkModuleName := ccMod.BaseModuleName() + ccMod.SubName()
-	return newApexFile(ctx, fileToCopy, androidMkModuleName, dirInApex, nativeSharedLib, ccMod)
+	fileToCopy := android.OutputFileForModule(ctx, module, "")
+	androidMkModuleName := commonInfo.BaseModuleName + ccMod.SubName
+	return newApexFile(ctx, fileToCopy, androidMkModuleName, dirInApex, nativeSharedLib, module)
 }
 
-func apexFileForExecutable(ctx android.BaseModuleContext, cc *cc.Module) apexFile {
+func apexFileForExecutable(ctx android.BaseModuleContext, module android.Module,
+	commonInfo *android.CommonModuleInfo, ccInfo *cc.CcInfo) apexFile {
+	linkableInfo := android.OtherModuleProviderOrDefault(ctx, module, cc.LinkableInfoProvider)
 	dirInApex := "bin"
-	if cc.Target().NativeBridge == android.NativeBridgeEnabled {
-		dirInApex = filepath.Join(dirInApex, cc.Target().NativeBridgeRelativePath)
-	}
-	dirInApex = filepath.Join(dirInApex, cc.RelativeInstallPath())
-	fileToCopy := android.OutputFileForModule(ctx, cc, "")
-	androidMkModuleName := cc.BaseModuleName() + cc.Properties.SubName
-	af := newApexFile(ctx, fileToCopy, androidMkModuleName, dirInApex, nativeExecutable, cc)
-	af.symlinks = cc.Symlinks()
-	af.dataPaths = cc.DataPaths()
+	setDirInApexForNativeBridge(commonInfo, &dirInApex)
+	dirInApex = filepath.Join(dirInApex, linkableInfo.RelativeInstallPath)
+	fileToCopy := android.OutputFileForModule(ctx, module, "")
+	androidMkModuleName := commonInfo.BaseModuleName + linkableInfo.SubName
+	af := newApexFile(ctx, fileToCopy, androidMkModuleName, dirInApex, nativeExecutable, module)
+	af.symlinks = linkableInfo.Symlinks
+	af.dataPaths = ccInfo.DataPaths
 	return af
 }
 
-func apexFileForRustExecutable(ctx android.BaseModuleContext, rustm *rust.Module) apexFile {
+func apexFileForRustExecutable(ctx android.BaseModuleContext, module android.Module,
+	commonInfo *android.CommonModuleInfo) apexFile {
+	linkableInfo := android.OtherModuleProviderOrDefault(ctx, module, cc.LinkableInfoProvider)
 	dirInApex := "bin"
-	if rustm.Target().NativeBridge == android.NativeBridgeEnabled {
-		dirInApex = filepath.Join(dirInApex, rustm.Target().NativeBridgeRelativePath)
-	}
-	dirInApex = filepath.Join(dirInApex, rustm.RelativeInstallPath())
-	fileToCopy := android.OutputFileForModule(ctx, rustm, "")
-	androidMkModuleName := rustm.BaseModuleName() + rustm.Properties.SubName
-	af := newApexFile(ctx, fileToCopy, androidMkModuleName, dirInApex, nativeExecutable, rustm)
+	setDirInApexForNativeBridge(commonInfo, &dirInApex)
+	dirInApex = filepath.Join(dirInApex, linkableInfo.RelativeInstallPath)
+	fileToCopy := android.OutputFileForModule(ctx, module, "")
+	androidMkModuleName := commonInfo.BaseModuleName + linkableInfo.SubName
+	af := newApexFile(ctx, fileToCopy, androidMkModuleName, dirInApex, nativeExecutable, module)
 	return af
 }
 
-func apexFileForShBinary(ctx android.BaseModuleContext, sh *sh.ShBinary) apexFile {
-	dirInApex := filepath.Join("bin", sh.SubDir())
-	if sh.Target().NativeBridge == android.NativeBridgeEnabled {
-		dirInApex = filepath.Join(dirInApex, sh.Target().NativeBridgeRelativePath)
-	}
-	fileToCopy := sh.OutputFile()
-	af := newApexFile(ctx, fileToCopy, sh.BaseModuleName(), dirInApex, shBinary, sh)
-	af.symlinks = sh.Symlinks()
+func apexFileForShBinary(ctx android.BaseModuleContext, module android.Module,
+	commonInfo *android.CommonModuleInfo, sh *sh.ShBinaryInfo) apexFile {
+	dirInApex := filepath.Join("bin", sh.SubDir)
+	setDirInApexForNativeBridge(commonInfo, &dirInApex)
+	fileToCopy := sh.OutputFile
+	af := newApexFile(ctx, fileToCopy, commonInfo.BaseModuleName, dirInApex, shBinary, module)
+	af.symlinks = sh.Symlinks
 	return af
 }
 
-func apexFileForPrebuiltEtc(ctx android.BaseModuleContext, prebuilt prebuilt_etc.PrebuiltEtcModule, outputFile android.Path) apexFile {
-	dirInApex := filepath.Join(prebuilt.BaseDir(), prebuilt.SubDir())
+func apexFileForPrebuiltEtc(ctx android.BaseModuleContext, module android.Module,
+	prebuilt *prebuilt_etc.PrebuiltEtcInfo, outputFile android.Path) apexFile {
+	dirInApex := filepath.Join(prebuilt.BaseDir, prebuilt.SubDir)
 	makeModuleName := strings.ReplaceAll(filepath.Join(dirInApex, outputFile.Base()), "/", "_")
-	return newApexFile(ctx, outputFile, makeModuleName, dirInApex, etc, prebuilt)
+	return newApexFile(ctx, outputFile, makeModuleName, dirInApex, etc, module)
 }
 
-func apexFileForCompatConfig(ctx android.BaseModuleContext, config java.PlatformCompatConfigIntf, depName string) apexFile {
-	dirInApex := filepath.Join("etc", config.SubDir())
-	fileToCopy := config.CompatConfig()
-	return newApexFile(ctx, fileToCopy, depName, dirInApex, etc, config)
+func apexFileForCompatConfig(ctx android.BaseModuleContext, module android.Module,
+	config *java.PlatformCompatConfigInfo, depName string) apexFile {
+	dirInApex := filepath.Join("etc", config.SubDir)
+	fileToCopy := config.CompatConfig
+	return newApexFile(ctx, fileToCopy, depName, dirInApex, etc, module)
 }
 
-func apexFileForVintfFragment(ctx android.BaseModuleContext, vintfFragment *android.VintfFragmentModule) apexFile {
+func apexFileForVintfFragment(ctx android.BaseModuleContext, module android.Module,
+	commonInfo *android.CommonModuleInfo, vf *android.VintfFragmentInfo) apexFile {
 	dirInApex := filepath.Join("etc", "vintf")
 
-	return newApexFile(ctx, vintfFragment.OutputFile(), vintfFragment.BaseModuleName(), dirInApex, etc, vintfFragment)
+	return newApexFile(ctx, vf.OutputFile, commonInfo.BaseModuleName, dirInApex, etc, module)
 }
 
 // javaModule is an interface to handle all Java modules (java_library, dex_import, etc) in the same
@@ -1486,59 +1490,41 @@ var _ javaModule = (*java.DexImport)(nil)
 var _ javaModule = (*java.SdkLibraryImport)(nil)
 
 // apexFileForJavaModule creates an apexFile for a java module's dex implementation jar.
-func apexFileForJavaModule(ctx android.ModuleContext, module javaModule) apexFile {
-	return apexFileForJavaModuleWithFile(ctx, module, module.DexJarBuildPath(ctx).PathOrNil())
+func apexFileForJavaModule(ctx android.ModuleContext, module android.Module, javaInfo *java.JavaInfo) apexFile {
+	return apexFileForJavaModuleWithFile(ctx, module, javaInfo, javaInfo.DexJarBuildPath.PathOrNil())
 }
 
 // apexFileForJavaModuleWithFile creates an apexFile for a java module with the supplied file.
-func apexFileForJavaModuleWithFile(ctx android.ModuleContext, module javaModule, dexImplementationJar android.Path) apexFile {
+func apexFileForJavaModuleWithFile(ctx android.ModuleContext, module android.Module,
+	javaInfo *java.JavaInfo, dexImplementationJar android.Path) apexFile {
 	dirInApex := "javalib"
-	af := newApexFile(ctx, dexImplementationJar, module.BaseModuleName(), dirInApex, javaSharedLib, module)
-	af.jacocoReportClassesFile = module.JacocoReportClassesFile()
+	commonInfo := android.OtherModuleProviderOrDefault(ctx, module, android.CommonModuleInfoKey)
+	af := newApexFile(ctx, dexImplementationJar, commonInfo.BaseModuleName, dirInApex, javaSharedLib, module)
+	af.jacocoReportClassesFile = javaInfo.JacocoReportClassesFile
 	if lintInfo, ok := android.OtherModuleProvider(ctx, module, java.LintProvider); ok {
 		af.lintInfo = lintInfo
 	}
-	af.customStem = module.Stem() + ".jar"
+	af.customStem = javaInfo.Stem + ".jar"
 	// Collect any system server dex jars and dexpreopt artifacts for installation alongside the apex.
 	// TODO: b/338641779 - Remove special casing of sdkLibrary once bcpf and sscpf depends
 	// on the implementation library
-	if sdkLib, ok := module.(*java.SdkLibrary); ok {
-		af.systemServerDexpreoptInstalls = append(af.systemServerDexpreoptInstalls, sdkLib.ApexSystemServerDexpreoptInstalls()...)
-		af.systemServerDexJars = append(af.systemServerDexJars, sdkLib.ApexSystemServerDexJars()...)
-	} else if dexpreopter, ok := module.(java.DexpreopterInterface); ok {
-		af.systemServerDexpreoptInstalls = append(af.systemServerDexpreoptInstalls, dexpreopter.ApexSystemServerDexpreoptInstalls()...)
-		af.systemServerDexJars = append(af.systemServerDexJars, dexpreopter.ApexSystemServerDexJars()...)
+	if javaInfo.DexpreopterInfo != nil {
+		af.systemServerDexpreoptInstalls = append(af.systemServerDexpreoptInstalls, javaInfo.DexpreopterInfo.ApexSystemServerDexpreoptInstalls...)
+		af.systemServerDexJars = append(af.systemServerDexJars, javaInfo.DexpreopterInfo.ApexSystemServerDexJars...)
 	}
 	return af
 }
 
-func apexFileForJavaModuleProfile(ctx android.BaseModuleContext, module javaModule) *apexFile {
-	if dexpreopter, ok := module.(java.DexpreopterInterface); ok {
-		if profilePathOnHost := dexpreopter.OutputProfilePathOnHost(); profilePathOnHost != nil {
-			dirInApex := "javalib"
-			af := newApexFile(ctx, profilePathOnHost, module.BaseModuleName()+"-profile", dirInApex, etc, nil)
-			af.customStem = module.Stem() + ".jar.prof"
-			return &af
-		}
+func apexFileForJavaModuleProfile(ctx android.BaseModuleContext, commonInfo *android.CommonModuleInfo,
+	javaInfo *java.JavaInfo) *apexFile {
+	if profilePathOnHost := javaInfo.DexpreopterInfo.OutputProfilePathOnHost; profilePathOnHost != nil {
+		dirInApex := "javalib"
+		af := newApexFile(ctx, profilePathOnHost, commonInfo.BaseModuleName+"-profile", dirInApex, etc, nil)
+		af.customStem = javaInfo.Stem + ".jar.prof"
+		return &af
 	}
 	return nil
 }
-
-// androidApp is an interface to handle all app modules (android_app, android_app_import, etc.) in
-// the same way.
-type androidApp interface {
-	android.Module
-	Privileged() bool
-	InstallApkName() string
-	OutputFile() android.Path
-	JacocoReportClassesFile() android.Path
-	Certificate() java.Certificate
-	BaseModuleName() string
-	PrivAppAllowlist() android.OptionalPath
-}
-
-var _ androidApp = (*java.AndroidApp)(nil)
-var _ androidApp = (*java.AndroidAppImport)(nil)
 
 func sanitizedBuildIdForPath(ctx android.BaseModuleContext) string {
 	buildId := ctx.Config().BuildId()
@@ -1555,36 +1541,35 @@ func sanitizedBuildIdForPath(ctx android.BaseModuleContext) string {
 	return buildId
 }
 
-func apexFilesForAndroidApp(ctx android.BaseModuleContext, aapp androidApp) []apexFile {
+func apexFilesForAndroidApp(ctx android.BaseModuleContext, module android.Module,
+	commonInfo *android.CommonModuleInfo, aapp *java.AppInfo) []apexFile {
 	appDir := "app"
-	if aapp.Privileged() {
+	if aapp.Privileged {
 		appDir = "priv-app"
 	}
 
 	// TODO(b/224589412, b/226559955): Ensure that the subdirname is suffixed
 	// so that PackageManager correctly invalidates the existing installed apk
 	// in favour of the new APK-in-APEX.  See bugs for more information.
-	dirInApex := filepath.Join(appDir, aapp.InstallApkName()+"@"+sanitizedBuildIdForPath(ctx))
-	fileToCopy := aapp.OutputFile()
+	dirInApex := filepath.Join(appDir, aapp.InstallApkName+"@"+sanitizedBuildIdForPath(ctx))
+	fileToCopy := aapp.OutputFile
 
-	af := newApexFile(ctx, fileToCopy, aapp.BaseModuleName(), dirInApex, app, aapp)
-	af.jacocoReportClassesFile = aapp.JacocoReportClassesFile()
-	if lintInfo, ok := android.OtherModuleProvider(ctx, aapp, java.LintProvider); ok {
+	af := newApexFile(ctx, fileToCopy, commonInfo.BaseModuleName, dirInApex, app, module)
+	af.jacocoReportClassesFile = aapp.JacocoReportClassesFile
+	if lintInfo, ok := android.OtherModuleProvider(ctx, module, java.LintProvider); ok {
 		af.lintInfo = lintInfo
 	}
-	af.certificate = aapp.Certificate()
+	af.certificate = aapp.Certificate
 
-	if app, ok := aapp.(interface {
-		OverriddenManifestPackageName() string
-	}); ok {
-		af.overriddenPackageName = app.OverriddenManifestPackageName()
+	if aapp.OverriddenManifestPackageName != nil {
+		af.overriddenPackageName = *aapp.OverriddenManifestPackageName
 	}
 
 	apexFiles := []apexFile{}
 
-	if allowlist := aapp.PrivAppAllowlist(); allowlist.Valid() {
+	if allowlist := aapp.PrivAppAllowlist; allowlist.Valid() {
 		dirInApex := filepath.Join("etc", "permissions")
-		privAppAllowlist := newApexFile(ctx, allowlist.Path(), aapp.BaseModuleName()+"_privapp", dirInApex, etc, aapp)
+		privAppAllowlist := newApexFile(ctx, allowlist.Path(), commonInfo.BaseModuleName+"_privapp", dirInApex, etc, module)
 		apexFiles = append(apexFiles, privAppAllowlist)
 	}
 
@@ -1593,29 +1578,24 @@ func apexFilesForAndroidApp(ctx android.BaseModuleContext, aapp androidApp) []ap
 	return apexFiles
 }
 
-func apexFileForRuntimeResourceOverlay(ctx android.BaseModuleContext, rro java.RuntimeResourceOverlayModule) apexFile {
+func apexFileForRuntimeResourceOverlay(ctx android.BaseModuleContext, module android.Module, rro java.RuntimeResourceOverlayInfo) apexFile {
 	rroDir := "overlay"
-	dirInApex := filepath.Join(rroDir, rro.Theme())
-	fileToCopy := rro.OutputFile()
-	af := newApexFile(ctx, fileToCopy, rro.Name(), dirInApex, app, rro)
-	af.certificate = rro.Certificate()
+	dirInApex := filepath.Join(rroDir, rro.Theme)
+	fileToCopy := rro.OutputFile
+	af := newApexFile(ctx, fileToCopy, module.Name(), dirInApex, app, module)
+	af.certificate = rro.Certificate
 
-	if a, ok := rro.(interface {
-		OverriddenManifestPackageName() string
-	}); ok {
-		af.overriddenPackageName = a.OverriddenManifestPackageName()
-	}
 	return af
 }
 
-func apexFileForBpfProgram(ctx android.BaseModuleContext, builtFile android.Path, apex_sub_dir string, bpfProgram bpf.BpfModule) apexFile {
+func apexFileForBpfProgram(ctx android.BaseModuleContext, builtFile android.Path, apex_sub_dir string, bpfProgram android.Module) apexFile {
 	dirInApex := filepath.Join("etc", "bpf", apex_sub_dir)
 	return newApexFile(ctx, builtFile, builtFile.Base(), dirInApex, etc, bpfProgram)
 }
 
-func apexFileForFilesystem(ctx android.BaseModuleContext, buildFile android.Path, fs filesystem.Filesystem) apexFile {
+func apexFileForFilesystem(ctx android.BaseModuleContext, buildFile android.Path, module android.Module) apexFile {
 	dirInApex := filepath.Join("etc", "fs")
-	return newApexFile(ctx, buildFile, buildFile.Base(), dirInApex, etc, fs)
+	return newApexFile(ctx, buildFile, buildFile.Base(), dirInApex, etc, module)
 }
 
 // WalkPayloadDeps visits dependencies that contributes to the payload of this APEX. For each of the
@@ -1864,11 +1844,12 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 	if _, ok := depTag.(android.ExcludeFromApexContentsTag); ok {
 		return false
 	}
-	if !child.Enabled(ctx) {
+	commonInfo := android.OtherModuleProviderOrDefault(ctx, child, android.CommonModuleInfoKey)
+	if !commonInfo.Enabled {
 		return false
 	}
 	depName := ctx.OtherModuleName(child)
-	if _, isDirectDep := parent.(*apexBundle); isDirectDep {
+	if android.EqualModules(parent, ctx.Module()) {
 		switch depTag {
 		case sharedLibTag, jniLibTag:
 			isJniLib := depTag == jniLibTag
@@ -1877,17 +1858,17 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 				propertyName = "jni_libs"
 			}
 
-			if ch, ok := child.(cc.VersionedLinkableInterface); ok {
-				if ch.IsStubs() {
+			if ch, ok := android.OtherModuleProvider(ctx, child, cc.LinkableInfoProvider); ok {
+				if ch.IsStubs {
 					ctx.PropertyErrorf(propertyName, "%q is a stub. Remove it from the list.", depName)
 				}
-				fi := apexFileForNativeLibrary(ctx, ch, vctx.handleSpecialLibs)
+				fi := apexFileForNativeLibrary(ctx, child, &commonInfo, ch, vctx.handleSpecialLibs)
 				fi.isJniLib = isJniLib
 				vctx.filesInfo = append(vctx.filesInfo, fi)
 				// Collect the list of stub-providing libs except:
 				// - VNDK libs are only for vendors
 				// - bootstrap bionic libs are treated as provided by system
-				if ch.HasStubsVariants() && !a.vndkApex && !cc.InstallToBootstrap(ch.BaseModuleName(), ctx.Config()) {
+				if ch.HasStubsVariants && !a.vndkApex && !cc.InstallToBootstrap(commonInfo.BaseModuleName, ctx.Config()) {
 					vctx.provideNativeLibs = append(vctx.provideNativeLibs, fi.stem())
 				}
 				return true // track transitive dependencies
@@ -1897,34 +1878,33 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			}
 
 		case executableTag:
-			switch ch := child.(type) {
-			case *cc.Module:
-				vctx.filesInfo = append(vctx.filesInfo, apexFileForExecutable(ctx, ch))
+			if ccInfo, ok := android.OtherModuleProvider(ctx, child, cc.CcInfoProvider); ok {
+				vctx.filesInfo = append(vctx.filesInfo, apexFileForExecutable(ctx, child, &commonInfo, ccInfo))
 				return true // track transitive dependencies
-			case *rust.Module:
-				vctx.filesInfo = append(vctx.filesInfo, apexFileForRustExecutable(ctx, ch))
+			}
+			if _, ok := android.OtherModuleProvider(ctx, child, rust.RustInfoProvider); ok {
+				vctx.filesInfo = append(vctx.filesInfo, apexFileForRustExecutable(ctx, child, &commonInfo))
 				return true // track transitive dependencies
-			default:
+			} else {
 				ctx.PropertyErrorf("binaries",
 					"%q is neither cc_binary, rust_binary, (embedded) py_binary, (host) blueprint_go_binary, nor (host) bootstrap_go_binary", depName)
 			}
 		case shBinaryTag:
-			if csh, ok := child.(*sh.ShBinary); ok {
-				vctx.filesInfo = append(vctx.filesInfo, apexFileForShBinary(ctx, csh))
+			if csh, ok := android.OtherModuleProvider(ctx, child, sh.ShBinaryInfoProvider); ok {
+				vctx.filesInfo = append(vctx.filesInfo, apexFileForShBinary(ctx, child, &commonInfo, &csh))
 			} else {
 				ctx.PropertyErrorf("sh_binaries", "%q is not a sh_binary module", depName)
 			}
 		case bcpfTag:
-			_, ok := child.(*java.BootclasspathFragmentModule)
+			_, ok := android.OtherModuleProvider(ctx, child, java.BootclasspathFragmentInfoProvider)
 			if !ok {
 				ctx.PropertyErrorf("bootclasspath_fragments", "%q is not a bootclasspath_fragment module", depName)
 				return false
 			}
-
 			vctx.filesInfo = append(vctx.filesInfo, apexBootclasspathFragmentFiles(ctx, child)...)
 			return true
 		case sscpfTag:
-			if _, ok := child.(*java.SystemServerClasspathModule); !ok {
+			if _, ok := android.OtherModuleProvider(ctx, child, java.LibraryNameToPartitionInfoProvider); !ok {
 				ctx.PropertyErrorf("systemserverclasspath_fragments",
 					"%q is not a systemserverclasspath_fragment module", depName)
 				return false
@@ -1934,83 +1914,84 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			}
 			return true
 		case javaLibTag:
-			switch child.(type) {
-			case *java.Library, *java.SdkLibrary, *java.DexImport, *java.SdkLibraryImport, *java.Import:
-				af := apexFileForJavaModule(ctx, child.(javaModule))
+			if ctx.OtherModuleHasProvider(child, java.JavaLibraryInfoProvider) ||
+				ctx.OtherModuleHasProvider(child, java.JavaDexImportInfoProvider) ||
+				ctx.OtherModuleHasProvider(child, java.SdkLibraryInfoProvider) {
+				javaInfo := android.OtherModuleProviderOrDefault(ctx, child, java.JavaInfoProvider)
+				af := apexFileForJavaModule(ctx, child, javaInfo)
 				if !af.ok() {
 					ctx.PropertyErrorf("java_libs", "%q is not configured to be compiled into dex", depName)
 					return false
 				}
 				vctx.filesInfo = append(vctx.filesInfo, af)
 				return true // track transitive dependencies
-			default:
+			} else {
 				ctx.PropertyErrorf("java_libs", "%q of type %q is not supported", depName, ctx.OtherModuleType(child))
 			}
 		case androidAppTag:
-			switch ap := child.(type) {
-			case *java.AndroidApp:
-				vctx.filesInfo = append(vctx.filesInfo, apexFilesForAndroidApp(ctx, ap)...)
-				return true // track transitive dependencies
-			case *java.AndroidAppImport:
-				vctx.filesInfo = append(vctx.filesInfo, apexFilesForAndroidApp(ctx, ap)...)
-			case *java.AndroidTestHelperApp:
-				vctx.filesInfo = append(vctx.filesInfo, apexFilesForAndroidApp(ctx, ap)...)
-			case *java.AndroidAppSet:
-				appDir := "app"
-				if ap.Privileged() {
-					appDir = "priv-app"
+			if appInfo, ok := android.OtherModuleProvider(ctx, child, java.AppInfoProvider); ok {
+				if appInfo.AppSet {
+					appDir := "app"
+					if appInfo.Privileged {
+						appDir = "priv-app"
+					}
+					// TODO(b/224589412, b/226559955): Ensure that the dirname is
+					// suffixed so that PackageManager correctly invalidates the
+					// existing installed apk in favour of the new APK-in-APEX.
+					// See bugs for more information.
+					appDirName := filepath.Join(appDir, commonInfo.BaseModuleName+"@"+sanitizedBuildIdForPath(ctx))
+					af := newApexFile(ctx, appInfo.OutputFile, commonInfo.BaseModuleName, appDirName, appSet, child)
+					af.certificate = java.PresignedCertificate
+					vctx.filesInfo = append(vctx.filesInfo, af)
+				} else {
+					vctx.filesInfo = append(vctx.filesInfo, apexFilesForAndroidApp(ctx, child, &commonInfo, appInfo)...)
+					if !appInfo.Prebuilt && !appInfo.TestHelperApp {
+						return true // track transitive dependencies
+					}
 				}
-				// TODO(b/224589412, b/226559955): Ensure that the dirname is
-				// suffixed so that PackageManager correctly invalidates the
-				// existing installed apk in favour of the new APK-in-APEX.
-				// See bugs for more information.
-				appDirName := filepath.Join(appDir, ap.BaseModuleName()+"@"+sanitizedBuildIdForPath(ctx))
-				af := newApexFile(ctx, ap.OutputFile(), ap.BaseModuleName(), appDirName, appSet, ap)
-				af.certificate = java.PresignedCertificate
-				vctx.filesInfo = append(vctx.filesInfo, af)
-			default:
+			} else {
 				ctx.PropertyErrorf("apps", "%q is not an android_app module", depName)
 			}
 		case rroTag:
-			if rro, ok := child.(java.RuntimeResourceOverlayModule); ok {
-				vctx.filesInfo = append(vctx.filesInfo, apexFileForRuntimeResourceOverlay(ctx, rro))
+			if rro, ok := android.OtherModuleProvider(ctx, child, java.RuntimeResourceOverlayInfoProvider); ok {
+				vctx.filesInfo = append(vctx.filesInfo, apexFileForRuntimeResourceOverlay(ctx, child, rro))
 			} else {
 				ctx.PropertyErrorf("rros", "%q is not an runtime_resource_overlay module", depName)
 			}
 		case bpfTag:
-			if bpfProgram, ok := child.(bpf.BpfModule); ok {
-				filesToCopy := android.OutputFilesForModule(ctx, bpfProgram, "")
-				apex_sub_dir := bpfProgram.SubDir()
+			if bpfProgram, ok := android.OtherModuleProvider(ctx, child, bpf.BpfInfoProvider); ok {
+				filesToCopy := android.OutputFilesForModule(ctx, child, "")
+				apex_sub_dir := bpfProgram.SubDir
 				for _, bpfFile := range filesToCopy {
-					vctx.filesInfo = append(vctx.filesInfo, apexFileForBpfProgram(ctx, bpfFile, apex_sub_dir, bpfProgram))
+					vctx.filesInfo = append(vctx.filesInfo, apexFileForBpfProgram(ctx, bpfFile, apex_sub_dir, child))
 				}
 			} else {
 				ctx.PropertyErrorf("bpfs", "%q is not a bpf module", depName)
 			}
 		case fsTag:
-			if fs, ok := child.(filesystem.Filesystem); ok {
-				vctx.filesInfo = append(vctx.filesInfo, apexFileForFilesystem(ctx, fs.OutputPath(), fs))
+			if fs, ok := android.OtherModuleProvider(ctx, child, filesystem.FilesystemProvider); ok {
+				vctx.filesInfo = append(vctx.filesInfo, apexFileForFilesystem(ctx, fs.Output, child))
 			} else {
 				ctx.PropertyErrorf("filesystems", "%q is not a filesystem module", depName)
 			}
 		case prebuiltTag:
-			if prebuilt, ok := child.(prebuilt_etc.PrebuiltEtcModule); ok {
-				filesToCopy := android.OutputFilesForModule(ctx, prebuilt, "")
+			if prebuilt, ok := android.OtherModuleProvider(ctx, child, prebuilt_etc.PrebuiltEtcInfoProvider); ok {
+				filesToCopy := android.OutputFilesForModule(ctx, child, "")
 				for _, etcFile := range filesToCopy {
-					vctx.filesInfo = append(vctx.filesInfo, apexFileForPrebuiltEtc(ctx, prebuilt, etcFile))
+					vctx.filesInfo = append(vctx.filesInfo, apexFileForPrebuiltEtc(ctx, child, &prebuilt, etcFile))
 				}
 			} else {
 				ctx.PropertyErrorf("prebuilts", "%q is not a prebuilt_etc module", depName)
 			}
 		case compatConfigTag:
-			if compatConfig, ok := child.(java.PlatformCompatConfigIntf); ok {
-				vctx.filesInfo = append(vctx.filesInfo, apexFileForCompatConfig(ctx, compatConfig, depName))
+			if compatConfig, ok := android.OtherModuleProvider(ctx, child, java.PlatformCompatConfigInfoProvider); ok {
+				vctx.filesInfo = append(vctx.filesInfo, apexFileForCompatConfig(ctx, child, &compatConfig, depName))
 			} else {
 				ctx.PropertyErrorf("compat_configs", "%q is not a platform_compat_config module", depName)
 			}
 		case testTag:
-			if ccTest, ok := child.(*cc.Module); ok {
-				af := apexFileForExecutable(ctx, ccTest)
+			if ccInfo, ok := android.OtherModuleProvider(ctx, child, cc.CcInfoProvider); ok {
+				af := apexFileForExecutable(ctx, child, &commonInfo, ccInfo)
 				af.class = nativeTest
 				vctx.filesInfo = append(vctx.filesInfo, af)
 				return true // track transitive dependencies
@@ -2018,14 +1999,14 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 				ctx.PropertyErrorf("tests", "%q is not a cc module", depName)
 			}
 		case keyTag:
-			if key, ok := child.(*apexKey); ok {
-				a.privateKeyFile = key.privateKeyFile
-				a.publicKeyFile = key.publicKeyFile
+			if key, ok := android.OtherModuleProvider(ctx, child, ApexKeyInfoProvider); ok {
+				a.privateKeyFile = key.PrivateKeyFile
+				a.publicKeyFile = key.PublicKeyFile
 			} else {
 				ctx.PropertyErrorf("key", "%q is not an apex_key module", depName)
 			}
 		case certificateTag:
-			if dep, ok := child.(*java.AndroidAppCertificate); ok {
+			if dep, ok := android.OtherModuleProvider(ctx, child, java.AndroidAppCertificateInfoProvider); ok {
 				a.containerCertificateFile = dep.Certificate.Pem
 				a.containerPrivateKeyFile = dep.Certificate.Key
 			} else {
@@ -2040,18 +2021,17 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 	}
 
 	// indirect dependencies
-	am, ok := child.(android.ApexModule)
-	if !ok {
+	if !commonInfo.IsApexModule {
 		return false
 	}
 	// We cannot use a switch statement on `depTag` here as the checked
 	// tags used below are private (e.g. `cc.sharedDepTag`).
 	if cc.IsSharedDepTag(depTag) || cc.IsRuntimeDepTag(depTag) {
-		if ch, ok := child.(cc.VersionedLinkableInterface); ok {
-			af := apexFileForNativeLibrary(ctx, ch, vctx.handleSpecialLibs)
+		if ch, ok := android.OtherModuleProvider(ctx, child, cc.LinkableInfoProvider); ok {
+			af := apexFileForNativeLibrary(ctx, child, &commonInfo, ch, vctx.handleSpecialLibs)
 			af.transitiveDep = true
 
-			if ch.IsStubs() || ch.HasStubsVariants() {
+			if ch.IsStubs || ch.HasStubsVariants {
 				// If the dependency is a stubs lib, don't include it in this APEX,
 				// but make sure that the lib is installed on the device.
 				// In case no APEX is having the lib, the lib is installed to the system
@@ -2062,10 +2042,10 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 				//
 				// Skip the dependency in unbundled builds where the device image is not
 				// being built.
-				if ch.VersionedInterface().IsStubsImplementationRequired() &&
-					!am.NotInPlatform() && !ctx.Config().UnbundledBuild() {
+				if ch.IsStubsImplementationRequired &&
+					!commonInfo.NotInPlatform && !ctx.Config().UnbundledBuild() {
 					// we need a module name for Make
-					name := ch.ImplementationModuleNameForMake(ctx) + ch.SubName()
+					name := ch.ImplementationModuleNameForMake + ch.SubName
 					if !android.InList(name, a.makeModulesToInstall) {
 						a.makeModulesToInstall = append(a.makeModulesToInstall, name)
 					}
@@ -2084,7 +2064,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			// like to record requiredNativeLibs even when
 			// DepIsInSameAPex is false. We also shouldn't do
 			// this for host.
-			if !android.IsDepInSameApex(ctx, parent, am) {
+			if !android.IsDepInSameApex(ctx, parent, child) {
 				return false
 			}
 
@@ -2096,19 +2076,21 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 	} else if java.IsJniDepTag(depTag) {
 		// Because APK-in-APEX embeds jni_libs transitively, we don't need to track transitive deps
 	} else if java.IsXmlPermissionsFileDepTag(depTag) {
-		if prebuilt, ok := child.(prebuilt_etc.PrebuiltEtcModule); ok {
-			filesToCopy := android.OutputFilesForModule(ctx, prebuilt, "")
+		if prebuilt, ok := android.OtherModuleProvider(ctx, child, prebuilt_etc.PrebuiltEtcInfoProvider); ok {
+			filesToCopy := android.OutputFilesForModule(ctx, child, "")
 			for _, etcFile := range filesToCopy {
-				vctx.filesInfo = append(vctx.filesInfo, apexFileForPrebuiltEtc(ctx, prebuilt, etcFile))
+				vctx.filesInfo = append(vctx.filesInfo, apexFileForPrebuiltEtc(ctx, child, &prebuilt, etcFile))
 			}
 		}
 	} else if rust.IsDylibDepTag(depTag) {
-		if rustm, ok := child.(*rust.Module); ok && rustm.IsInstallableToApex() {
-			if !android.IsDepInSameApex(ctx, am, am) {
+		if _, ok := android.OtherModuleProvider(ctx, child, rust.RustInfoProvider); ok &&
+			commonInfo.IsInstallableToApex {
+			if !android.IsDepInSameApex(ctx, parent, child) {
 				return false
 			}
 
-			af := apexFileForNativeLibrary(ctx, child.(cc.VersionedLinkableInterface), vctx.handleSpecialLibs)
+			linkableInfo := android.OtherModuleProviderOrDefault(ctx, child, cc.LinkableInfoProvider)
+			af := apexFileForNativeLibrary(ctx, child, &commonInfo, linkableInfo, vctx.handleSpecialLibs)
 			af.transitiveDep = true
 			vctx.filesInfo = append(vctx.filesInfo, af)
 			return true // track transitive dependencies
@@ -2119,10 +2101,9 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 		return true
 	} else if java.IsBootclasspathFragmentContentDepTag(depTag) {
 		// Add the contents of the bootclasspath fragment to the apex.
-		switch child.(type) {
-		case *java.Library, *java.SdkLibrary:
-			javaModule := child.(javaModule)
-			af := apexFileForBootclasspathFragmentContentModule(ctx, parent, javaModule)
+		if ctx.OtherModuleHasProvider(child, java.JavaLibraryInfoProvider) ||
+			ctx.OtherModuleHasProvider(child, java.SdkLibraryInfoProvider) {
+			af := apexFileForBootclasspathFragmentContentModule(ctx, parent, child)
 			if !af.ok() {
 				ctx.PropertyErrorf("bootclasspath_fragments",
 					"bootclasspath_fragment content %q is not configured to be compiled into dex", depName)
@@ -2130,21 +2111,22 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			}
 			vctx.filesInfo = append(vctx.filesInfo, af)
 			return true // track transitive dependencies
-		default:
+		} else {
 			ctx.PropertyErrorf("bootclasspath_fragments",
 				"bootclasspath_fragment content %q of type %q is not supported", depName, ctx.OtherModuleType(child))
 		}
 	} else if java.IsSystemServerClasspathFragmentContentDepTag(depTag) {
 		// Add the contents of the systemserverclasspath fragment to the apex.
-		switch child.(type) {
-		case *java.Library, *java.SdkLibrary:
-			af := apexFileForJavaModule(ctx, child.(javaModule))
+		if ctx.OtherModuleHasProvider(child, java.JavaLibraryInfoProvider) ||
+			ctx.OtherModuleHasProvider(child, java.SdkLibraryInfoProvider) {
+			javaInfo := android.OtherModuleProviderOrDefault(ctx, child, java.JavaInfoProvider)
+			af := apexFileForJavaModule(ctx, child, javaInfo)
 			vctx.filesInfo = append(vctx.filesInfo, af)
-			if profileAf := apexFileForJavaModuleProfile(ctx, child.(javaModule)); profileAf != nil {
+			if profileAf := apexFileForJavaModuleProfile(ctx, &commonInfo, javaInfo); profileAf != nil {
 				vctx.filesInfo = append(vctx.filesInfo, *profileAf)
 			}
 			return true // track transitive dependencies
-		default:
+		} else {
 			ctx.PropertyErrorf("systemserverclasspath_fragments",
 				"systemserverclasspath_fragment content %q of type %q is not supported", depName, ctx.OtherModuleType(child))
 		}
@@ -2152,11 +2134,11 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 		// nothing
 	} else if depTag == android.RequiredDepTag {
 		// nothing
-	} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {
+	} else if commonInfo.IsInstallableToApex {
 		ctx.ModuleErrorf("unexpected tag %s for indirect dependency %q", android.PrettyPrintTag(depTag), depName)
 	} else if android.IsVintfDepTag(depTag) {
-		if vf, ok := child.(*android.VintfFragmentModule); ok {
-			apexFile := apexFileForVintfFragment(ctx, vf)
+		if vf, ok := android.OtherModuleProvider(ctx, child, android.VintfFragmentInfoProvider); ok {
+			apexFile := apexFileForVintfFragment(ctx, child, &commonInfo, &vf)
 			vctx.filesInfo = append(vctx.filesInfo, apexFile)
 		}
 	}
@@ -2276,6 +2258,13 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.enforcePartitionTagOnApexSystemServerJar(ctx)
 
 	a.verifyNativeImplementationLibs(ctx)
+
+	android.SetProvider(ctx, android.ApexBundleDepsDataProvider, android.ApexBundleDepsData{
+		FlatListPath: a.FlatListPath(),
+		Updatable:    a.Updatable(),
+	})
+
+	android.SetProvider(ctx, filesystem.ApexKeyPathInfoProvider, filesystem.ApexKeyPathInfo{a.apexKeysPath})
 }
 
 // Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file
@@ -2325,8 +2314,8 @@ func (a *apexBundle) enforceAppUpdatability(mctx android.ModuleContext) {
 		// checking direct deps is sufficient since apex->apk is a direct edge, even when inherited via apex_defaults
 		mctx.VisitDirectDepsProxy(func(module android.ModuleProxy) {
 			if appInfo, ok := android.OtherModuleProvider(mctx, module, java.AppInfoProvider); ok {
-				// ignore android_test_app
-				if !appInfo.TestHelperApp && !appInfo.Updatable {
+				// ignore android_test_app and android_app_import
+				if !appInfo.TestHelperApp && !appInfo.Prebuilt && !appInfo.Updatable {
 					mctx.ModuleErrorf("app dependency %s must have updatable: true", mctx.OtherModuleName(module))
 				}
 			}
@@ -2336,7 +2325,7 @@ func (a *apexBundle) enforceAppUpdatability(mctx android.ModuleContext) {
 
 // apexBootclasspathFragmentFiles returns the list of apexFile structures defining the files that
 // the bootclasspath_fragment contributes to the apex.
-func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module blueprint.Module) []apexFile {
+func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module android.Module) []apexFile {
 	bootclasspathFragmentInfo, _ := android.OtherModuleProvider(ctx, module, java.BootclasspathFragmentApexContentInfoProvider)
 	var filesToAdd []apexFile
 
@@ -2385,7 +2374,7 @@ func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module blueprint.
 
 // apexClasspathFragmentProtoFile returns *apexFile structure defining the classpath.proto config that
 // the module contributes to the apex; or nil if the proto config was not generated.
-func apexClasspathFragmentProtoFile(ctx android.ModuleContext, module blueprint.Module) *apexFile {
+func apexClasspathFragmentProtoFile(ctx android.ModuleContext, module android.Module) *apexFile {
 	info, _ := android.OtherModuleProvider(ctx, module, java.ClasspathFragmentProtoContentInfoProvider)
 	if !info.ClasspathFragmentProtoGenerated {
 		return nil
@@ -2397,7 +2386,7 @@ func apexClasspathFragmentProtoFile(ctx android.ModuleContext, module blueprint.
 
 // apexFileForBootclasspathFragmentContentModule creates an apexFile for a bootclasspath_fragment
 // content module, i.e. a library that is part of the bootclasspath.
-func apexFileForBootclasspathFragmentContentModule(ctx android.ModuleContext, fragmentModule blueprint.Module, javaModule javaModule) apexFile {
+func apexFileForBootclasspathFragmentContentModule(ctx android.ModuleContext, fragmentModule, javaModule android.Module) apexFile {
 	bootclasspathFragmentInfo, _ := android.OtherModuleProvider(ctx, fragmentModule, java.BootclasspathFragmentApexContentInfoProvider)
 
 	// Get the dexBootJar from the bootclasspath_fragment as that is responsible for performing the
@@ -2409,7 +2398,8 @@ func apexFileForBootclasspathFragmentContentModule(ctx android.ModuleContext, fr
 
 	// Create an apexFile as for a normal java module but with the dex boot jar provided by the
 	// bootclasspath_fragment.
-	af := apexFileForJavaModuleWithFile(ctx, javaModule, dexBootJar)
+	javaInfo := android.OtherModuleProviderOrDefault(ctx, javaModule, java.JavaInfoProvider)
+	af := apexFileForJavaModuleWithFile(ctx, javaModule, javaInfo, dexBootJar)
 	return af
 }
 
@@ -2896,14 +2886,14 @@ func (a *apexBundle) verifyNativeImplementationLibs(ctx android.ModuleContext) {
 		if !inApex && !inApkInApex {
 			ctx.ModuleErrorf("library in apex transitively linked against implementation library %q not in apex", lib)
 			var depPath []android.Module
-			ctx.WalkDeps(func(child, parent android.Module) bool {
+			ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
 				if depPath != nil {
 					return false
 				}
 
 				tag := ctx.OtherModuleDependencyTag(child)
 
-				if parent == ctx.Module() {
+				if android.EqualModules(parent, ctx.Module()) {
 					if !checkApexTag(tag) {
 						return false
 					}

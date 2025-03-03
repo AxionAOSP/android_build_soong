@@ -565,6 +565,10 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, libName string, dexJa
 	if !isApexSystemServerJar {
 		d.builtInstalled = dexpreoptRule.Installs().String()
 	}
+
+	if isSystemServerJar {
+		checkSystemServerOrder(ctx, libName)
+	}
 }
 
 func getModuleInstallPathInfo(ctx android.ModuleContext, fullInstallPath string) (android.InstallPath, string, string) {
@@ -630,4 +634,31 @@ func (d *dexpreopter) GetRewrittenProfile() android.Path {
 
 func (d *dexpreopter) SetRewrittenProfile(p android.Path) {
 	d.rewrittenProfile = p
+}
+
+// Check the order of jars on the system server classpath and give a warning/error if a jar precedes
+// one of its dependencies. This is not an error, but a missed optimization, as dexpreopt won't
+// have the dependency jar in the class loader context, and it won't be able to resolve any
+// references to its classes and methods.
+func checkSystemServerOrder(ctx android.ModuleContext, libName string) {
+	config := dexpreopt.GetGlobalConfig(ctx)
+	jars := config.AllSystemServerClasspathJars(ctx)
+	jarIndex := config.AllSystemServerJars(ctx).IndexOfJar(libName)
+	ctx.WalkDeps(func(dep android.Module, parent android.Module) bool {
+		tag := ctx.OtherModuleDependencyTag(dep)
+		// Ideally this should only be walking relevant dependencies, but to maintain existing behavior
+		// for now just exclude any known irrelevant dependencies that would lead to incorrect errors.
+		if _, ok := tag.(bootclasspathDependencyTag); ok {
+			return false
+		}
+		depIndex := jars.IndexOfJar(dep.Name())
+		if jarIndex < depIndex && !config.BrokenSuboptimalOrderOfSystemServerJars {
+			jar := jars.Jar(jarIndex)
+			dep := jars.Jar(depIndex)
+			ctx.ModuleErrorf("non-optimal order of jars on the system server classpath:"+
+				" '%s' precedes its dependency '%s', so dexpreopt is unable to resolve any"+
+				" references from '%s' to '%s'.\n", jar, dep, jar, dep)
+		}
+		return true
+	})
 }

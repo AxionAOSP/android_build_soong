@@ -230,6 +230,8 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ramdiskModule := ctx.GetDirectDepWithTag(ramdisk, bootimgRamdiskDep)
 		fsInfo, _ := android.OtherModuleProvider(ctx, ramdiskModule, FilesystemProvider)
 		android.SetProvider(ctx, FilesystemProvider, fsInfo)
+	} else {
+		setCommonFilesystemInfo(ctx, b)
 	}
 
 	// Set BootimgInfo for building target_files.zip

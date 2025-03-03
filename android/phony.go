@@ -55,7 +55,7 @@ var _ SingletonMakeVarsProvider = (*phonySingleton)(nil)
 
 func (p *phonySingleton) GenerateBuildActions(ctx SingletonContext) {
 	p.phonyMap = getSingletonPhonyMap(ctx.Config())
-	ctx.VisitAllModules(func(m Module) {
+	ctx.VisitAllModuleProxies(func(m ModuleProxy) {
 		if info, ok := OtherModuleProvider(ctx, m, ModulePhonyProvider); ok {
 			for k, v := range info.Phonies {
 				p.phonyMap[k] = append(p.phonyMap[k], v...)

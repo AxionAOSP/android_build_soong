@@ -510,7 +510,7 @@ func dex2oatPathFromDep(ctx android.ModuleContext) android.Path {
 	var dex2oatModule android.ModuleProxy
 	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
 		prebuiltInfo, isPrebuilt := android.OtherModuleProvider(ctx, child, android.PrebuiltModuleInfoProvider)
-		if ctx.EqualModules(parent, ctx.Module()) && ctx.OtherModuleDependencyTag(child) == Dex2oatDepTag {
+		if android.EqualModules(parent, ctx.Module()) && ctx.OtherModuleDependencyTag(child) == Dex2oatDepTag {
 			// Found the source module, or prebuilt module that has replaced the source.
 			dex2oatModule = child
 			if isPrebuilt {
@@ -519,7 +519,7 @@ func dex2oatPathFromDep(ctx android.ModuleContext) android.Path {
 				return true // Recurse to check if the source has a prebuilt dependency.
 			}
 		}
-		if ctx.EqualModules(parent, dex2oatModule) && ctx.OtherModuleDependencyTag(child) == android.PrebuiltDepTag {
+		if android.EqualModules(parent, dex2oatModule) && ctx.OtherModuleDependencyTag(child) == android.PrebuiltDepTag {
 			if isPrebuilt && prebuiltInfo.UsePrebuilt {
 				dex2oatModule = child // Found a prebuilt that should be used.
 			}

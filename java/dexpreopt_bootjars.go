@@ -554,7 +554,10 @@ func addDependenciesOntoSelectedBootImageApexes(ctx android.BottomUpMutatorConte
 				typ: dexpreoptBootJar,
 			}
 
-			ctx.AddFarVariationDependencies(ctx.Target().Variations(), tag, android.RemoveOptionalPrebuiltPrefix(selected))
+			dep := android.RemoveOptionalPrebuiltPrefix(selected)
+			if ctx.OtherModuleDependencyVariantExists(ctx.Target().Variations(), dep) {
+				ctx.AddFarVariationDependencies(ctx.Target().Variations(), tag, dep)
+			}
 		}
 	}
 }
@@ -672,6 +675,139 @@ func (d *dexpreoptBootJars) GenerateAndroidBuildActions(ctx android.ModuleContex
 			installs: artBootImageHostInstalls,
 		},
 	)
+
+	d.buildBootZip(ctx)
+}
+
+// Build the boot.zip which contains the boot jars and their compilation output
+// We can do this only if preopt is enabled and if the product uses libart config (which sets the
+// default properties for preopting).
+// Origionally, this was only for ART Cloud.
+func (d *dexpreoptBootJars) buildBootZip(ctx android.ModuleContext) {
+	image := d.defaultBootImage
+	if image == nil || SkipDexpreoptBootJars(ctx) {
+		return
+	}
+	global := dexpreopt.GetGlobalConfig(ctx)
+	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
+	if global.DisablePreopt || global.OnlyPreoptArtBootImage {
+		return
+	}
+
+	bootclasspathDexFiles, bootclassPathLocations := bcpForDexpreopt(ctx, global.PreoptWithUpdatableBcp)
+	if len(bootclasspathDexFiles) == 0 {
+		return
+	}
+
+	systemServerDexjarsDir := android.PathForOutput(ctx, dexpreopt.SystemServerDexjarsDir)
+
+	bootZipMetadataTmp := android.PathForModuleOut(ctx, "boot_zip", "METADATA.txt.tmp")
+	bootZipMetadata := android.PathForModuleOut(ctx, "boot_zip", "METADATA.txt")
+	newlineFile := android.PathForModuleOut(ctx, "boot_zip", "newline.txt")
+	android.WriteFileRule(ctx, newlineFile, "")
+
+	dexPreoptRootDir := filepath.Dir(filepath.Dir(bootclasspathDexFiles[0].String()))
+
+	var sb strings.Builder
+	sb.WriteString("bootclasspath = ")
+	for i, bootclasspathJar := range bootclasspathDexFiles {
+		if i > 0 {
+			sb.WriteString(":")
+		}
+		rel, err := filepath.Rel(dexPreoptRootDir, bootclasspathJar.String())
+		if err != nil {
+			ctx.ModuleErrorf("All dexpreopt jars should be under the same rootdir %q, but %q wasn't.", dexPreoptRootDir, bootclasspathJar)
+		} else {
+			sb.WriteString(rel)
+		}
+	}
+	sb.WriteString("\nbootclasspath-locations = ")
+	for i, bootclasspathLocation := range bootclassPathLocations {
+		if i > 0 {
+			sb.WriteString(":")
+		}
+		sb.WriteString(bootclasspathLocation)
+	}
+	sb.WriteString("\nboot-image = ")
+
+	// Infix can be 'art' (ART image for testing), 'boot' (primary), or 'mainline' (mainline
+	// extension). Soong creates a set of variables for Make, one or each boot image. The only
+	// reason why the ART image is exposed to Make is testing (art gtests) and benchmarking (art
+	// golem benchmarks). Install rules that use those variables are in dex_preopt_libart.mk. Here
+	// for dexpreopt purposes the infix is always 'boot' or 'mainline'.
+	dexpreoptInfix := "boot"
+	if global.PreoptWithUpdatableBcp {
+		dexpreoptInfix = "mainline"
+	}
+
+	var dexPreoptImageZipBoot android.Path
+	var dexPreoptImageZipArt android.Path
+	var dexPreoptImageZipMainline android.Path
+	for _, current := range append(d.otherImages, image) {
+		if current.name == dexpreoptInfix {
+			_, imageLocationsOnDevice := current.getAnyAndroidVariant().imageLocations()
+			for i, location := range imageLocationsOnDevice {
+				imageLocationsOnDevice[i] = strings.TrimPrefix(location, "/")
+			}
+			sb.WriteString(strings.Join(imageLocationsOnDevice, ":"))
+		}
+		switch current.name {
+		case "boot":
+			dexPreoptImageZipBoot = current.zip
+		case "art":
+			dexPreoptImageZipArt = current.zip
+		case "mainline":
+			dexPreoptImageZipMainline = current.zip
+		}
+	}
+	sb.WriteString("\nextra-args = ")
+	android.WriteFileRuleVerbatim(ctx, bootZipMetadataTmp, sb.String())
+	ctx.Build(pctx, android.BuildParams{
+		Rule: android.Cat,
+		Inputs: []android.Path{
+			bootZipMetadataTmp,
+			globalSoong.UffdGcFlag,
+			newlineFile,
+		},
+		Output: bootZipMetadata,
+	})
+
+	bootZipFirstPart := android.PathForModuleOut(ctx, "boot_zip", "boot_first_part.zip")
+	bootZip := android.PathForModuleOut(ctx, "boot_zip", "boot.zip")
+	builder := android.NewRuleBuilder(pctx, ctx)
+	cmd := builder.Command().BuiltTool("soong_zip").
+		FlagWithOutput("-o ", bootZipFirstPart).
+		FlagWithArg("-C ", filepath.Dir(filepath.Dir(bootclasspathDexFiles[0].String())))
+	for _, bootclasspathJar := range bootclasspathDexFiles {
+		cmd.FlagWithInput("-f ", bootclasspathJar)
+	}
+	for i := range global.SystemServerJars.Len() {
+		// Use "/system" path for JARs with "platform:" prefix. These JARs counterintuitively use
+		// "platform" prefix but they will be actually installed to /system partition.
+		// For the remaining system server JARs use the partition signified by the prefix.
+		// For example, prefix "system_ext:" will use "/system_ext" path.
+		dir := global.SystemServerJars.Apex(i)
+		if dir == "platform" {
+			dir = "system"
+		}
+		jar := global.SystemServerJars.Jar(i) + ".jar"
+		cmd.FlagWithArg("-e ", dir+"/framework/"+jar)
+		cmd.FlagWithInput("-f ", systemServerDexjarsDir.Join(ctx, jar))
+	}
+	cmd.Flag("-j")
+	cmd.FlagWithInput("-f ", bootZipMetadata)
+
+	builder.Command().BuiltTool("merge_zips").
+		Output(bootZip).
+		Input(bootZipFirstPart).
+		Input(dexPreoptImageZipBoot).
+		Input(dexPreoptImageZipArt).
+		Input(dexPreoptImageZipMainline)
+
+	builder.Build("boot_zip", "build boot.zip")
+
+	ctx.DistForGoal("droidcore", bootZipMetadata)
+	ctx.DistForGoal("droidcore", bootZip)
 }
 
 // GenerateSingletonBuildActions generates build rules for the dexpreopt config for Make.

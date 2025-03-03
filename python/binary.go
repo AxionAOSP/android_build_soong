@@ -114,6 +114,12 @@ func (p *PythonBinaryModule) GenerateAndroidBuildActions(ctx android.ModuleConte
 	android.SetProvider(ctx, PythonBinaryInfoProvider, PythonBinaryInfo{})
 
 	ctx.SetOutputFiles(android.Paths{p.installSource}, "")
+
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"EXECUTABLES"}
+	moduleInfoJSON.Dependencies = append(moduleInfoJSON.Dependencies, p.androidMkSharedLibs...)
+	moduleInfoJSON.SharedLibs = append(moduleInfoJSON.SharedLibs, p.androidMkSharedLibs...)
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
 }
 
 func (p *PythonBinaryModule) buildBinary(ctx android.ModuleContext) {

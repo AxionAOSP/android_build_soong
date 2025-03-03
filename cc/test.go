@@ -94,6 +94,11 @@ type TestBinaryProperties struct {
 	// of a host test.
 	Device_first_data []string `android:"path_device_first"`
 
+	// Same as data, but will add dependencies on modules using the host's os variation and
+	// the common arch variation. Useful for a device test that wants to depend on a host
+	// module, for example to include a custom Tradefed test runner.
+	Host_common_data []string `android:"path_host_common"`
+
 	// list of shared library modules that should be installed alongside the test
 	Data_libs []string `android:"arch_variant"`
 
@@ -345,6 +350,7 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 	dataSrcPaths := android.PathsForModuleSrc(ctx, test.Properties.Data)
 	dataSrcPaths = append(dataSrcPaths, android.PathsForModuleSrc(ctx, test.Properties.Device_common_data)...)
 	dataSrcPaths = append(dataSrcPaths, android.PathsForModuleSrc(ctx, test.Properties.Device_first_data)...)
+	dataSrcPaths = append(dataSrcPaths, android.PathsForModuleSrc(ctx, test.Properties.Host_common_data)...)
 
 	for _, dataSrcPath := range dataSrcPaths {
 		test.data = append(test.data, android.DataPath{SrcPath: dataSrcPath})
@@ -417,6 +423,10 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 		if ctx.PrimaryArch() {
 			if test.testConfig != nil {
 				ctx.InstallFile(testCases, ctx.ModuleName()+".config", test.testConfig)
+			}
+			dynamicConfig := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "DynamicConfig.xml")
+			if dynamicConfig.Valid() {
+				ctx.InstallFile(testCases, ctx.ModuleName()+".dynamic", dynamicConfig.Path())
 			}
 			for _, extraTestConfig := range test.extraTestConfigs {
 				ctx.InstallFile(testCases, extraTestConfig.Base(), extraTestConfig)

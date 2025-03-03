@@ -428,8 +428,6 @@ func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) android.Path {
 		ctx.PropertyErrorf("file_contexts", "cannot find file_contexts file: %q", fileContexts.String())
 	}
 
-	useFileContextsAsIs := proptools.Bool(a.properties.Use_file_contexts_as_is)
-
 	output := android.PathForModuleOut(ctx, "file_contexts")
 	rule := android.NewRuleBuilder(pctx, ctx)
 
@@ -446,11 +444,9 @@ func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) android.Path {
 	rule.Command().Text("cat").Input(fileContexts).Text(">>").Output(output)
 	// new line
 	rule.Command().Text("echo").Text(">>").Output(output)
-	if !useFileContextsAsIs {
-		// force-label /apex_manifest.pb and /
-		rule.Command().Text("echo").Text("/apex_manifest\\\\.pb").Text(labelForManifest).Text(">>").Output(output)
-		rule.Command().Text("echo").Text("/").Text(labelForRoot).Text(">>").Output(output)
-	}
+	// force-label /apex_manifest.pb and /
+	rule.Command().Text("echo").Text("/apex_manifest\\\\.pb").Text(labelForManifest).Text(">>").Output(output)
+	rule.Command().Text("echo").Text("/").Text(labelForRoot).Text(">>").Output(output)
 
 	rule.Build("file_contexts."+a.Name(), "Generate file_contexts")
 	return output
@@ -592,6 +588,7 @@ func (a *apexBundle) installApexSystemServerFiles(ctx android.ModuleContext) {
 			}
 			a.extraInstalledFiles = append(a.extraInstalledFiles, installedFile)
 			a.extraInstalledPairs = append(a.extraInstalledPairs, installPair{install.OutputPathOnHost, installedFile})
+			ctx.PackageFile(install.InstallDirOnDevice, install.InstallFileOnDevice, install.OutputPathOnHost)
 		}
 		if performInstalls {
 			for _, dexJar := range fi.systemServerDexJars {

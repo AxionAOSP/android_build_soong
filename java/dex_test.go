@@ -70,16 +70,17 @@ func TestR8(t *testing.T) {
 	appR8 := app.Rule("r8")
 	stableAppR8 := stableApp.Rule("r8")
 	corePlatformAppR8 := corePlatformApp.Rule("r8")
-	libHeader := lib.Output("turbine-combined/lib.jar").Output
-	staticLibHeader := staticLib.Output("turbine-combined/static_lib.jar").Output
+	libHeader := lib.Output("turbine/lib.jar").Output
+	libCombinedHeader := lib.Output("turbine-combined/lib.jar").Output
+	staticLibHeader := staticLib.Output("turbine/static_lib.jar").Output
 
 	android.AssertStringDoesContain(t, "expected lib header jar in app javac classpath",
 		appJavac.Args["classpath"], libHeader.String())
 	android.AssertStringDoesContain(t, "expected static_lib header jar in app javac classpath",
 		appJavac.Args["classpath"], staticLibHeader.String())
 
-	android.AssertStringDoesContain(t, "expected lib header jar in app r8 classpath",
-		appR8.Args["r8Flags"], libHeader.String())
+	android.AssertStringDoesContain(t, "expected lib combined header jar in app r8 classpath",
+		appR8.Args["r8Flags"], libCombinedHeader.String())
 	android.AssertStringDoesNotContain(t, "expected no static_lib header jar in app r8 classpath",
 		appR8.Args["r8Flags"], staticLibHeader.String())
 	android.AssertStringDoesContain(t, "expected -ignorewarnings in app r8 flags",
@@ -331,16 +332,17 @@ func TestD8(t *testing.T) {
 	fooJavac := foo.Rule("javac")
 	fooD8 := foo.Rule("d8")
 	appD8 := app.Rule("d8")
-	libHeader := lib.Output("turbine-combined/lib.jar").Output
-	staticLibHeader := staticLib.Output("turbine-combined/static_lib.jar").Output
+	libHeader := lib.Output("turbine/lib.jar").Output
+	libCombinedHeader := lib.Output("turbine-combined/lib.jar").Output
+	staticLibHeader := staticLib.Output("turbine/static_lib.jar").Output
 
 	android.AssertStringDoesContain(t, "expected lib header jar in foo javac classpath",
 		fooJavac.Args["classpath"], libHeader.String())
 	android.AssertStringDoesContain(t, "expected static_lib header jar in foo javac classpath",
 		fooJavac.Args["classpath"], staticLibHeader.String())
 
-	android.AssertStringDoesContain(t, "expected lib header jar in foo d8 classpath",
-		fooD8.Args["d8Flags"], libHeader.String())
+	android.AssertStringDoesContain(t, "expected lib combined header jar in foo d8 classpath",
+		fooD8.Args["d8Flags"], libCombinedHeader.String())
 	android.AssertStringDoesNotContain(t, "expected no  static_lib header jar in foo javac classpath",
 		fooD8.Args["d8Flags"], staticLibHeader.String())
 

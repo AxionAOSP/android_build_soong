@@ -192,6 +192,11 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		},
 	)
 
+	android.SetProvider(ctx, AppInfoProvider, &AppInfo{
+		AppSet:     true,
+		Privileged: as.Privileged(),
+		OutputFile: as.OutputFile(),
+	})
 }
 
 func (as *AndroidAppSet) InstallBypassMake() bool { return true }

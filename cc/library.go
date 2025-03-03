@@ -220,6 +220,7 @@ func init() {
 
 func RegisterLibraryBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("cc_library_static", LibraryStaticFactory)
+	ctx.RegisterModuleType("cc_rustlibs_for_make", LibraryMakeRustlibsFactory)
 	ctx.RegisterModuleType("cc_library_shared", LibrarySharedFactory)
 	ctx.RegisterModuleType("cc_library", LibraryFactory)
 	ctx.RegisterModuleType("cc_library_host_static", LibraryHostStaticFactory)
@@ -245,6 +246,19 @@ func LibraryFactory() android.Module {
 func LibraryStaticFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.BuildOnlyStatic()
+	module.sdkMemberTypes = []android.SdkMemberType{staticLibrarySdkMemberType}
+	return module.Init()
+}
+
+// cc_rustlibs_for_make creates a static library which bundles together rust_ffi_static
+// deps for Make. This should not be depended on in Soong, and is probably not the
+// module you need unless you are sure of what you're doing. These should only
+// be declared as dependencies in Make. To ensure inclusion, rust_ffi_static modules
+// should be declared in the whole_static_libs property.
+func LibraryMakeRustlibsFactory() android.Module {
+	module, library := NewLibrary(android.HostAndDeviceSupported)
+	library.BuildOnlyStatic()
+	library.wideStaticlibForMake = true
 	module.sdkMemberTypes = []android.SdkMemberType{staticLibrarySdkMemberType}
 	return module.Init()
 }
@@ -419,8 +433,8 @@ type libraryDecorator struct {
 	// Location of the linked, stripped library for shared libraries, strip: "all"
 	strippedAllOutputFile android.Path
 
-	// Location of the file that should be copied to dist dir when requested
-	distFile android.Path
+	// Location of the file that should be copied to dist dir when no explicit tag is requested
+	defaultDistFile android.Path
 
 	versionScriptPath android.OptionalPath
 
@@ -437,6 +451,10 @@ type libraryDecorator struct {
 
 	// Path to the file containing the APIs exported by this library
 	stubsSymbolFilePath android.Path
+
+	// Forces production of the generated Rust staticlib for cc_library_static.
+	// Intended to be used to provide these generated staticlibs for Make.
+	wideStaticlibForMake bool
 }
 
 // linkerProps returns the list of properties structs relevant for this library. (For example, if
@@ -1055,6 +1073,16 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 	library.objects = library.objects.Append(objs)
 	library.wholeStaticLibsFromPrebuilts = android.CopyOfPaths(deps.WholeStaticLibsFromPrebuilts)
 
+	if library.wideStaticlibForMake {
+		if generatedLib := GenerateRustStaticlib(ctx, deps.RustRlibDeps); generatedLib != nil {
+			// WholeStaticLibsFromPrebuilts are .a files that get included whole into the resulting staticlib
+			// so reuse that here for our Rust staticlibs because we don't have individual object files for
+			// these.
+			deps.WholeStaticLibsFromPrebuilts = append(deps.WholeStaticLibsFromPrebuilts, generatedLib)
+		}
+
+	}
+
 	fileName := ctx.ModuleName() + staticLibraryExtension
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	builderFlags := flagsToBuilderFlags(flags)
@@ -1066,7 +1094,7 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 			library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
 		} else {
 			versionedOutputFile := android.PathForModuleOut(ctx, "versioned", fileName)
-			library.distFile = versionedOutputFile
+			library.defaultDistFile = versionedOutputFile
 			library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
 		}
 	}
@@ -1206,11 +1234,11 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 			library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
 		} else {
 			versionedOutputFile := android.PathForModuleOut(ctx, "versioned", fileName)
-			library.distFile = versionedOutputFile
+			library.defaultDistFile = versionedOutputFile
 
 			if library.stripper.NeedsStrip(ctx) {
 				out := android.PathForModuleOut(ctx, "versioned-stripped", fileName)
-				library.distFile = out
+				library.defaultDistFile = out
 				library.stripper.StripExecutableOrSharedLib(ctx, versionedOutputFile, out, stripFlags)
 			}
 
@@ -2088,6 +2116,13 @@ func (library *libraryDecorator) setAPIListCoverageXMLPath(xml android.ModuleOut
 
 func (library *libraryDecorator) overriddenModules() []string {
 	return library.Properties.Overrides
+}
+
+func (library *libraryDecorator) defaultDistFiles() []android.Path {
+	if library.defaultDistFile == nil {
+		return nil
+	}
+	return []android.Path{library.defaultDistFile}
 }
 
 var _ overridable = (*libraryDecorator)(nil)

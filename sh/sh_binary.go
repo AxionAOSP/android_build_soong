@@ -41,6 +41,14 @@ func init() {
 	registerShBuildComponents(android.InitRegistrationContext)
 }
 
+type ShBinaryInfo struct {
+	SubDir     string
+	OutputFile android.Path
+	Symlinks   []string
+}
+
+var ShBinaryInfoProvider = blueprint.NewProvider[ShBinaryInfo]()
+
 func registerShBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("sh_binary", ShBinaryFactory)
 	ctx.RegisterModuleType("sh_binary_host", ShBinaryHostFactory)
@@ -129,6 +137,11 @@ type TestProperties struct {
 	// architecture's variation. Can be used to add a module built for device to the data of a
 	// host test.
 	Device_first_data []string `android:"path_device_first"`
+
+	// Same as data, but will add dependencies on modules using the host's os variation and
+	// the common arch variation. Useful for a device test that wants to depend on a host
+	// module, for example to include a custom Tradefed test runner.
+	Host_common_data []string `android:"path_host_common"`
 
 	// Add RootTargetPreparer to auto generated test config. This guarantees the test to run
 	// with root permission.
@@ -314,6 +327,12 @@ func (s *ShBinary) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	s.properties.SubName = s.GetSubname(ctx)
 
+	android.SetProvider(ctx, ShBinaryInfoProvider, ShBinaryInfo{
+		SubDir:     s.SubDir(),
+		OutputFile: s.OutputFile(),
+		Symlinks:   s.Symlinks(),
+	})
+
 	ctx.SetOutputFiles(android.Paths{s.outputFilePath}, "")
 }
 
@@ -337,6 +356,8 @@ func (s *ShBinary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	for _, symlink := range s.Symlinks() {
 		ctx.InstallSymlink(installDir, symlink, s.installedFile)
 	}
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"EXECUTABLES"}
 }
 
 func (s *ShBinary) AndroidMkEntries() []android.AndroidMkEntries {
@@ -422,6 +443,7 @@ func (s *ShTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	expandedData := android.PathsForModuleSrc(ctx, s.testProperties.Data)
 	expandedData = append(expandedData, android.PathsForModuleSrc(ctx, s.testProperties.Device_common_data)...)
 	expandedData = append(expandedData, android.PathsForModuleSrc(ctx, s.testProperties.Device_first_data)...)
+	expandedData = append(expandedData, android.PathsForModuleSrc(ctx, s.testProperties.Host_common_data)...)
 	// Emulate the data property for java_data dependencies.
 	for _, javaData := range ctx.GetDirectDepsProxyWithTag(shTestJavaDataTag) {
 		expandedData = append(expandedData, android.OutputFilesForModule(ctx, javaData, "")...)
@@ -530,6 +552,28 @@ func (s *ShTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		MkAppClass:           mkEntries.Class,
 		InstallDir:           s.installDir,
 	})
+
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"NATIVE_TESTS"}
+	if len(s.testProperties.Test_suites) > 0 {
+		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, s.testProperties.Test_suites...)
+	} else {
+		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "null-suite")
+	}
+	if proptools.Bool(s.testProperties.Test_options.Unit_test) {
+		moduleInfoJSON.IsUnitTest = "true"
+		if ctx.Host() {
+			moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "host-unit-tests")
+		}
+	}
+	moduleInfoJSON.DataDependencies = append(moduleInfoJSON.DataDependencies, s.testProperties.Data_bins...)
+	if s.testConfig != nil {
+		if _, ok := s.testConfig.(android.WritablePath); ok {
+			moduleInfoJSON.AutoTestConfig = []string{"true"}
+		}
+		moduleInfoJSON.TestConfig = append(moduleInfoJSON.TestConfig, s.testConfig.String())
+	}
+	moduleInfoJSON.TestConfig = append(moduleInfoJSON.TestConfig, s.extraTestConfigs.Strings()...)
 }
 
 func addArch(archType string, paths android.Paths) []string {

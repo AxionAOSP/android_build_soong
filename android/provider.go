@@ -16,6 +16,12 @@ var _ OtherModuleProviderContext = BottomUpMutatorContext(nil)
 var _ OtherModuleProviderContext = SingletonContext(nil)
 var _ OtherModuleProviderContext = (*TestContext)(nil)
 
+// ConfigAndOtherModuleProviderContext is OtherModuleProviderContext + ConfigContext
+type ConfigAndOtherModuleProviderContext interface {
+	OtherModuleProviderContext
+	ConfigContext
+}
+
 // OtherModuleProvider reads the provider for the given module.  If the provider has been set the value is
 // returned and the boolean is true.  If it has not been set the zero value of the provider's type  is returned
 // and the boolean is false.  The value returned may be a deep copy of the value originally passed to SetProvider.

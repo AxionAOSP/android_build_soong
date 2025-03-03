@@ -17,6 +17,8 @@ package android
 import (
 	"path/filepath"
 	"strings"
+
+	"github.com/google/blueprint"
 )
 
 func init() {
@@ -37,18 +39,24 @@ type TestSuiteModule interface {
 	TestSuites() []string
 }
 
+type TestSuiteInfo struct {
+	TestSuites []string
+}
+
+var TestSuiteInfoProvider = blueprint.NewProvider[TestSuiteInfo]()
+
 func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	files := make(map[string]map[string]InstallPaths)
 
-	ctx.VisitAllModules(func(m Module) {
-		if tsm, ok := m.(TestSuiteModule); ok {
-			for _, testSuite := range tsm.TestSuites() {
+	ctx.VisitAllModuleProxies(func(m ModuleProxy) {
+		if tsm, ok := OtherModuleProvider(ctx, m, TestSuiteInfoProvider); ok {
+			for _, testSuite := range tsm.TestSuites {
 				if files[testSuite] == nil {
 					files[testSuite] = make(map[string]InstallPaths)
 				}
 				name := ctx.ModuleName(m)
 				files[testSuite][name] = append(files[testSuite][name],
-					OtherModuleProviderOrDefault(ctx, tsm, InstallFilesProvider).InstallFiles...)
+					OtherModuleProviderOrDefault(ctx, m, InstallFilesProvider).InstallFiles...)
 			}
 		}
 	})

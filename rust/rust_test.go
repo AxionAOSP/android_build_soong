@@ -456,6 +456,13 @@ func TestRustFFIRlibs(t *testing.T) {
 		}
 
 		rust_ffi_static {
+			name: "libfoo_from_rlib_whole",
+			crate_name: "foo_from_rlib_whole",
+			srcs: ["src/lib.rs"],
+			export_include_dirs: ["foo_includes"]
+		}
+
+		rust_ffi_static {
 			name: "libbuzz",
 			crate_name: "buzz",
 			srcs: ["src/lib.rs"],
@@ -465,6 +472,13 @@ func TestRustFFIRlibs(t *testing.T) {
 		rust_ffi_static {
 			name: "libbuzz_from_rlib",
 			crate_name: "buzz_from_rlib",
+			srcs: ["src/lib.rs"],
+			export_include_dirs: ["buzz_includes"]
+		}
+
+		rust_ffi_static {
+			name: "libbuzz_from_rlib_whole",
+			crate_name: "buzz_from_rlib_whole",
 			srcs: ["src/lib.rs"],
 			export_include_dirs: ["buzz_includes"]
 		}
@@ -489,6 +503,13 @@ func TestRustFFIRlibs(t *testing.T) {
 			whole_static_libs: ["libfoo_from_rlib"],
 		}
 
+		cc_library_static {
+			name: "libcc_whole_static_from_rlib",
+			srcs:["foo.c"],
+			static_libs: ["libbuzz_from_rlib_whole"],
+			whole_static_libs: ["libfoo_from_rlib_whole"],
+		}
+
 		cc_binary {
 			name: "ccBin",
 			srcs:["foo.c"],
@@ -500,6 +521,14 @@ func TestRustFFIRlibs(t *testing.T) {
 			srcs:["src/foo.rs"],
 			crate_name: "rs",
 			static_libs: ["libcc_static_from_rlib"],
+			whole_static_libs: ["libcc_whole_static_from_rlib"],
+		}
+
+		rust_library {
+			name: "librs2",
+			srcs:["src/foo.rs"],
+			crate_name: "rs",
+			rustlibs: ["librs"],
 		}
 
 		rust_binary {
@@ -509,7 +538,7 @@ func TestRustFFIRlibs(t *testing.T) {
 			rlibs: ["librs", "libbar"],
 			static_libs: ["libcc_static"],
 		}
-		`)
+	`)
 
 	libbar := ctx.ModuleForTests(t, "libbar", "android_arm64_armv8-a_rlib_rlib-std").Rule("rustc")
 	libcc_shared_rustc := ctx.ModuleForTests(t, "libcc_shared", "android_arm64_armv8-a_shared").Rule("rustc")
@@ -521,6 +550,10 @@ func TestRustFFIRlibs(t *testing.T) {
 	rustbin_genlib := ctx.ModuleForTests(t, "rsBin", "android_arm64_armv8-a").Output("generated_rust_staticlib/librustlibs.a")
 	rustbin := ctx.ModuleForTests(t, "rsBin", "android_arm64_armv8-a").Output("unstripped/rsBin")
 	librs_rlib := ctx.ModuleForTests(t, "librs", "android_arm64_armv8-a_rlib_dylib-std").MaybeOutput("generated_rust_staticlib/librustlibs.a")
+	librs2_rlib := ctx.ModuleForTests(t, "librs2", "android_arm64_armv8-a_rlib_dylib-std").MaybeOutput("generated_rust_staticlib/librustlibs.a")
+	librs_genlib := ctx.ModuleForTests(t, "librs", "android_arm64_armv8-a_dylib").Output("generated_rust_staticlib/librustlibs.a")
+	librs2_genlib := ctx.ModuleForTests(t, "librs2", "android_arm64_armv8-a_dylib").Output("generated_rust_staticlib/librustlibs.a")
+	librs2_dylib := ctx.ModuleForTests(t, "librs2", "android_arm64_armv8-a_dylib").Output("unstripped/librs2.dylib.so")
 
 	if !strings.Contains(libbar.Args["rustcFlags"], "crate-type=rlib") {
 		t.Errorf("missing crate-type for static variant, expecting %#v, rustcFlags: %#v", "rlib", libbar.Args["rustcFlags"])
@@ -578,6 +611,10 @@ func TestRustFFIRlibs(t *testing.T) {
 		t.Errorf("missing generated static library in linker step libFlags in Rust module, expecting %#v, libFlags: %#v",
 			"generated_rust_staticlib/librustlibs.a", rustbin.Args["libFlags"])
 	}
+	if !strings.Contains(librs2_dylib.Args["linkFlags"], "generated_rust_staticlib/librustlibs.a") {
+		t.Errorf("missing generated static library in linker step libFlags in Rust module, expecting %#v, libFlags: %#v",
+			"generated_rust_staticlib/librustlibs.a", librs2_dylib.Args["libFlags"])
+	}
 
 	// Make sure that direct dependencies and indirect whole static dependencies are
 	// propagating correctly for the rlib -> cc_library_static -> rust_* generated library example.
@@ -610,6 +647,31 @@ func TestRustFFIRlibs(t *testing.T) {
 	if librs_rlib.Rule != nil {
 		t.Error("rlibs should not be generating mto staticlibs", "rlib", libbar.Args["rustcFlags"])
 	}
+	if librs2_rlib.Rule != nil {
+		t.Error("rlibs should not be generating mto staticlibs", "rlib", libbar.Args["rustcFlags"])
+	}
+
+	// Make sure that direct whole static dependencies are propagating correctly downstream
+	// foo_from_rlib_whole --(ws)--> libcc_whole_static_from_rlib --(ws)--> librs
+	if !strings.Contains(librs_genlib.Args["libFlags"], "--extern foo_from_rlib_whole=") {
+		t.Errorf("Missing direct whole_static_lib dependency libfoo_from_rlib_whole from rust dylib when writing generated Rust staticlib: %#v", librs_genlib.Args["libFlags"])
+	}
+
+	// Make sure that indirect whole static dependencies are propagating correctly downstream
+	// foo_from_rlib_whole --(ws)--> libcc_whole_static_from_rlib --(ws)--> librs --> rust_*
+	if !strings.Contains(librs2_genlib.Args["libFlags"], "--extern foo_from_rlib_whole=") {
+		t.Errorf("Missing indirect whole_static_lib dependency libfoo_from_rlib_whole from rust dylib when writing generated Rust staticlib: %#v", librs2_genlib.Args["libFlags"])
+	}
+	if !strings.Contains(rustbin_genlib.Args["libFlags"], "--extern foo_from_rlib_whole=") {
+		t.Errorf("Missing indirect whole_static_lib dependency libfoo_from_rlib_whole from rust dylib in rust binary when writing generated Rust staticlib: %#v", rustbin_genlib.Args["libFlags"])
+	}
+
+	// Make sure that normal static dependencies are not propagating through dylib dependencies
+	// buzz_from_rlib_whole --(s)--> libcc_whole_static_from_rlib --(ws)--> librs --> rust_*
+	if strings.Contains(librs2_genlib.Args["libFlags"], "--extern buzz_from_rlib_whole=") {
+		t.Errorf("dependency from indirect cc staticlib from direct dylib dep found in rust dylib when writing generated Rust staticlib: %#v", librs2_genlib.Args["libFlags"])
+	}
+
 }
 
 func assertString(t *testing.T, got, expected string) {

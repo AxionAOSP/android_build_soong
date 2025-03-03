@@ -353,6 +353,7 @@ func PackageFuzzModule(ctx android.ModuleContext, fuzzPackagedModule fuzz.FuzzPa
 	fuzzPackagedModule.Data = android.PathsForModuleSrc(ctx, fuzzPackagedModule.FuzzProperties.Data)
 	fuzzPackagedModule.Data = append(fuzzPackagedModule.Data, android.PathsForModuleSrc(ctx, fuzzPackagedModule.FuzzProperties.Device_common_data)...)
 	fuzzPackagedModule.Data = append(fuzzPackagedModule.Data, android.PathsForModuleSrc(ctx, fuzzPackagedModule.FuzzProperties.Device_first_data)...)
+	fuzzPackagedModule.Data = append(fuzzPackagedModule.Data, android.PathsForModuleSrc(ctx, fuzzPackagedModule.FuzzProperties.Host_common_data)...)
 
 	if fuzzPackagedModule.FuzzProperties.Dictionary != nil {
 		fuzzPackagedModule.Dictionary = android.PathForModuleSrc(ctx, *fuzzPackagedModule.FuzzProperties.Dictionary)
@@ -469,43 +470,37 @@ func (s *ccRustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) 
 	// multiple fuzzers that depend on the same shared library.
 	sharedLibraryInstalled := make(map[string]bool)
 
-	ctx.VisitAllModules(func(module android.Module) {
-		ccModule, ok := module.(LinkableInterface)
-		if !ok || ccModule.PreventInstall() {
+	ctx.VisitAllModuleProxies(func(module android.ModuleProxy) {
+		ccModule, ok := android.OtherModuleProvider(ctx, module, LinkableInfoProvider)
+		if !ok {
 			return
 		}
 		// Discard non-fuzz targets.
-		if ok := fuzz.IsValid(ctx, ccModule.FuzzModuleStruct()); !ok {
+		fuzzInfo, ok := android.OtherModuleProvider(ctx, module, fuzz.FuzzPackagedModuleInfoProvider)
+		if !ok {
 			return
 		}
 
 		sharedLibsInstallDirPrefix := "lib"
-		if ccModule.InVendor() {
+		if ccModule.InVendor {
 			sharedLibsInstallDirPrefix = "lib/vendor"
 		}
 
-		if !ccModule.IsFuzzModule() {
-			return
-		}
-
+		commonInfo := android.OtherModuleProviderOrDefault(ctx, module, android.CommonModuleInfoKey)
+		isHost := commonInfo.Target.Os.Class == android.Host
 		hostOrTargetString := "target"
-		if ccModule.Target().HostCross {
+		if commonInfo.Target.HostCross {
 			hostOrTargetString = "host_cross"
-		} else if ccModule.Host() {
+		} else if isHost {
 			hostOrTargetString = "host"
 		}
 		if s.onlyIncludePresubmits == true {
 			hostOrTargetString = "presubmit-" + hostOrTargetString
 		}
 
-		fpm := fuzz.FuzzPackagedModule{}
-		if ok {
-			fpm = ccModule.FuzzPackagedModule()
-		}
-
 		intermediatePath := "fuzz"
 
-		archString := ccModule.Target().Arch.ArchType.String()
+		archString := commonInfo.Target.Arch.ArchType.String()
 		archDir := android.PathForIntermediates(ctx, intermediatePath, hostOrTargetString, archString)
 		archOs := fuzz.ArchOs{HostOrTarget: hostOrTargetString, Arch: archString, Dir: archDir.String()}
 
@@ -513,23 +508,24 @@ func (s *ccRustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) 
 		builder := android.NewRuleBuilder(pctx, ctx)
 
 		// Package the corpus, data, dict and config into a zipfile.
-		files = s.PackageArtifacts(ctx, module, fpm, archDir, builder)
+		files = s.PackageArtifacts(ctx, module, &fuzzInfo, archDir, builder)
 
 		// Package shared libraries
-		files = append(files, GetSharedLibsToZip(ccModule.FuzzSharedLibraries(), ccModule, &s.FuzzPackager, archString, sharedLibsInstallDirPrefix, &sharedLibraryInstalled)...)
+		files = append(files, GetSharedLibsToZip(ccModule.FuzzSharedLibraries, isHost, ccModule.InVendor, &s.FuzzPackager,
+			archString, sharedLibsInstallDirPrefix, &sharedLibraryInstalled)...)
 
 		// The executable.
-		files = append(files, fuzz.FileToZip{SourceFilePath: android.OutputFileForModule(ctx, ccModule, "unstripped")})
+		files = append(files, fuzz.FileToZip{SourceFilePath: android.OutputFileForModule(ctx, module, "unstripped")})
 
 		if s.onlyIncludePresubmits == true {
-			if fpm.FuzzProperties.Fuzz_config == nil {
+			if fuzzInfo.FuzzConfig == nil {
 				return
 			}
-			if !BoolDefault(fpm.FuzzProperties.Fuzz_config.Use_for_presubmit, false) {
+			if !fuzzInfo.FuzzConfig.UseForPresubmit {
 				return
 			}
 		}
-		archDirs[archOs], ok = s.BuildZipFile(ctx, module, fpm, files, builder, archDir, archString, hostOrTargetString, archOs, archDirs)
+		archDirs[archOs], ok = s.BuildZipFile(ctx, module, &fuzzInfo, files, builder, archDir, archString, hostOrTargetString, archOs, archDirs)
 		if !ok {
 			return
 		}
@@ -558,7 +554,8 @@ func (s *ccRustFuzzPackager) MakeVars(ctx android.MakeVarsContext) {
 
 // GetSharedLibsToZip finds and marks all the transiently-dependent shared libraries for
 // packaging.
-func GetSharedLibsToZip(sharedLibraries android.RuleBuilderInstalls, module LinkableInterface, s *fuzz.FuzzPackager, archString string, destinationPathPrefix string, sharedLibraryInstalled *map[string]bool) []fuzz.FileToZip {
+func GetSharedLibsToZip(sharedLibraries android.RuleBuilderInstalls, isHost bool, inVendor bool, s *fuzz.FuzzPackager,
+	archString string, destinationPathPrefix string, sharedLibraryInstalled *map[string]bool) []fuzz.FileToZip {
 	var files []fuzz.FileToZip
 
 	fuzzDir := "fuzz"
@@ -576,7 +573,7 @@ func GetSharedLibsToZip(sharedLibraries android.RuleBuilderInstalls, module Link
 		// install it to the output directory. Setup the install destination here,
 		// which will be used by $(copy-many-files) in the Make backend.
 		installDestination := SharedLibraryInstallLocation(
-			install, module.Host(), module.InVendor(), fuzzDir, archString)
+			install, isHost, inVendor, fuzzDir, archString)
 		if (*sharedLibraryInstalled)[installDestination] {
 			continue
 		}
@@ -593,8 +590,8 @@ func GetSharedLibsToZip(sharedLibraries android.RuleBuilderInstalls, module Link
 		// dir. Symbolized DSO's are always installed to the device when fuzzing, but
 		// we want symbolization tools (like `stack`) to be able to find the symbols
 		// in $ANDROID_PRODUCT_OUT/symbols automagically.
-		if !module.Host() {
-			symbolsInstallDestination := SharedLibrarySymbolsInstallLocation(install, module.InVendor(), fuzzDir, archString)
+		if !isHost {
+			symbolsInstallDestination := SharedLibrarySymbolsInstallLocation(install, inVendor, fuzzDir, archString)
 			symbolsInstallDestination = strings.ReplaceAll(symbolsInstallDestination, "$", "$$")
 			s.SharedLibInstallStrings = append(s.SharedLibInstallStrings,
 				library.String()+":"+symbolsInstallDestination)

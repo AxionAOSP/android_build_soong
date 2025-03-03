@@ -9,6 +9,7 @@ bootstrap_go_package {
         "class_loader_context.go",
         "config.go",
         "dexpreopt.go",
+        "system_server_zip.go",
         "testing.go",
     ],
     testSrcs: [

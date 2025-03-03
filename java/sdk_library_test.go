@@ -149,7 +149,7 @@ func TestJavaSdkLibrary(t *testing.T) {
 
 	bazJavac := result.ModuleForTests(t, "baz", "android_common").Rule("javac")
 	// tests if baz is actually linked to the stubs lib
-	android.AssertStringDoesContain(t, "baz javac classpath", bazJavac.Args["classpath"], "foo.stubs.system.jar")
+	android.AssertStringDoesContain(t, "baz javac classpath", bazJavac.Args["classpath"], "foo.stubs.system.from-text.jar")
 	// ... and not to the impl lib
 	android.AssertStringDoesNotContain(t, "baz javac classpath", bazJavac.Args["classpath"], "foo.jar")
 	// test if baz is not linked to the system variant of foo
@@ -157,15 +157,15 @@ func TestJavaSdkLibrary(t *testing.T) {
 
 	bazTestJavac := result.ModuleForTests(t, "baz-test", "android_common").Rule("javac")
 	// tests if baz-test is actually linked to the test stubs lib
-	android.AssertStringDoesContain(t, "baz-test javac classpath", bazTestJavac.Args["classpath"], "foo.stubs.test.jar")
+	android.AssertStringDoesContain(t, "baz-test javac classpath", bazTestJavac.Args["classpath"], "foo.stubs.test.from-text.jar")
 
 	baz29Javac := result.ModuleForTests(t, "baz-29", "android_common").Rule("javac")
 	// tests if baz-29 is actually linked to the system 29 stubs lib
-	android.AssertStringDoesContain(t, "baz-29 javac classpath", baz29Javac.Args["classpath"], "prebuilts/sdk/sdk_system_29_foo/android_common/combined/sdk_system_29_foo.jar")
+	android.AssertStringDoesContain(t, "baz-29 javac classpath", baz29Javac.Args["classpath"], "prebuilts/sdk/sdk_system_29_foo/android_common/local-combined/sdk_system_29_foo.jar")
 
 	bazModule30Javac := result.ModuleForTests(t, "baz-module-30", "android_common").Rule("javac")
 	// tests if "baz-module-30" is actually linked to the module 30 stubs lib
-	android.AssertStringDoesContain(t, "baz-module-30 javac classpath", bazModule30Javac.Args["classpath"], "prebuilts/sdk/sdk_module-lib_30_foo/android_common/combined/sdk_module-lib_30_foo.jar")
+	android.AssertStringDoesContain(t, "baz-module-30 javac classpath", bazModule30Javac.Args["classpath"], "prebuilts/sdk/sdk_module-lib_30_foo/android_common/local-combined/sdk_module-lib_30_foo.jar")
 
 	// test if baz has exported SDK lib names foo and bar to qux
 	qux := result.ModuleForTests(t, "qux", "android_common")
@@ -422,7 +422,7 @@ func TestJavaSdkLibrary_StubOrImplOnlyLibs(t *testing.T) {
 		android.AssertStringContainsEquals(t, "bad classpath for "+sdklib, sdklibCp, "/"+dep+".jar", expected)
 
 		combineJarInputs := result.ModuleForTests(t, sdklib, "android_common").Rule("combineJar").Inputs.Strings()
-		depPath := filepath.Join("out", "soong", ".intermediates", dep, "android_common", "turbine-combined", dep+".jar")
+		depPath := filepath.Join("out", "soong", ".intermediates", dep, "android_common", "turbine", dep+".jar")
 		android.AssertStringListContainsEquals(t, "bad combined inputs for "+sdklib, combineJarInputs, depPath, combined)
 	}
 	for _, expectation := range expectations {
@@ -458,7 +458,7 @@ func TestJavaSdkLibrary_DoNotAccessImplWhenItIsNotBuilt(t *testing.T) {
 
 	// The bar library should depend on the stubs jar.
 	barLibrary := result.ModuleForTests(t, "bar", "android_common").Rule("javac")
-	if expected, actual := `^-classpath .*:out/soong/[^:]*/turbine-combined/foo\.stubs\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
+	if expected, actual := `^-classpath .*:out/soong/[^:]*/foo\.stubs\.from-text/foo\.stubs\.from-text\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
 		t.Errorf("expected %q, found %#q", expected, actual)
 	}
 }
@@ -494,7 +494,7 @@ func TestJavaSdkLibrary_AccessOutputFiles_NoAnnotations(t *testing.T) {
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("foo"),
 	).
-		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module "bar" variant "android_common": unsupported module reference tag ".public.annotations.zip"`)).
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module "bar" variant "android_common": unsupported output tag ".public.annotations.zip"`)).
 		RunTestWithBp(t, `
 		java_sdk_library {
 			name: "foo",
@@ -520,7 +520,7 @@ func TestJavaSdkLibrary_AccessOutputFiles_MissingScope(t *testing.T) {
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("foo"),
 	).
-		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module "bar" variant "android_common": unsupported module reference tag ".system.stubs.source"`)).
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module "bar" variant "android_common": unsupported output tag ".system.stubs.source"`)).
 		RunTestWithBp(t, `
 		java_sdk_library {
 			name: "foo",
@@ -791,7 +791,7 @@ func TestJavaSdkLibrary_SystemServer_AccessToStubScopeLibs(t *testing.T) {
 
 	stubsPath := func(name string, scope *apiScope) string {
 		name = scope.stubsLibraryModuleName(name)
-		return fmt.Sprintf("out/soong/.intermediates/%[1]s/android_common/turbine-combined/%[1]s.jar", name)
+		return fmt.Sprintf("out/soong/.intermediates/%[1]s.from-text/android_common/%[1]s.from-text/%[1]s.from-text.jar", name)
 	}
 
 	// The bar library should depend on the highest (where system server is highest and public is
@@ -853,7 +853,7 @@ func TestJavaSdkLibraryImport(t *testing.T) {
 		fooModule := result.ModuleForTests(t, "foo"+scope, "android_common")
 		javac := fooModule.Rule("javac")
 
-		sdklibStubsJar := result.ModuleForTests(t, "sdklib.stubs"+scope, "android_common").Output("combined/sdklib.stubs" + scope + ".jar").Output
+		sdklibStubsJar := result.ModuleForTests(t, "sdklib.stubs"+scope, "android_common").Output("local-combined/sdklib.stubs" + scope + ".jar").Output
 		android.AssertStringDoesContain(t, "foo classpath", javac.Args["classpath"], sdklibStubsJar.String())
 	}
 
@@ -1002,7 +1002,7 @@ func testJavaSdkLibraryImport_Preferred(t *testing.T, prefer string, preparer an
 	public := result.ModuleForTests(t, "public", "android_common")
 	rule := public.Output("javac/public.jar")
 	inputs := rule.Implicits.Strings()
-	expected := "out/soong/.intermediates/prebuilt_sdklib.stubs/android_common/combined/sdklib.stubs.jar"
+	expected := "out/soong/.intermediates/prebuilt_sdklib.stubs/android_common/local-combined/sdklib.stubs.jar"
 	if !android.InList(expected, inputs) {
 		t.Errorf("expected %q to contain %q", inputs, expected)
 	}
@@ -1124,12 +1124,12 @@ func TestSdkLibraryImport_MetadataModuleSupersedesPreferred(t *testing.T) {
 	inputs := rule.Implicits.Strings()
 	expectedInputs := []string{
 		// source
-		"out/soong/.intermediates/sdklib.prebuilt_preferred_using_legacy_flags.stubs/android_common/turbine-combined/sdklib.prebuilt_preferred_using_legacy_flags.stubs.jar",
-		"out/soong/.intermediates/sdklib.prebuilt_preferred_using_legacy_flags.stubs.system/android_common/turbine-combined/sdklib.prebuilt_preferred_using_legacy_flags.stubs.system.jar",
+		"out/soong/.intermediates/sdklib.prebuilt_preferred_using_legacy_flags.stubs.from-text/android_common/sdklib.prebuilt_preferred_using_legacy_flags.stubs.from-text/sdklib.prebuilt_preferred_using_legacy_flags.stubs.from-text.jar",
+		"out/soong/.intermediates/sdklib.prebuilt_preferred_using_legacy_flags.stubs.system.from-text/android_common/sdklib.prebuilt_preferred_using_legacy_flags.stubs.system.from-text/sdklib.prebuilt_preferred_using_legacy_flags.stubs.system.from-text.jar",
 
 		// prebuilt
-		"out/soong/.intermediates/prebuilt_sdklib.source_preferred_using_legacy_flags.stubs/android_common/combined/sdklib.source_preferred_using_legacy_flags.stubs.jar",
-		"out/soong/.intermediates/prebuilt_sdklib.source_preferred_using_legacy_flags.stubs.system/android_common/combined/sdklib.source_preferred_using_legacy_flags.stubs.system.jar",
+		"out/soong/.intermediates/prebuilt_sdklib.source_preferred_using_legacy_flags.stubs/android_common/local-combined/sdklib.source_preferred_using_legacy_flags.stubs.jar",
+		"out/soong/.intermediates/prebuilt_sdklib.source_preferred_using_legacy_flags.stubs.system/android_common/local-combined/sdklib.source_preferred_using_legacy_flags.stubs.system.jar",
 	}
 	for _, expected := range expectedInputs {
 		if !android.InList(expected, inputs) {
@@ -1578,7 +1578,8 @@ func TestStubResolutionOfJavaSdkLibraryInLibs(t *testing.T) {
 	public := result.ModuleForTests(t, "mymodule", "android_common")
 	rule := public.Output("javac/mymodule.jar")
 	inputs := rule.Implicits.Strings()
-	android.AssertStringListContains(t, "Could not find the expected stub on classpath", inputs, "out/soong/.intermediates/sdklib.stubs/android_common/turbine-combined/sdklib.stubs.jar")
+	android.AssertStringListContains(t, "Could not find the expected stub on classpath", inputs,
+		"out/soong/.intermediates/sdklib.stubs.from-text/android_common/sdklib.stubs.from-text/sdklib.stubs.from-text.jar")
 }
 
 // test that rdep gets resolved to the correct version of a java_sdk_library (source or a specific prebuilt)
@@ -1636,17 +1637,17 @@ func TestMultipleSdkLibraryPrebuilts(t *testing.T) {
 		{
 			desc:                   "Source library is selected using apex_contributions",
 			selectedDependencyName: "sdklib",
-			expectedStubPath:       "out/soong/.intermediates/sdklib.stubs/android_common/turbine-combined/sdklib.stubs.jar",
+			expectedStubPath:       "out/soong/.intermediates/sdklib.stubs.from-text/android_common/sdklib.stubs.from-text/sdklib.stubs.from-text.jar",
 		},
 		{
 			desc:                   "Prebuilt library v1 is selected using apex_contributions",
 			selectedDependencyName: "prebuilt_sdklib.v1",
-			expectedStubPath:       "out/soong/.intermediates/prebuilt_sdklib.v1.stubs/android_common/combined/sdklib.stubs.jar",
+			expectedStubPath:       "out/soong/.intermediates/prebuilt_sdklib.v1.stubs/android_common/local-combined/sdklib.stubs.jar",
 		},
 		{
 			desc:                   "Prebuilt library v2 is selected using apex_contributions",
 			selectedDependencyName: "prebuilt_sdklib.v2",
-			expectedStubPath:       "out/soong/.intermediates/prebuilt_sdklib.v2.stubs/android_common/combined/sdklib.stubs.jar",
+			expectedStubPath:       "out/soong/.intermediates/prebuilt_sdklib.v2.stubs/android_common/local-combined/sdklib.stubs.jar",
 		},
 	}
 

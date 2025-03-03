@@ -244,10 +244,6 @@ func (library *libraryDecorator) prepareAndroidMKProviderInfo(config android.Con
 		entries.Class = "HEADER_LIBRARIES"
 	}
 
-	if library.distFile != nil {
-		entries.DistFiles = android.MakeDefaultDistFiles(library.distFile)
-	}
-
 	library.androidMkWriteExportedFlags(entries)
 	library.androidMkEntriesWriteAdditionalDependenciesForSourceAbiDiff(entries)
 
@@ -336,7 +332,6 @@ func (binary *binaryDecorator) prepareAndroidMKProviderInfo(config android.Confi
 	ctx.subAndroidMk(config, entries, binary.baseInstaller)
 
 	entries.Class = "EXECUTABLES"
-	entries.DistFiles = binary.distFiles
 	entries.SetString("LOCAL_SOONG_UNSTRIPPED_BINARY", binary.unstrippedOutputFile.String())
 	if len(binary.symlinks) > 0 {
 		entries.AddStrings("LOCAL_MODULE_SYMLINKS", binary.symlinks...)

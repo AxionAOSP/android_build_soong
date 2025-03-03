@@ -239,10 +239,10 @@ func TestPartialCompile(t *testing.T) {
 	}{
 		{"", true, defaultPartialCompileFlags},
 		{"false", true, partialCompileFlags{}},
-		{"true", true, defaultPartialCompileFlags.updateEnabled(true)},
+		{"true", true, enabledPartialCompileFlags},
 		{"true", false, partialCompileFlags{}},
-		{"true,use_d8", true, defaultPartialCompileFlags.updateEnabled(true).updateUseD8(true)},
-		{"true,-use_d8", true, defaultPartialCompileFlags.updateEnabled(true).updateUseD8(false)},
+		{"true,use_d8", true, enabledPartialCompileFlags.updateUseD8(true)},
+		{"true,-use_d8", true, enabledPartialCompileFlags.updateUseD8(false)},
 		{"use_d8,false", true, partialCompileFlags{}},
 		{"false,+use_d8", true, partialCompileFlags{}.updateUseD8(true)},
 	}

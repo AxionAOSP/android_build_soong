@@ -22,6 +22,17 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+func init() {
+	pctx.HostBinToolVariable("aconfig", "aconfig")
+}
+
+var (
+	aconfigCreateStorage = pctx.AndroidStaticRule("aconfig_create_storage", blueprint.RuleParams{
+		Command:     `$aconfig create-storage --container $container --file $fileType --out $out --cache $in --version $version`,
+		CommandDeps: []string{"$aconfig"},
+	}, "container", "fileType", "version")
+)
+
 type installedAconfigFlagsInfo struct {
 	aconfigFiles android.Paths
 }
@@ -66,24 +77,27 @@ func (f *filesystem) buildAconfigFlagsFiles(
 
 	container := f.PartitionType()
 
-	installAconfigFlagsPath := dir.Join(ctx, "etc", "aconfig_flags.pb")
-	cmd := builder.Command().
+	aconfigFlagsPb := android.PathForModuleOut(ctx, "aconfig", "aconfig_flags.pb")
+	aconfigFlagsPbBuilder := android.NewRuleBuilder(pctx, ctx)
+	cmd := aconfigFlagsPbBuilder.Command().
 		BuiltTool("aconfig").
 		Text(" dump-cache --dedup --format protobuf --out").
-		Output(installAconfigFlagsPath).
+		Output(aconfigFlagsPb).
 		Textf("--filter container:%s+state:ENABLED", container).
 		Textf("--filter container:%s+permission:READ_WRITE", container)
 	for _, cache := range caches {
 		cmd.FlagWithInput("--cache ", cache)
 	}
+	aconfigFlagsPbBuilder.Build("aconfig_flags_pb", "build aconfig_flags.pb")
+
+	installAconfigFlagsPath := dir.Join(ctx, "etc", "aconfig_flags.pb")
+	builder.Command().Text("mkdir -p ").Text(dir.Join(ctx, "etc").String())
+	builder.Command().Text("cp").Input(aconfigFlagsPb).Text(installAconfigFlagsPath.String())
 	*fullInstallPaths = append(*fullInstallPaths, FullInstallPathInfo{
 		FullInstallPath: android.PathForModuleInPartitionInstall(ctx, f.PartitionType(), "etc/aconfig_flags.pb"),
-		SourcePath:      installAconfigFlagsPath,
+		SourcePath:      aconfigFlagsPb,
 	})
 	f.appendToEntry(ctx, installAconfigFlagsPath)
-
-	installAconfigStorageDir := dir.Join(ctx, "etc", "aconfig")
-	builder.Command().Text("mkdir -p").Text(installAconfigStorageDir.String())
 
 	// To enable fingerprint, we need to have v2 storage files. The default version is 1.
 	storageFilesVersion := 1
@@ -91,20 +105,29 @@ func (f *filesystem) buildAconfigFlagsFiles(
 		storageFilesVersion = 2
 	}
 
+	installAconfigStorageDir := dir.Join(ctx, "etc", "aconfig")
+	builder.Command().Text("mkdir -p").Text(installAconfigStorageDir.String())
+
 	generatePartitionAconfigStorageFile := func(fileType, fileName string) {
-		outputPath := installAconfigStorageDir.Join(ctx, fileName)
-		builder.Command().
-			BuiltTool("aconfig").
-			FlagWithArg("create-storage --container ", container).
-			FlagWithArg("--file ", fileType).
-			FlagWithOutput("--out ", outputPath).
-			FlagWithArg("--cache ", installAconfigFlagsPath.String()).
-			FlagWithArg("--version ", strconv.Itoa(storageFilesVersion))
-		*fullInstallPaths = append(*fullInstallPaths, FullInstallPathInfo{
-			FullInstallPath: android.PathForModuleInPartitionInstall(ctx, f.PartitionType(), "etc/aconfig", fileName),
-			SourcePath:      outputPath,
+		outPath := android.PathForModuleOut(ctx, "aconfig", fileName)
+		installPath := installAconfigStorageDir.Join(ctx, fileName)
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   aconfigCreateStorage,
+			Input:  aconfigFlagsPb,
+			Output: outPath,
+			Args: map[string]string{
+				"container": container,
+				"fileType":  fileType,
+				"version":   strconv.Itoa(storageFilesVersion),
+			},
 		})
-		f.appendToEntry(ctx, outputPath)
+		builder.Command().
+			Text("cp").Input(outPath).Text(installPath.String())
+		*fullInstallPaths = append(*fullInstallPaths, FullInstallPathInfo{
+			SourcePath:      outPath,
+			FullInstallPath: android.PathForModuleInPartitionInstall(ctx, f.PartitionType(), "etc/aconfig", fileName),
+		})
+		f.appendToEntry(ctx, installPath)
 	}
 
 	if ctx.Config().ReleaseCreateAconfigStorageFile() {

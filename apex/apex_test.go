@@ -7874,7 +7874,7 @@ func TestJavaSDKLibrary_WithinApex(t *testing.T) {
 
 	// The bar library should depend on the implementation jar.
 	barLibrary := ctx.ModuleForTests(t, "bar", "android_common_apex10000").Rule("javac")
-	if expected, actual := `^-classpath [^:]*/turbine-combined/foo\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
+	if expected, actual := `^-classpath [^:]*/turbine/foo\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
 		t.Errorf("expected %q, found %#q", expected, actual)
 	}
 }
@@ -7926,7 +7926,7 @@ func TestJavaSDKLibrary_CrossBoundary(t *testing.T) {
 
 	// The bar library should depend on the stubs jar.
 	barLibrary := ctx.ModuleForTests(t, "bar", "android_common").Rule("javac")
-	if expected, actual := `^-classpath [^:]*/turbine-combined/foo\.stubs\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
+	if expected, actual := `^-classpath [^:]*/foo\.stubs\.from-text/foo\.stubs\.from-text\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
 		t.Errorf("expected %q, found %#q", expected, actual)
 	}
 }
@@ -8020,7 +8020,7 @@ func TestJavaSDKLibrary_ImportPreferred(t *testing.T) {
 
 	// The bar library should depend on the implementation jar.
 	barLibrary := ctx.ModuleForTests(t, "bar", "android_common_apex10000").Rule("javac")
-	if expected, actual := `^-classpath [^:]*/turbine-combined/foo\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
+	if expected, actual := `^-classpath [^:]*/turbine/foo\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
 		t.Errorf("expected %q, found %#q", expected, actual)
 	}
 }

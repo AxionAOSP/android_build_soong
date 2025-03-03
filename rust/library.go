@@ -744,8 +744,14 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		}
 		if library.rlib() {
 			ccExporter.RustRlibDeps = append(ccExporter.RustRlibDeps, deps.reexportedCcRlibDeps...)
+			ccExporter.RustRlibDeps = append(ccExporter.RustRlibDeps, deps.reexportedWholeCcRlibDeps...)
 		}
 		android.SetProvider(ctx, cc.FlagExporterInfoProvider, ccExporter)
+	}
+
+	if library.dylib() {
+		// reexport whole-static'd dependencies for dylibs.
+		library.flagExporter.wholeRustRlibDeps = append(library.flagExporter.wholeRustRlibDeps, deps.reexportedWholeCcRlibDeps...)
 	}
 
 	if library.shared() || library.stubs() {

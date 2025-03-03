@@ -36,7 +36,7 @@ type SingletonContext interface {
 
 	// ModuleVariantsFromName returns the list of module variants named `name` in the same namespace as `referer` enforcing visibility rules.
 	// Allows generating build actions for `referer` based on the metadata for `name` deferred until the singleton context.
-	ModuleVariantsFromName(referer Module, name string) []Module
+	ModuleVariantsFromName(referer ModuleProxy, name string) []ModuleProxy
 
 	otherModuleProvider(module blueprint.Module, provider blueprint.AnyProviderKey) (any, bool)
 
@@ -84,6 +84,9 @@ type SingletonContext interface {
 	VisitAllModuleVariantProxies(module Module, visit func(proxy ModuleProxy))
 
 	PrimaryModule(module Module) Module
+
+	PrimaryModuleProxy(module ModuleProxy) ModuleProxy
+
 	IsFinalModule(module Module) bool
 
 	AddNinjaFileDeps(deps ...string)
@@ -271,6 +274,26 @@ func predAdaptor(pred func(Module) bool) func(blueprint.Module) bool {
 	}
 }
 
+func (s *singletonContextAdaptor) ModuleName(module blueprint.Module) string {
+	return s.SingletonContext.ModuleName(getWrappedModule(module))
+}
+
+func (s *singletonContextAdaptor) ModuleDir(module blueprint.Module) string {
+	return s.SingletonContext.ModuleDir(getWrappedModule(module))
+}
+
+func (s *singletonContextAdaptor) ModuleSubDir(module blueprint.Module) string {
+	return s.SingletonContext.ModuleSubDir(getWrappedModule(module))
+}
+
+func (s *singletonContextAdaptor) ModuleType(module blueprint.Module) string {
+	return s.SingletonContext.ModuleType(getWrappedModule(module))
+}
+
+func (s *singletonContextAdaptor) BlueprintFile(module blueprint.Module) string {
+	return s.SingletonContext.BlueprintFile(getWrappedModule(module))
+}
+
 func (s *singletonContextAdaptor) VisitAllModulesBlueprint(visit func(blueprint.Module)) {
 	s.SingletonContext.VisitAllModules(visit)
 }
@@ -308,40 +331,42 @@ func (s *singletonContextAdaptor) VisitAllModuleVariants(module Module, visit fu
 }
 
 func (s *singletonContextAdaptor) VisitAllModuleVariantProxies(module Module, visit func(proxy ModuleProxy)) {
-	s.SingletonContext.VisitAllModuleVariantProxies(module, visitProxyAdaptor(visit))
+	s.SingletonContext.VisitAllModuleVariantProxies(getWrappedModule(module), visitProxyAdaptor(visit))
 }
 
 func (s *singletonContextAdaptor) PrimaryModule(module Module) Module {
 	return s.SingletonContext.PrimaryModule(module).(Module)
 }
 
-func (s *singletonContextAdaptor) IsFinalModule(module Module) bool {
-	return s.SingletonContext.IsFinalModule(module)
+func (s *singletonContextAdaptor) PrimaryModuleProxy(module ModuleProxy) ModuleProxy {
+	return ModuleProxy{s.SingletonContext.PrimaryModuleProxy(module.module)}
 }
 
-func (s *singletonContextAdaptor) ModuleVariantsFromName(referer Module, name string) []Module {
-	// get module reference for visibility enforcement
-	qualified := createVisibilityModuleReference(s.ModuleName(referer), s.ModuleDir(referer), referer)
+func (s *singletonContextAdaptor) IsFinalModule(module Module) bool {
+	return s.SingletonContext.IsFinalModule(getWrappedModule(module))
+}
 
-	modules := s.SingletonContext.ModuleVariantsFromName(referer, name)
-	result := make([]Module, 0, len(modules))
-	for _, m := range modules {
-		if module, ok := m.(Module); ok {
-			// enforce visibility
-			depName := s.ModuleName(module)
-			depDir := s.ModuleDir(module)
-			depQualified := qualifiedModuleName{depDir, depName}
-			// Targets are always visible to other targets in their own package.
-			if depQualified.pkg != qualified.name.pkg {
-				rule := effectiveVisibilityRules(s.Config(), depQualified)
-				if !rule.matches(qualified) {
-					s.ModuleErrorf(referer, "module %q references %q which is not visible to this module\nYou may need to add %q to its visibility",
-						referer.Name(), depQualified, "//"+s.ModuleDir(referer))
-					continue
-				}
+func (s *singletonContextAdaptor) ModuleVariantsFromName(referer ModuleProxy, name string) []ModuleProxy {
+	// get module reference for visibility enforcement
+	qualified := createVisibilityModuleProxyReference(s, s.ModuleName(referer), s.ModuleDir(referer), referer)
+
+	modules := s.SingletonContext.ModuleVariantsFromName(referer.module, name)
+	result := make([]ModuleProxy, 0, len(modules))
+	for _, module := range modules {
+		// enforce visibility
+		depName := s.ModuleName(module)
+		depDir := s.ModuleDir(module)
+		depQualified := qualifiedModuleName{depDir, depName}
+		// Targets are always visible to other targets in their own package.
+		if depQualified.pkg != qualified.name.pkg {
+			rule := effectiveVisibilityRules(s.Config(), depQualified)
+			if !rule.matches(qualified) {
+				s.ModuleErrorf(referer, "module %q references %q which is not visible to this module\nYou may need to add %q to its visibility",
+					referer.Name(), depQualified, "//"+s.ModuleDir(referer))
+				continue
 			}
-			result = append(result, module)
 		}
+		result = append(result, ModuleProxy{module})
 	}
 	return result
 }

@@ -83,7 +83,7 @@ type VersionedLinkableInterface interface {
 	SetSdkVersion(string)
 	SetMinSdkVersion(version string)
 	ApexSdkVersion() android.ApiLevel
-	ImplementationModuleNameForMake(ctx android.BaseModuleContext) string
+	ImplementationModuleNameForMake() string
 
 	// RustApexExclude returns ApexExclude() for Rust modules; always returns false for all non-Rust modules.
 	// TODO(b/362509506): remove this once all apex_exclude uses are switched to stubs.

@@ -824,5 +824,3 @@ func FixtureSetBootImageInstallDirOnDevice(name string, installDir string) andro
 		config.installDir = installDir
 	})
 }
-
-var PrepareForTestWithTransitiveClasspathEnabled = android.PrepareForTestWithBuildFlag("RELEASE_USE_TRANSITIVE_JARS_IN_CLASSPATH", "true")

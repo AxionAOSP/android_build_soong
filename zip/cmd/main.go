@@ -164,7 +164,6 @@ func main() {
 	directories := flags.Bool("d", false, "include directories in zip")
 	compLevel := flags.Int("L", 5, "deflate compression level (0-9)")
 	emulateJar := flags.Bool("jar", false, "modify the resultant .zip to emulate the output of 'jar'")
-	sortEntries := flags.Bool("sort_entries", false, "sort the zip entries")
 	writeIfChanged := flags.Bool("write_if_changed", false, "only update resultant .zip if it has changed")
 	ignoreMissingFiles := flags.Bool("ignore_missing_files", false, "continue if a requested file does not exist")
 	symlinks := flags.Bool("symlinks", true, "store symbolic links in zip instead of following them")
@@ -229,7 +228,6 @@ func main() {
 		FileArgs:                 fileArgsBuilder.FileArgs(),
 		OutputFilePath:           *out,
 		EmulateJar:               *emulateJar,
-		SortEntries:              *sortEntries,
 		SrcJar:                   *srcJar,
 		AddDirectoryEntriesToZip: *directories,
 		CompressionLevel:         *compLevel,

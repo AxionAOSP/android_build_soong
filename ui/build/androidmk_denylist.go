@@ -70,8 +70,8 @@ func blockAndroidMks(ctx Context, androidMks []string) {
 	}
 }
 
-// The Android.mk files in these directories are for NDK build system.
-var external_ndk_androidmks []string = []string{
+var external_androidmks []string = []string{
+	// The Android.mk files in these directories are for NDK build system.
 	"external/fmtlib/",
 	"external/google-breakpad/",
 	"external/googletest/",
@@ -83,6 +83,9 @@ var external_ndk_androidmks []string = []string{
 	"external/vulkan-validation-layers/",
 	"external/walt/",
 	"external/webp/",
+	// These directories hold the published Android SDK, used in Unbundled Gradle builds.
+	"prebuilts/fullsdk-darwin",
+	"prebuilts/fullsdk-linux",
 }
 
 var art_androidmks = []string{
@@ -90,8 +93,8 @@ var art_androidmks = []string{
 }
 
 func ignoreSomeAndroidMks(androidMks []string) (filtered []string) {
-	ignore_androidmks := make([]string, 0, len(external_ndk_androidmks)+len(art_androidmks))
-	ignore_androidmks = append(ignore_androidmks, external_ndk_androidmks...)
+	ignore_androidmks := make([]string, 0, len(external_androidmks)+len(art_androidmks))
+	ignore_androidmks = append(ignore_androidmks, external_androidmks...)
 	ignore_androidmks = append(ignore_androidmks, art_androidmks...)
 
 	shouldKeep := func(androidmk string) bool {

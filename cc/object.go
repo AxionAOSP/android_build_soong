@@ -242,6 +242,10 @@ func (object *objectLinker) isCrt() bool {
 	return Bool(object.Properties.Crt)
 }
 
+func (object *objectLinker) defaultDistFiles() []android.Path {
+	return nil
+}
+
 func (object *objectLinker) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON) {
 	object.baseLinker.moduleInfoJSON(ctx, moduleInfoJSON)
 	moduleInfoJSON.Class = []string{"STATIC_LIBRARIES"}

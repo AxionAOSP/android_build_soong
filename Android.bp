@@ -147,6 +147,17 @@ all_apex_contributions {
 // Framework guests.
 cc_defaults {
     name: "cc_baremetal_defaults",
+    arch: {
+        arm64: {
+            cflags: [
+                // Override the global -march= flag (as set by TARGET_ARCH_VARIANT)
+                // and explicitly use the baseline architecture (ARMv8-A is the first
+                // version with 64-bit support) to avoid emitting potentially
+                // unsupported instructions.
+                "-march=armv8-a",
+            ],
+        },
+    },
     defaults_visibility: ["//visibility:public"],
 }
 

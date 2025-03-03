@@ -104,8 +104,8 @@ type binaryDecorator struct {
 	// Output archive of gcno coverage information
 	coverageOutputFile android.OptionalPath
 
-	// Location of the files that should be copied to dist dir when requested
-	distFiles android.TaggedDistFiles
+	// Location of the file that should be copied to dist dir when no explicit tag is requested
+	defaultDistFile android.Path
 
 	// Action command lines to run directly after the binary is installed. For example,
 	// may be used to symlink runtime dependencies (such as bionic) alongside installation.
@@ -385,11 +385,11 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 			// When dist'ing a library or binary that has use_version_lib set, always
 			// distribute the stamped version, even for the device.
 			versionedOutputFile := android.PathForModuleOut(ctx, "versioned", fileName)
-			binary.distFiles = android.MakeDefaultDistFiles(versionedOutputFile)
+			binary.defaultDistFile = versionedOutputFile
 
 			if binary.stripper.NeedsStrip(ctx) {
 				out := android.PathForModuleOut(ctx, "versioned-stripped", fileName)
-				binary.distFiles = android.MakeDefaultDistFiles(out)
+				binary.defaultDistFile = out
 				binary.stripper.StripExecutableOrSharedLib(ctx, versionedOutputFile, out, stripFlags)
 			}
 
@@ -574,4 +574,11 @@ func (binary *binaryDecorator) verifyHostBionicLinker(ctx ModuleContext, in, lin
 			"linker": linker.String(),
 		},
 	})
+}
+
+func (binary *binaryDecorator) defaultDistFiles() []android.Path {
+	if binary.defaultDistFile == nil {
+		return nil
+	}
+	return []android.Path{binary.defaultDistFile}
 }

@@ -298,33 +298,29 @@ func createLimitDirgroupRule() []Rule {
 			WithoutMatcher("visibility", InAllowedList([]string{"//trusty/vendor/google/aosp/scripts", "//trusty/vendor/google/proprietary/scripts"})).Because(reason),
 		NeverAllow().
 			ModuleType("genrule").
-			// TODO: remove the 4 below targets once new targets are submitted
-			Without("name", "trusty-arm64.lk.elf.gen").
-			Without("name", "trusty-arm64-virt-test-debug.lk.elf.gen").
-			Without("name", "trusty-x86_64.lk.elf.gen").
-			Without("name", "trusty-x86_64-test.lk.elf.gen").
-			// trusty vm target names moving forward
-			Without("name", "trusty-test_vm-arm64.elf.gen").
-			Without("name", "trusty-test_vm-x86.elf.gen").
-			Without("name", "trusty-security_vm-arm64.elf.gen").
-			Without("name", "trusty-security_vm-x86.elf.gen").
-			Without("name", "trusty-widevine_vm-arm64.elf.gen").
-			Without("name", "trusty-widevine_vm-x86.elf.gen").
+			// Trusty TEE target names
+			Without("name", "trusty_tee_package_goog").
+			Without("name", "trusty_tee_package").
+			// Trusty vm target names
+			Without("name", "trusty_test_vm_arm64.bin").
+			Without("name", "trusty_test_vm_x86_64.elf").
+			Without("name", "trusty_security_vm_arm64.bin").
+			Without("name", "trusty_security_vm_x86_64.elf").
+			Without("name", "trusty_widevine_vm_arm64.bin").
+			Without("name", "trusty_widevine_vm_x86_64.elf").
 			WithMatcher("dir_srcs", isSetMatcherInstance).Because(reason),
 		NeverAllow().
 			ModuleType("genrule").
-			// TODO: remove the 4 below targets once new targets are submitted
-			Without("name", "trusty-arm64.lk.elf.gen").
-			Without("name", "trusty-arm64-virt-test-debug.lk.elf.gen").
-			Without("name", "trusty-x86_64.lk.elf.gen").
-			Without("name", "trusty-x86_64-test.lk.elf.gen").
-			// trusty vm target names moving forward
-			Without("name", "trusty-test_vm-arm64.elf.gen").
-			Without("name", "trusty-test_vm-x86.elf.gen").
-			Without("name", "trusty-security_vm-arm64.elf.gen").
-			Without("name", "trusty-security_vm-x86.elf.gen").
-			Without("name", "trusty-widevine_vm-arm64.elf.gen").
-			Without("name", "trusty-widevine_vm-x86.elf.gen").
+			// Trusty TEE target names
+			Without("name", "trusty_tee_package_goog").
+			Without("name", "trusty_tee_package").
+			// Trusty vm target names
+			Without("name", "trusty_test_vm_arm64.bin").
+			Without("name", "trusty_test_vm_x86_64.elf").
+			Without("name", "trusty_security_vm_arm64.bin").
+			Without("name", "trusty_security_vm_x86_64.elf").
+			Without("name", "trusty_widevine_vm_arm64.bin").
+			Without("name", "trusty_widevine_vm_x86_64.elf").
 			With("keep_gendir", "true").Because(reason),
 	}
 }

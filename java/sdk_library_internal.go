@@ -807,10 +807,8 @@ func (module *sdkLibraryXml) DepsMutator(ctx android.BottomUpMutatorContext) {
 var _ android.ApexModule = (*sdkLibraryXml)(nil)
 
 // Implements android.ApexModule
-func (module *sdkLibraryXml) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
-	sdkVersion android.ApiLevel) error {
-	// sdkLibraryXml doesn't need to be checked separately because java_sdk_library is checked
-	return nil
+func (m *sdkLibraryXml) MinSdkVersionSupported(ctx android.BaseModuleContext) android.ApiLevel {
+	return android.MinApiLevel
 }
 
 // File path to the runtime implementation library
@@ -938,6 +936,8 @@ func (module *sdkLibraryXml) GenerateAndroidBuildActions(ctx android.ModuleConte
 	ctx.PackageFile(module.installDirPath, libName+".xml", module.outputFilePath)
 
 	ctx.SetOutputFiles(android.OutputPaths{module.outputFilePath}.Paths(), "")
+
+	etc.SetCommonPrebuiltEtcInfo(ctx, module)
 }
 
 func (module *sdkLibraryXml) AndroidMkEntries() []android.AndroidMkEntries {

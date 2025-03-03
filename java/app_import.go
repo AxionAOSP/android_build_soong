@@ -354,6 +354,12 @@ func (a *AndroidAppImport) stripEmbeddedJniLibsUnusedArch(
 
 func (a *AndroidAppImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.generateAndroidBuildActions(ctx)
+
+	appInfo := &AppInfo{
+		Prebuilt: true,
+	}
+	setCommonAppInfo(appInfo, a)
+	android.SetProvider(ctx, AppInfoProvider, appInfo)
 }
 
 func (a *AndroidAppImport) InstallApkName() string {
@@ -654,10 +660,8 @@ func (a *AndroidAppImport) MinSdkVersion(ctx android.EarlyModuleContext) android
 var _ android.ApexModule = (*AndroidAppImport)(nil)
 
 // Implements android.ApexModule
-func (j *AndroidAppImport) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
-	sdkVersion android.ApiLevel) error {
-	// Do not check for prebuilts against the min_sdk_version of enclosing APEX
-	return nil
+func (m *AndroidAppImport) MinSdkVersionSupported(ctx android.BaseModuleContext) android.ApiLevel {
+	return android.MinApiLevel
 }
 
 func createVariantGroupType(variants []string, variantGroupName string) reflect.Type {

@@ -252,6 +252,9 @@ var NoneApiLevel = ApiLevel{
 	isPreview: true,
 }
 
+// A special ApiLevel that all modules should at least support.
+var MinApiLevel = ApiLevel{number: 1}
+
 // Sentinel ApiLevel to validate that an apiLevel is either an int or a recognized codename.
 var InvalidApiLevel = NewInvalidApiLevel("invalid")
 

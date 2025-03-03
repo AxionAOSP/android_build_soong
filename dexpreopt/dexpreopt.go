@@ -283,9 +283,7 @@ func dexpreoptCommand(ctx android.BuilderContext, globalSoong *GlobalSoongConfig
 		clcHostString := "PCL[" + strings.Join(clcHost.Strings(), ":") + "]"
 		clcTargetString := "PCL[" + strings.Join(clcTarget, ":") + "]"
 
-		if systemServerClasspathJars.ContainsJar(module.Name) {
-			checkSystemServerOrder(ctx, jarIndex)
-		} else {
+		if !systemServerClasspathJars.ContainsJar(module.Name) {
 			// Standalone jars are loaded by separate class loaders with SYSTEMSERVERCLASSPATH as the
 			// parent.
 			clcHostString = "PCL[];" + clcHostString
@@ -574,29 +572,6 @@ func SystemServerDexJarHostPath(ctx android.PathContext, jar string) android.Out
 		// Make module, default output directory is $OUT (passed via the "null config" created
 		// by dexpreopt_gen). Append Soong subdirectory to match Soong module paths.
 		return android.PathForOutput(ctx, "soong", SystemServerDexjarsDir, jar+".jar")
-	}
-}
-
-// Check the order of jars on the system server classpath and give a warning/error if a jar precedes
-// one of its dependencies. This is not an error, but a missed optimization, as dexpreopt won't
-// have the dependency jar in the class loader context, and it won't be able to resolve any
-// references to its classes and methods.
-func checkSystemServerOrder(ctx android.PathContext, jarIndex int) {
-	mctx, isModule := ctx.(android.ModuleContext)
-	if isModule {
-		config := GetGlobalConfig(ctx)
-		jars := config.AllSystemServerClasspathJars(ctx)
-		mctx.WalkDeps(func(dep android.Module, parent android.Module) bool {
-			depIndex := jars.IndexOfJar(dep.Name())
-			if jarIndex < depIndex && !config.BrokenSuboptimalOrderOfSystemServerJars {
-				jar := jars.Jar(jarIndex)
-				dep := jars.Jar(depIndex)
-				mctx.ModuleErrorf("non-optimal order of jars on the system server classpath:"+
-					" '%s' precedes its dependency '%s', so dexpreopt is unable to resolve any"+
-					" references from '%s' to '%s'.\n", jar, dep, jar, dep)
-			}
-			return true
-		})
 	}
 }
 

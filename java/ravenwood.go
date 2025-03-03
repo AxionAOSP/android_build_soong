@@ -267,6 +267,10 @@ func (r *ravenwoodTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		moduleInfoJSON.TestConfig = append(moduleInfoJSON.TestConfig, r.testConfig.String())
 	}
 	moduleInfoJSON.CompatibilitySuites = []string{"general-tests", "ravenwood-tests"}
+
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: r.TestSuites(),
+	})
 }
 
 func (r *ravenwoodTest) AndroidMkEntries() []android.AndroidMkEntries {
@@ -384,6 +388,10 @@ func (r *ravenwoodLibgroup) GenerateAndroidBuildActions(ctx android.ModuleContex
 
 	// Normal build should perform install steps
 	ctx.Phony(r.BaseModuleName(), android.PathForPhony(ctx, r.BaseModuleName()+"-install"))
+
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: r.TestSuites(),
+	})
 }
 
 // collectTransitiveJniDeps returns all JNI dependencies, including transitive

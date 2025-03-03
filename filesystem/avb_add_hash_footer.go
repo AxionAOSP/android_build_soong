@@ -149,6 +149,8 @@ func (a *avbAddHashFooter) GenerateAndroidBuildActions(ctx android.ModuleContext
 	a.installDir = android.PathForModuleInstall(ctx, "etc")
 	ctx.InstallFile(a.installDir, a.installFileName(), output)
 	a.output = output
+
+	setCommonFilesystemInfo(ctx, a)
 }
 
 func addAvbProp(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, prop avbProp) {

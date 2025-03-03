@@ -1901,6 +1901,8 @@ func (txt *sanitizerLibrariesTxtModule) GenerateAndroidBuildActions(ctx android.
 
 	ctx.SetOutputFiles(android.Paths{outputFile}, "")
 	txt.outputFile = outputFile
+
+	etc.SetCommonPrebuiltEtcInfo(ctx, txt)
 }
 
 func (txt *sanitizerLibrariesTxtModule) PrepareAndroidMKProviderInfo(config android.Config) *android.AndroidMkProviderInfo {

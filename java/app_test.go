@@ -887,15 +887,24 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			},
 			appSrcJars: []string{"out/soong/.intermediates/app/android_common/gen/android/R.srcjar"},
 			appClasspath: []string{
-				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
-				"out/soong/.intermediates/shared/android_common/turbine-combined/shared.jar",
-				"out/soong/.intermediates/direct/android_common/turbine-combined/direct.jar",
-				"out/soong/.intermediates/direct_import/android_common/turbine-combined/direct_import.jar",
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine/android_stubs_current.jar",
+				"out/soong/.intermediates/shared/android_common/turbine/shared.jar",
+				"out/soong/.intermediates/shared_transitive_static/android_common/turbine/shared_transitive_static.jar",
+				"out/soong/.intermediates/direct/android_common/turbine/direct.jar",
+				"out/soong/.intermediates/transitive/android_common/turbine/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/direct_import.jar",
+				"out/soong/.intermediates/direct_import_dep/android_common/aar/direct_import_dep.jar",
 			},
 			appCombined: []string{
 				"out/soong/.intermediates/app/android_common/javac/app.jar",
-				"out/soong/.intermediates/direct/android_common/combined/direct.jar",
-				"out/soong/.intermediates/direct_import/android_common/combined/direct_import.jar",
+				"out/soong/.intermediates/direct/android_common/javac/direct.jar",
+				"out/soong/.intermediates/transitive/android_common/javac/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/direct_import.jar",
+				"out/soong/.intermediates/direct_import_dep/android_common/aar/direct_import_dep.jar",
 			},
 
 			directResources: nil,
@@ -908,21 +917,23 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			directImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
 			directSrcJars: []string{"out/soong/.intermediates/direct/android_common/gen/android/R.srcjar"},
 			directClasspath: []string{
-				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
-				"out/soong/.intermediates/transitive/android_common/turbine-combined/transitive.jar",
-				"out/soong/.intermediates/transitive_import/android_common/turbine-combined/transitive_import.jar",
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine/android_stubs_current.jar",
+				"out/soong/.intermediates/transitive/android_common/turbine/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
 			},
 			directCombined: []string{
 				"out/soong/.intermediates/direct/android_common/javac/direct.jar",
 				"out/soong/.intermediates/transitive/android_common/javac/transitive.jar",
-				"out/soong/.intermediates/transitive_import/android_common/combined/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
 			},
 
 			transitiveResources: []string{"out/soong/.intermediates/transitive/android_common/aapt2/transitive/res/values_strings.arsc.flat"},
 			transitiveOverlays:  nil,
 			transitiveImports:   []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
 			transitiveSrcJars:   []string{"out/soong/.intermediates/transitive/android_common/gen/android/R.srcjar"},
-			transitiveClasspath: []string{"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar"},
+			transitiveClasspath: []string{"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine/android_stubs_current.jar"},
 			transitiveCombined:  nil,
 
 			sharedResources: nil,
@@ -936,9 +947,9 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			},
 			sharedSrcJars: []string{"out/soong/.intermediates/shared/android_common/gen/android/R.srcjar"},
 			sharedClasspath: []string{
-				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
-				"out/soong/.intermediates/shared_transitive_shared/android_common/turbine-combined/shared_transitive_shared.jar",
-				"out/soong/.intermediates/shared_transitive_static/android_common/turbine-combined/shared_transitive_static.jar",
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine/android_stubs_current.jar",
+				"out/soong/.intermediates/shared_transitive_shared/android_common/turbine/shared_transitive_shared.jar",
+				"out/soong/.intermediates/shared_transitive_static/android_common/turbine/shared_transitive_static.jar",
 			},
 			sharedCombined: []string{
 				"out/soong/.intermediates/shared/android_common/javac/shared.jar",
@@ -985,17 +996,26 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			},
 			appSrcJars: nil,
 			appClasspath: []string{
-				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine/android_stubs_current.jar",
 				"out/soong/.intermediates/app/android_common/busybox/R.jar",
-				"out/soong/.intermediates/shared/android_common/turbine-combined/shared.jar",
-				"out/soong/.intermediates/direct/android_common/turbine-combined/direct.jar",
-				"out/soong/.intermediates/direct_import/android_common/turbine-combined/direct_import.jar",
+				"out/soong/.intermediates/shared/android_common/turbine/shared.jar",
+				"out/soong/.intermediates/shared_transitive_static/android_common/turbine/shared_transitive_static.jar",
+				"out/soong/.intermediates/direct/android_common/turbine/direct.jar",
+				"out/soong/.intermediates/transitive/android_common/turbine/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/direct_import.jar",
+				"out/soong/.intermediates/direct_import_dep/android_common/aar/direct_import_dep.jar",
 			},
 			appCombined: []string{
 				"out/soong/.intermediates/app/android_common/javac/app.jar",
 				"out/soong/.intermediates/app/android_common/busybox/R.jar",
-				"out/soong/.intermediates/direct/android_common/combined/direct.jar",
-				"out/soong/.intermediates/direct_import/android_common/combined/direct_import.jar",
+				"out/soong/.intermediates/direct/android_common/javac/direct.jar",
+				"out/soong/.intermediates/transitive/android_common/javac/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/direct_import.jar",
+				"out/soong/.intermediates/direct_import_dep/android_common/aar/direct_import_dep.jar",
 			},
 
 			directResources: nil,
@@ -1008,18 +1028,20 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			},
 			directSrcJars: nil,
 			directClasspath: []string{
-				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine/android_stubs_current.jar",
 				"out/soong/.intermediates/direct/android_common/busybox/R.jar",
 				"out/soong/.intermediates/transitive/android_common/busybox/R.jar",
 				"out/soong/.intermediates/transitive_import_dep/android_common/busybox/R.jar",
 				"out/soong/.intermediates/transitive_import/android_common/busybox/R.jar",
-				"out/soong/.intermediates/transitive/android_common/turbine-combined/transitive.jar",
-				"out/soong/.intermediates/transitive_import/android_common/turbine-combined/transitive_import.jar",
+				"out/soong/.intermediates/transitive/android_common/turbine/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
 			},
 			directCombined: []string{
 				"out/soong/.intermediates/direct/android_common/javac/direct.jar",
 				"out/soong/.intermediates/transitive/android_common/javac/transitive.jar",
-				"out/soong/.intermediates/transitive_import/android_common/combined/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
 			},
 
 			transitiveResources: []string{"out/soong/.intermediates/transitive/android_common/aapt2/transitive/res/values_strings.arsc.flat"},
@@ -1027,7 +1049,7 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			transitiveImports:   []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
 			transitiveSrcJars:   nil,
 			transitiveClasspath: []string{
-				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine/android_stubs_current.jar",
 				"out/soong/.intermediates/transitive/android_common/busybox/R.jar",
 			},
 			transitiveCombined: nil,
@@ -1041,12 +1063,12 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			},
 			sharedSrcJars: nil,
 			sharedClasspath: []string{
-				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine/android_stubs_current.jar",
 				"out/soong/.intermediates/shared/android_common/busybox/R.jar",
 				"out/soong/.intermediates/shared_transitive_static/android_common/busybox/R.jar",
 				"out/soong/.intermediates/shared_transitive_shared/android_common/busybox/R.jar",
-				"out/soong/.intermediates/shared_transitive_shared/android_common/turbine-combined/shared_transitive_shared.jar",
-				"out/soong/.intermediates/shared_transitive_static/android_common/turbine-combined/shared_transitive_static.jar",
+				"out/soong/.intermediates/shared_transitive_shared/android_common/turbine/shared_transitive_shared.jar",
+				"out/soong/.intermediates/shared_transitive_static/android_common/turbine/shared_transitive_static.jar",
 			},
 			sharedCombined: []string{
 				"out/soong/.intermediates/shared/android_common/javac/shared.jar",
@@ -1090,18 +1112,27 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			},
 			appSrcJars: nil,
 			appClasspath: []string{
-				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine/android_stubs_current.jar",
 				// R.jar has to come before direct.jar
 				"out/soong/.intermediates/app/android_common/busybox/R.jar",
-				"out/soong/.intermediates/shared/android_common/turbine-combined/shared.jar",
-				"out/soong/.intermediates/direct/android_common/turbine-combined/direct.jar",
-				"out/soong/.intermediates/direct_import/android_common/turbine-combined/direct_import.jar",
+				"out/soong/.intermediates/shared/android_common/turbine/shared.jar",
+				"out/soong/.intermediates/shared_transitive_static/android_common/turbine/shared_transitive_static.jar",
+				"out/soong/.intermediates/direct/android_common/turbine/direct.jar",
+				"out/soong/.intermediates/transitive/android_common/turbine/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/direct_import.jar",
+				"out/soong/.intermediates/direct_import_dep/android_common/aar/direct_import_dep.jar",
 			},
 			appCombined: []string{
 				"out/soong/.intermediates/app/android_common/javac/app.jar",
 				"out/soong/.intermediates/app/android_common/busybox/R.jar",
-				"out/soong/.intermediates/direct/android_common/combined/direct.jar",
-				"out/soong/.intermediates/direct_import/android_common/combined/direct_import.jar",
+				"out/soong/.intermediates/direct/android_common/javac/direct.jar",
+				"out/soong/.intermediates/transitive/android_common/javac/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/direct_import.jar",
+				"out/soong/.intermediates/direct_import_dep/android_common/aar/direct_import_dep.jar",
 			},
 
 			dontVerifyDirect:           true,
@@ -1133,15 +1164,24 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			},
 			appSrcJars: []string{"out/soong/.intermediates/app/android_common/gen/android/R.srcjar"},
 			appClasspath: []string{
-				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
-				"out/soong/.intermediates/shared/android_common/turbine-combined/shared.jar",
-				"out/soong/.intermediates/direct/android_common/turbine-combined/direct.jar",
-				"out/soong/.intermediates/direct_import/android_common/turbine-combined/direct_import.jar",
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine/android_stubs_current.jar",
+				"out/soong/.intermediates/shared/android_common/turbine/shared.jar",
+				"out/soong/.intermediates/shared_transitive_static/android_common/turbine/shared_transitive_static.jar",
+				"out/soong/.intermediates/direct/android_common/turbine/direct.jar",
+				"out/soong/.intermediates/transitive/android_common/turbine/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/direct_import.jar",
+				"out/soong/.intermediates/direct_import_dep/android_common/aar/direct_import_dep.jar",
 			},
 			appCombined: []string{
 				"out/soong/.intermediates/app/android_common/javac/app.jar",
-				"out/soong/.intermediates/direct/android_common/combined/direct.jar",
-				"out/soong/.intermediates/direct_import/android_common/combined/direct_import.jar",
+				"out/soong/.intermediates/direct/android_common/javac/direct.jar",
+				"out/soong/.intermediates/transitive/android_common/javac/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/direct_import.jar",
+				"out/soong/.intermediates/direct_import_dep/android_common/aar/direct_import_dep.jar",
 			},
 
 			directResources: nil,
@@ -1154,17 +1194,19 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			},
 			directSrcJars: nil,
 			directClasspath: []string{
-				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine/android_stubs_current.jar",
 				"out/soong/.intermediates/direct/android_common/busybox/R.jar",
 				"out/soong/.intermediates/transitive_import_dep/android_common/busybox/R.jar",
 				"out/soong/.intermediates/transitive_import/android_common/busybox/R.jar",
-				"out/soong/.intermediates/transitive/android_common/turbine-combined/transitive.jar",
-				"out/soong/.intermediates/transitive_import/android_common/turbine-combined/transitive_import.jar",
+				"out/soong/.intermediates/transitive/android_common/turbine/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
 			},
 			directCombined: []string{
 				"out/soong/.intermediates/direct/android_common/javac/direct.jar",
 				"out/soong/.intermediates/transitive/android_common/javac/transitive.jar",
-				"out/soong/.intermediates/transitive_import/android_common/combined/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
 			},
 
 			dontVerifyTransitive:       true,
@@ -1195,15 +1237,24 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			},
 			appSrcJars: []string{"out/soong/.intermediates/app/android_common/gen/android/R.srcjar"},
 			appClasspath: []string{
-				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
-				"out/soong/.intermediates/shared/android_common/turbine-combined/shared.jar",
-				"out/soong/.intermediates/direct/android_common/turbine-combined/direct.jar",
-				"out/soong/.intermediates/direct_import/android_common/turbine-combined/direct_import.jar",
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine/android_stubs_current.jar",
+				"out/soong/.intermediates/shared/android_common/turbine/shared.jar",
+				"out/soong/.intermediates/shared_transitive_static/android_common/turbine/shared_transitive_static.jar",
+				"out/soong/.intermediates/direct/android_common/turbine/direct.jar",
+				"out/soong/.intermediates/transitive/android_common/turbine/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/direct_import.jar",
+				"out/soong/.intermediates/direct_import_dep/android_common/aar/direct_import_dep.jar",
 			},
 			appCombined: []string{
 				"out/soong/.intermediates/app/android_common/javac/app.jar",
-				"out/soong/.intermediates/direct/android_common/combined/direct.jar",
-				"out/soong/.intermediates/direct_import/android_common/combined/direct_import.jar",
+				"out/soong/.intermediates/direct/android_common/javac/direct.jar",
+				"out/soong/.intermediates/transitive/android_common/javac/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/direct_import.jar",
+				"out/soong/.intermediates/direct_import_dep/android_common/aar/direct_import_dep.jar",
 			},
 
 			directResources: nil,
@@ -1216,14 +1267,16 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			directImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
 			directSrcJars: []string{"out/soong/.intermediates/direct/android_common/gen/android/R.srcjar"},
 			directClasspath: []string{
-				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
-				"out/soong/.intermediates/transitive/android_common/turbine-combined/transitive.jar",
-				"out/soong/.intermediates/transitive_import/android_common/turbine-combined/transitive_import.jar",
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine/android_stubs_current.jar",
+				"out/soong/.intermediates/transitive/android_common/turbine/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
 			},
 			directCombined: []string{
 				"out/soong/.intermediates/direct/android_common/javac/direct.jar",
 				"out/soong/.intermediates/transitive/android_common/javac/transitive.jar",
-				"out/soong/.intermediates/transitive_import/android_common/combined/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/transitive_import.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/aar/transitive_import_dep.jar",
 			},
 
 			transitiveResources: []string{"out/soong/.intermediates/transitive/android_common/aapt2/transitive/res/values_strings.arsc.flat"},
@@ -1231,7 +1284,7 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			transitiveImports:   []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
 			transitiveSrcJars:   nil,
 			transitiveClasspath: []string{
-				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine/android_stubs_current.jar",
 				"out/soong/.intermediates/transitive/android_common/busybox/R.jar",
 			},
 			transitiveCombined: nil,
@@ -1480,7 +1533,6 @@ func TestAndroidResourceOverlays(t *testing.T) {
 					"device/vendor/blah/overlay/bar/res/values/strings.xml",
 				},
 				{"lib", "android_common"}: {
-					"out/soong/.intermediates/lib2/android_common/package-res.apk",
 					"lib/res/res/values/strings.xml",
 					"device/vendor/blah/overlay/lib/res/values/strings.xml",
 				},
@@ -1515,12 +1567,10 @@ func TestAndroidResourceOverlays(t *testing.T) {
 					"device/vendor/blah/overlay/bar/res/values/strings.xml",
 				},
 				{"lib", "android_common"}: {
-					"out/soong/.intermediates/lib2/android_common/package-res.apk",
 					"lib/res/res/values/strings.xml",
 					"device/vendor/blah/overlay/lib/res/values/strings.xml",
 				},
 				{"lib", "android_common_rro"}: {
-					"out/soong/.intermediates/lib2/android_common_rro/package-res.apk",
 					"lib/res/res/values/strings.xml",
 				},
 			},
@@ -1560,7 +1610,6 @@ func TestAndroidResourceOverlays(t *testing.T) {
 				},
 				{"bar", "android_common"}: {"device/vendor/blah/static_overlay/bar/res/values/strings.xml"},
 				{"lib", "android_common"}: {
-					"out/soong/.intermediates/lib2/android_common/package-res.apk",
 					"lib/res/res/values/strings.xml",
 				},
 			},
@@ -3000,14 +3049,14 @@ func TestOverrideAndroidAppDependency(t *testing.T) {
 
 	// Verify baz, which depends on the overridden module foo, has the correct classpath javac arg.
 	javac := ctx.ModuleForTests(t, "baz", "android_common").Rule("javac")
-	fooTurbine := "out/soong/.intermediates/foo/android_common/turbine-combined/foo.jar"
+	fooTurbine := "out/soong/.intermediates/foo/android_common/turbine/foo.jar"
 	if !strings.Contains(javac.Args["classpath"], fooTurbine) {
 		t.Errorf("baz classpath %v does not contain %q", javac.Args["classpath"], fooTurbine)
 	}
 
 	// Verify qux, which depends on the overriding module bar, has the correct classpath javac arg.
 	javac = ctx.ModuleForTests(t, "qux", "android_common").Rule("javac")
-	barTurbine := "out/soong/.intermediates/foo/android_common_bar/turbine-combined/foo.jar"
+	barTurbine := "out/soong/.intermediates/foo/android_common_bar/turbine/foo.jar"
 	if !strings.Contains(javac.Args["classpath"], barTurbine) {
 		t.Errorf("qux classpath %v does not contain %q", javac.Args["classpath"], barTurbine)
 	}
@@ -3084,7 +3133,7 @@ func TestOverrideAndroidTest(t *testing.T) {
 
 		// Check if javac classpath has the correct jar file path. This checks instrumentation_for overrides.
 		javac := variant.Rule("javac")
-		turbine := filepath.Join("out", "soong", ".intermediates", "foo", expected.targetVariant, "turbine-combined", "foo.jar")
+		turbine := filepath.Join("out", "soong", ".intermediates", "foo", expected.targetVariant, "turbine", "foo.jar")
 		if !strings.Contains(javac.Args["classpath"], turbine) {
 			t.Errorf("classpath %q does not contain %q", javac.Args["classpath"], turbine)
 		}
