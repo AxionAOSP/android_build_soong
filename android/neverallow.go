@@ -304,6 +304,8 @@ func createLimitDirgroupRule() []Rule {
 			// Trusty vm target names
 			Without("name", "trusty_test_vm_arm64.bin").
 			Without("name", "trusty_test_vm_x86_64.elf").
+			Without("name", "trusty_test_vm_os_arm64.bin").
+			Without("name", "trusty_test_vm_os_x86_64.elf").
 			Without("name", "trusty_security_vm_arm64.bin").
 			Without("name", "trusty_security_vm_x86_64.elf").
 			Without("name", "trusty_widevine_vm_arm64.bin").
@@ -317,6 +319,8 @@ func createLimitDirgroupRule() []Rule {
 			// Trusty vm target names
 			Without("name", "trusty_test_vm_arm64.bin").
 			Without("name", "trusty_test_vm_x86_64.elf").
+			Without("name", "trusty_test_vm_os_arm64.bin").
+			Without("name", "trusty_test_vm_os_x86_64.elf").
 			Without("name", "trusty_security_vm_arm64.bin").
 			Without("name", "trusty_security_vm_x86_64.elf").
 			Without("name", "trusty_widevine_vm_arm64.bin").

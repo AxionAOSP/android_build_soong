@@ -40,11 +40,12 @@ func createSuperImage(
 	}
 
 	superImageProps := &filesystem.SuperImageProperties{
-		Metadata_device:        proptools.StringPtr(partitionVars.BoardSuperPartitionMetadataDevice),
-		Block_devices:          partitionVars.BoardSuperPartitionBlockDevices,
-		Ab_update:              proptools.BoolPtr(partitionVars.AbOtaUpdater),
-		Retrofit:               proptools.BoolPtr(partitionVars.ProductRetrofitDynamicPartitions),
-		Use_dynamic_partitions: proptools.BoolPtr(partitionVars.ProductUseDynamicPartitions),
+		Metadata_device:               proptools.StringPtr(partitionVars.BoardSuperPartitionMetadataDevice),
+		Block_devices:                 partitionVars.BoardSuperPartitionBlockDevices,
+		Ab_update:                     proptools.BoolPtr(partitionVars.AbOtaUpdater),
+		Retrofit:                      proptools.BoolPtr(partitionVars.ProductRetrofitDynamicPartitions),
+		Use_dynamic_partitions:        proptools.BoolPtr(partitionVars.ProductUseDynamicPartitions),
+		Super_image_in_update_package: proptools.BoolPtr(partitionVars.BoardSuperImageInUpdatePackage),
 	}
 	if partitionVars.ProductVirtualAbOta {
 		superImageProps.Virtual_ab.Enable = proptools.BoolPtr(true)

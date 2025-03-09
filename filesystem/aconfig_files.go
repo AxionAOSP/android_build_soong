@@ -17,6 +17,7 @@ package filesystem
 import (
 	"android/soong/android"
 	"strconv"
+	"strings"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -31,19 +32,12 @@ var (
 		Command:     `$aconfig create-storage --container $container --file $fileType --out $out --cache $in --version $version`,
 		CommandDeps: []string{"$aconfig"},
 	}, "container", "fileType", "version")
+
+	subPartitionsInPartition = map[string][]string{
+		"system": {"system_ext", "product", "vendor"},
+		"vendor": {"odm"},
+	}
 )
-
-type installedAconfigFlagsInfo struct {
-	aconfigFiles android.Paths
-}
-
-var installedAconfigFlagsProvider = blueprint.NewProvider[installedAconfigFlagsInfo]()
-
-type importAconfigDepDag struct {
-	blueprint.BaseDependencyTag
-}
-
-var importAconfigDependencyTag = interPartitionDepTag{}
 
 func (f *filesystem) buildAconfigFlagsFiles(
 	ctx android.ModuleContext,
@@ -52,88 +46,97 @@ func (f *filesystem) buildAconfigFlagsFiles(
 	dir android.OutputPath,
 	fullInstallPaths *[]FullInstallPathInfo,
 ) {
-	var caches []android.Path
-	for _, ps := range specs {
-		caches = append(caches, ps.GetAconfigPaths()...)
-	}
-
-	ctx.VisitDirectDepsWithTag(importAconfigDependencyTag, func(m android.Module) {
-		info, ok := android.OtherModuleProvider(ctx, m, installedAconfigFlagsProvider)
-		if !ok {
-			ctx.ModuleErrorf("expected dependency %s to have an installedAconfigFlagsProvider", m.Name())
-			return
-		}
-		caches = append(caches, info.aconfigFiles...)
-	})
-	caches = android.SortedUniquePaths(caches)
-
-	android.SetProvider(ctx, installedAconfigFlagsProvider, installedAconfigFlagsInfo{
-		aconfigFiles: caches,
-	})
-
 	if !proptools.Bool(f.properties.Gen_aconfig_flags_pb) {
 		return
 	}
 
-	container := f.PartitionType()
+	partition := f.PartitionType()
+	subPartitionsFound := map[string]bool{}
+	fullInstallPath := android.PathForModuleInPartitionInstall(ctx, partition)
 
-	aconfigFlagsPb := android.PathForModuleOut(ctx, "aconfig", "aconfig_flags.pb")
-	aconfigFlagsPbBuilder := android.NewRuleBuilder(pctx, ctx)
-	cmd := aconfigFlagsPbBuilder.Command().
-		BuiltTool("aconfig").
-		Text(" dump-cache --dedup --format protobuf --out").
-		Output(aconfigFlagsPb).
-		Textf("--filter container:%s+state:ENABLED", container).
-		Textf("--filter container:%s+permission:READ_WRITE", container)
-	for _, cache := range caches {
-		cmd.FlagWithInput("--cache ", cache)
-	}
-	aconfigFlagsPbBuilder.Build("aconfig_flags_pb", "build aconfig_flags.pb")
-
-	installAconfigFlagsPath := dir.Join(ctx, "etc", "aconfig_flags.pb")
-	builder.Command().Text("mkdir -p ").Text(dir.Join(ctx, "etc").String())
-	builder.Command().Text("cp").Input(aconfigFlagsPb).Text(installAconfigFlagsPath.String())
-	*fullInstallPaths = append(*fullInstallPaths, FullInstallPathInfo{
-		FullInstallPath: android.PathForModuleInPartitionInstall(ctx, f.PartitionType(), "etc/aconfig_flags.pb"),
-		SourcePath:      aconfigFlagsPb,
-	})
-	f.appendToEntry(ctx, installAconfigFlagsPath)
-
-	// To enable fingerprint, we need to have v2 storage files. The default version is 1.
-	storageFilesVersion := 1
-	if ctx.Config().ReleaseFingerprintAconfigPackages() {
-		storageFilesVersion = 2
+	for _, subPartition := range subPartitionsInPartition[partition] {
+		subPartitionsFound[subPartition] = false
 	}
 
-	installAconfigStorageDir := dir.Join(ctx, "etc", "aconfig")
-	builder.Command().Text("mkdir -p").Text(installAconfigStorageDir.String())
+	var caches []android.Path
+	for _, ps := range specs {
+		caches = append(caches, ps.GetAconfigPaths()...)
+		for subPartition, found := range subPartitionsFound {
+			if !found && strings.HasPrefix(ps.RelPathInPackage(), subPartition+"/") {
+				subPartitionsFound[subPartition] = true
+				break
+			}
+		}
+	}
+	caches = android.SortedUniquePaths(caches)
 
-	generatePartitionAconfigStorageFile := func(fileType, fileName string) {
-		outPath := android.PathForModuleOut(ctx, "aconfig", fileName)
-		installPath := installAconfigStorageDir.Join(ctx, fileName)
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   aconfigCreateStorage,
-			Input:  aconfigFlagsPb,
-			Output: outPath,
-			Args: map[string]string{
-				"container": container,
-				"fileType":  fileType,
-				"version":   strconv.Itoa(storageFilesVersion),
-			},
-		})
-		builder.Command().
-			Text("cp").Input(outPath).Text(installPath.String())
+	buildAconfigFlagsFiles := func(container string, dir android.OutputPath, fullInstallPath android.InstallPath) {
+		aconfigFlagsPb := android.PathForModuleOut(ctx, "aconfig", container, "aconfig_flags.pb")
+		aconfigFlagsPbBuilder := android.NewRuleBuilder(pctx, ctx)
+		cmd := aconfigFlagsPbBuilder.Command().
+			BuiltTool("aconfig").
+			Text(" dump-cache --dedup --format protobuf --out").
+			Output(aconfigFlagsPb).
+			Textf("--filter container:%s+state:ENABLED", container).
+			Textf("--filter container:%s+permission:READ_WRITE", container)
+		for _, cache := range caches {
+			cmd.FlagWithInput("--cache ", cache)
+		}
+		aconfigFlagsPbBuilder.Build(container+"_aconfig_flags_pb", "build aconfig_flags.pb")
+
+		installEtcDir := dir.Join(ctx, "etc")
+		installAconfigFlagsPath := installEtcDir.Join(ctx, "aconfig_flags.pb")
+		builder.Command().Text("mkdir -p ").Text(installEtcDir.String())
+		builder.Command().Text("cp").Input(aconfigFlagsPb).Text(installAconfigFlagsPath.String())
 		*fullInstallPaths = append(*fullInstallPaths, FullInstallPathInfo{
-			SourcePath:      outPath,
-			FullInstallPath: android.PathForModuleInPartitionInstall(ctx, f.PartitionType(), "etc/aconfig", fileName),
+			FullInstallPath: fullInstallPath.Join(ctx, "etc/aconfig_flags.pb"),
+			SourcePath:      aconfigFlagsPb,
 		})
-		f.appendToEntry(ctx, installPath)
+		f.appendToEntry(ctx, installAconfigFlagsPath)
+
+		// To enable fingerprint, we need to have v2 storage files. The default version is 1.
+		storageFilesVersion := 1
+		if ctx.Config().ReleaseFingerprintAconfigPackages() {
+			storageFilesVersion = 2
+		}
+
+		installAconfigStorageDir := installEtcDir.Join(ctx, "aconfig")
+		builder.Command().Text("mkdir -p").Text(installAconfigStorageDir.String())
+
+		generatePartitionAconfigStorageFile := func(fileType, fileName string) {
+			outPath := android.PathForModuleOut(ctx, "aconfig", container, fileName)
+			installPath := installAconfigStorageDir.Join(ctx, fileName)
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   aconfigCreateStorage,
+				Input:  aconfigFlagsPb,
+				Output: outPath,
+				Args: map[string]string{
+					"container": container,
+					"fileType":  fileType,
+					"version":   strconv.Itoa(storageFilesVersion),
+				},
+			})
+			builder.Command().
+				Text("cp").Input(outPath).Text(installPath.String())
+			*fullInstallPaths = append(*fullInstallPaths, FullInstallPathInfo{
+				SourcePath:      outPath,
+				FullInstallPath: fullInstallPath.Join(ctx, "etc/aconfig", fileName),
+			})
+			f.appendToEntry(ctx, installPath)
+		}
+
+		if ctx.Config().ReleaseCreateAconfigStorageFile() {
+			generatePartitionAconfigStorageFile("package_map", "package.map")
+			generatePartitionAconfigStorageFile("flag_map", "flag.map")
+			generatePartitionAconfigStorageFile("flag_val", "flag.val")
+			generatePartitionAconfigStorageFile("flag_info", "flag.info")
+		}
 	}
 
-	if ctx.Config().ReleaseCreateAconfigStorageFile() {
-		generatePartitionAconfigStorageFile("package_map", "package.map")
-		generatePartitionAconfigStorageFile("flag_map", "flag.map")
-		generatePartitionAconfigStorageFile("flag_val", "flag.val")
-		generatePartitionAconfigStorageFile("flag_info", "flag.info")
+	buildAconfigFlagsFiles(partition, dir, fullInstallPath)
+	for _, subPartition := range android.SortedKeys(subPartitionsFound) {
+		if subPartitionsFound[subPartition] {
+			buildAconfigFlagsFiles(subPartition, dir.Join(ctx, subPartition), fullInstallPath.Join(ctx, subPartition))
+		}
 	}
 }

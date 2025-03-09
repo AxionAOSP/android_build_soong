@@ -79,7 +79,7 @@ var (
 
 	minimalRuntimeFlags = []string{"-fsanitize-minimal-runtime", "-fno-sanitize-trap=integer,undefined",
 		"-fno-sanitize-recover=integer,undefined"}
-	memtagStackCommonFlags = []string{"-Xclang -target-feature -Xclang +mte"}
+	memtagStackCommonFlags = []string{"-march=armv8-a+memtag"}
 	memtagStackLlvmFlags   = []string{"-dom-tree-reachability-max-bbs-to-explore=128"}
 
 	hostOnlySanitizeFlags   = []string{"-fno-sanitize-recover=all"}

@@ -238,8 +238,7 @@ func getContainer(m Module) string {
 	} else if base.ProductSpecific() {
 		container = "product"
 	} else if base.SystemExtSpecific() {
-		// system_ext and system partitions should be treated as one container
-		container = "system"
+		container = "system_ext"
 	}
 
 	return container
@@ -255,8 +254,7 @@ func getContainerUsingProviders(ctx OtherModuleProviderContext, m Module) string
 	} else if commonInfo.ProductSpecific {
 		container = "product"
 	} else if commonInfo.SystemExtSpecific {
-		// system_ext and system partitions should be treated as one container
-		container = "system"
+		container = "system_ext"
 	}
 
 	return container

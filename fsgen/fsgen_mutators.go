@@ -105,12 +105,14 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 					"libgsi":                                    defaultDepCandidateProps(ctx.Config()),
 					"llndk.libraries.txt":                       defaultDepCandidateProps(ctx.Config()),
 					"logpersist.start":                          defaultDepCandidateProps(ctx.Config()),
+					"notice_xml_system":                         defaultDepCandidateProps(ctx.Config()),
 					"update_engine_sideload":                    defaultDepCandidateProps(ctx.Config()),
 					// keep-sorted end
 				},
 				"vendor": {
 					"fs_config_files_vendor":                               defaultDepCandidateProps(ctx.Config()),
 					"fs_config_dirs_vendor":                                defaultDepCandidateProps(ctx.Config()),
+					"notice_xml_vendor":                                    defaultDepCandidateProps(ctx.Config()),
 					generatedModuleName(ctx.Config(), "vendor-build.prop"): defaultDepCandidateProps(ctx.Config()),
 				},
 				"odm": {
@@ -118,34 +120,41 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 					// https://cs.android.com/android/_/android/platform/build/+/e4849e87ab660b59a6501b3928693db065ee873b:tools/fs_config/Android.mk;l=34;drc=8d6481b92c4b4e9b9f31a61545b6862090fcc14b;bpv=1;bpt=0
 					"fs_config_files_odm": defaultDepCandidateProps(ctx.Config()),
 					"fs_config_dirs_odm":  defaultDepCandidateProps(ctx.Config()),
+					"notice_xml_odm":      defaultDepCandidateProps(ctx.Config()),
 				},
-				"product": {},
+				"product": {
+					"notice_xml_product": defaultDepCandidateProps(ctx.Config()),
+				},
 				"system_ext": {
 					// VNDK apexes are automatically included.
 					// This hardcoded list will need to be updated if `PRODUCT_EXTRA_VNDK_VERSIONS` is updated.
 					// https://cs.android.com/android/_/android/platform/build/+/adba533072b00c53ac0f198c550a3cbd7a00e4cd:core/main.mk;l=984;bpv=1;bpt=0;drc=174db7b179592cf07cbfd2adb0119486fda911e7
-					"com.android.vndk.v30": defaultDepCandidateProps(ctx.Config()),
-					"com.android.vndk.v31": defaultDepCandidateProps(ctx.Config()),
-					"com.android.vndk.v32": defaultDepCandidateProps(ctx.Config()),
-					"com.android.vndk.v33": defaultDepCandidateProps(ctx.Config()),
-					"com.android.vndk.v34": defaultDepCandidateProps(ctx.Config()),
+					"com.android.vndk.v30":  defaultDepCandidateProps(ctx.Config()),
+					"com.android.vndk.v31":  defaultDepCandidateProps(ctx.Config()),
+					"com.android.vndk.v32":  defaultDepCandidateProps(ctx.Config()),
+					"com.android.vndk.v33":  defaultDepCandidateProps(ctx.Config()),
+					"com.android.vndk.v34":  defaultDepCandidateProps(ctx.Config()),
+					"notice_xml_system_ext": defaultDepCandidateProps(ctx.Config()),
 				},
 				"userdata": {},
 				"system_dlkm": {
 					// these are phony required deps of the phony fs_config_dirs_nonsystem
 					"fs_config_dirs_system_dlkm":  defaultDepCandidateProps(ctx.Config()),
 					"fs_config_files_system_dlkm": defaultDepCandidateProps(ctx.Config()),
+					"notice_xml_system_dlkm":      defaultDepCandidateProps(ctx.Config()),
 					// build props are automatically added to `ALL_DEFAULT_INSTALLED_MODULES`
 					"system_dlkm-build.prop": defaultDepCandidateProps(ctx.Config()),
 				},
 				"vendor_dlkm": {
 					"fs_config_dirs_vendor_dlkm":  defaultDepCandidateProps(ctx.Config()),
 					"fs_config_files_vendor_dlkm": defaultDepCandidateProps(ctx.Config()),
+					"notice_xml_vendor_dlkm":      defaultDepCandidateProps(ctx.Config()),
 					"vendor_dlkm-build.prop":      defaultDepCandidateProps(ctx.Config()),
 				},
 				"odm_dlkm": {
 					"fs_config_dirs_odm_dlkm":  defaultDepCandidateProps(ctx.Config()),
 					"fs_config_files_odm_dlkm": defaultDepCandidateProps(ctx.Config()),
+					"notice_xml_odm_dlkm":      defaultDepCandidateProps(ctx.Config()),
 					"odm_dlkm-build.prop":      defaultDepCandidateProps(ctx.Config()),
 				},
 				"ramdisk":        {},

@@ -97,6 +97,7 @@ bootstrap_go_package {
         "product_packages_file.go",
         "proto.go",
         "provider.go",
+        "provider_keys.go",
         "raw_files.go",
         "recovery_build_prop.go",
         "register.go",

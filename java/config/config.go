@@ -173,6 +173,7 @@ func init() {
 	pctx.HostBinToolVariable("R8Cmd", "r8")
 	pctx.HostBinToolVariable("ExtractR8RulesCmd", "extract-r8-rules")
 	pctx.HostBinToolVariable("ResourceShrinkerCmd", "resourceshrinker")
+	pctx.HostBinToolVariable("TraceReferencesCmd", "tracereferences")
 	pctx.HostBinToolVariable("HiddenAPICmd", "hiddenapi")
 	pctx.HostBinToolVariable("ExtractApksCmd", "extract_apks")
 	pctx.VariableFunc("TurbineJar", func(ctx android.PackageVarContext) string {

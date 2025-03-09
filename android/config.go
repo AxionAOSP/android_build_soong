@@ -385,24 +385,28 @@ type config struct {
 }
 
 type partialCompileFlags struct {
-	// Is partial compilation enabled at all?
-	Enabled bool
-
 	// Whether to use d8 instead of r8
 	Use_d8 bool
+
+	// Whether to disable stub validation.  This is slightly more surgical
+	// than DISABLE_STUB_VALIDATION, in that it only applies to partial
+	// compile builds.
+	Disable_stub_validation bool
+
+	// Whether to disable api lint.
+	Disable_api_lint bool
 
 	// Add others as needed.
 }
 
 // These are the flags when `SOONG_PARTIAL_COMPILE` is empty or not set.
-var defaultPartialCompileFlags = partialCompileFlags{
-	Enabled: false,
-}
+var defaultPartialCompileFlags = partialCompileFlags{}
 
 // These are the flags when `SOONG_PARTIAL_COMPILE=true`.
 var enabledPartialCompileFlags = partialCompileFlags{
-	Enabled: true,
-	Use_d8:  true,
+	Use_d8:                  true,
+	Disable_stub_validation: false,
+	Disable_api_lint:        false,
 }
 
 type deviceConfig struct {
@@ -477,13 +481,29 @@ func (c *config) parsePartialCompileFlags(isEngBuild bool) (partialCompileFlags,
 			state = "+"
 		}
 		switch tok {
+		case "all":
+			// Turn on **all** of the flags.
+			ret = partialCompileFlags{
+				Use_d8:                  true,
+				Disable_stub_validation: true,
+				Disable_api_lint:        true,
+			}
 		case "true":
 			ret = enabledPartialCompileFlags
 		case "false":
 			// Set everything to false.
 			ret = partialCompileFlags{}
-		case "enabled":
-			ret.Enabled = makeVal(state, defaultPartialCompileFlags.Enabled)
+
+		case "api_lint", "enable_api_lint":
+			ret.Disable_api_lint = !makeVal(state, !defaultPartialCompileFlags.Disable_api_lint)
+		case "disable_api_lint":
+			ret.Disable_api_lint = makeVal(state, defaultPartialCompileFlags.Disable_api_lint)
+
+		case "stub_validation", "enable_stub_validation":
+			ret.Disable_stub_validation = !makeVal(state, !defaultPartialCompileFlags.Disable_stub_validation)
+		case "disable_stub_validation":
+			ret.Disable_stub_validation = makeVal(state, defaultPartialCompileFlags.Disable_stub_validation)
+
 		case "use_d8":
 			ret.Use_d8 = makeVal(state, defaultPartialCompileFlags.Use_d8)
 		default:

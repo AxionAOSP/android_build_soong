@@ -78,6 +78,7 @@ bootstrap_go_package {
         "system_modules.go",
         "systemserver_classpath_fragment.go",
         "testing.go",
+        "tracereferences.go",
         "tradefed.go",
     ],
     testSrcs: [

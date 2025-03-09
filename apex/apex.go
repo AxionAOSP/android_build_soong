@@ -18,6 +18,7 @@ package apex
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -549,6 +550,9 @@ type apexBundle struct {
 
 	// Required modules, filled out during GenerateAndroidBuildActions and used in AndroidMk
 	required []string
+
+	// appinfo of the apk-in-apex of this module
+	appInfos java.AppInfos
 }
 
 // apexFileClass represents a type of file that can be included in APEX.
@@ -1930,6 +1934,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			}
 		case androidAppTag:
 			if appInfo, ok := android.OtherModuleProvider(ctx, child, java.AppInfoProvider); ok {
+				a.appInfos = append(a.appInfos, *appInfo)
 				if appInfo.AppSet {
 					appDir := "app"
 					if appInfo.Privileged {
@@ -2258,6 +2263,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.enforcePartitionTagOnApexSystemServerJar(ctx)
 
 	a.verifyNativeImplementationLibs(ctx)
+	a.enforceNoVintfInUpdatable(ctx)
 
 	android.SetProvider(ctx, android.ApexBundleDepsDataProvider, android.ApexBundleDepsData{
 		FlatListPath: a.FlatListPath(),
@@ -2265,6 +2271,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	android.SetProvider(ctx, filesystem.ApexKeyPathInfoProvider, filesystem.ApexKeyPathInfo{a.apexKeysPath})
+
+	android.SetProvider(ctx, java.AppInfosProvider, a.appInfos)
 }
 
 // Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file
@@ -2915,6 +2923,19 @@ func (a *apexBundle) verifyNativeImplementationLibs(ctx android.ModuleContext) {
 				}
 				return
 			}
+		}
+	}
+}
+
+// TODO(b/399527905) libvintf is not forward compatible.
+func (a *apexBundle) enforceNoVintfInUpdatable(ctx android.ModuleContext) {
+	if !a.Updatable() {
+		return
+	}
+	for _, fi := range a.filesInfo {
+		if match, _ := path.Match("etc/vintf/*", fi.path()); match {
+			ctx.ModuleErrorf("VINTF fragment (%s) is not supported in updatable APEX.", fi.path())
+			break
 		}
 	}
 }

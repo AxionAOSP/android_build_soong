@@ -195,6 +195,9 @@ func apiCheckEnabled(ctx android.ModuleContext, apiToCheck ApiToCheck, apiVersio
 				"them instead.")
 		}
 		return false
+	} else if ctx.Config().PartialCompileFlags().Disable_stub_validation &&
+		!ctx.Config().BuildFromTextStub() {
+		return false
 	} else if String(apiToCheck.Api_file) != "" && String(apiToCheck.Removed_api_file) != "" {
 		return true
 	} else if String(apiToCheck.Api_file) != "" {

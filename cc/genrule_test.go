@@ -17,6 +17,7 @@ package cc
 import (
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"android/soong/android"
@@ -253,4 +254,43 @@ func TestMultilibGenruleOut(t *testing.T) {
 		},
 		gen_64bit,
 	)
+}
+
+// Test that a genrule can depend on a tool with symlinks. The symlinks are ignored, but
+// at least it doesn't cause errors.
+func TestGenruleToolWithSymlinks(t *testing.T) {
+	bp := `
+	genrule {
+		name: "gen",
+		tools: ["tool_with_symlinks"],
+		cmd: "$(location tool_with_symlinks) $(in) $(out)",
+		out: ["out"],
+	}
+
+	cc_binary_host {
+		name: "tool_with_symlinks",
+		symlinks: ["symlink1", "symlink2"],
+	}
+	`
+	ctx := PrepareForIntegrationTestWithCc.
+		ExtendWithErrorHandler(android.FixtureExpectsNoErrors).
+		RunTestWithBp(t, bp)
+	gen := ctx.ModuleForTests(t, "gen", "").Output("out")
+	toolFound := false
+	symlinkFound := false
+	for _, dep := range gen.RuleParams.CommandDeps {
+		if strings.HasSuffix(dep, "/tool_with_symlinks") {
+			toolFound = true
+		}
+		if strings.HasSuffix(dep, "/symlink1") || strings.HasSuffix(dep, "/symlink2") {
+			symlinkFound = true
+		}
+	}
+	if !toolFound {
+		t.Errorf("Tool not found")
+	}
+	// We may want to change genrules to include symlinks later
+	if symlinkFound {
+		t.Errorf("Symlinks found")
+	}
 }

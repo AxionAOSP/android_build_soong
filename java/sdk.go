@@ -382,7 +382,7 @@ func createAPIFingerprint(ctx android.SingletonContext) {
 
 	rule.Build("api_fingerprint", "generate api_fingerprint.txt")
 
-	if ctx.Config().BuildOS == android.Linux {
+	if ctx.Config().BuildOS.Linux() {
 		ctx.DistForGoals([]string{"sdk", "droidcore"}, out)
 	}
 }

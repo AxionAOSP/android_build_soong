@@ -260,7 +260,7 @@ func TestMkEntriesMatchedContainer(t *testing.T) {
 			aconfig_declarations {
 				name: "my_aconfig_declarations_bar",
 				package: "com.example.package.bar",
-				container: "vendor",
+				container: "system_ext",
 				srcs: ["bar.aconfig"],
 			}
 

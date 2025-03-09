@@ -606,10 +606,22 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 			panic(err)
 		}
 
+		llndkFlag := "--llndk"
+		if ctx.baseModuleName() == "libbinder_ndk" && ctx.inProduct() {
+			// This is a special case only for the libbinder_ndk. As the product partition is in the
+			// framework side along with system and system_ext partitions in Treble, libbinder_ndk
+			// provides different binder interfaces between product and vendor modules.
+			// In libbinder_ndk, 'llndk' annotation is for the vendor APIs; while 'systemapi'
+			// annotation is for the product APIs.
+			// Use '--systemapi' flag for building the llndk stub of product variant for the
+			// libbinder_ndk.
+			llndkFlag = "--systemapi"
+		}
+
 		// This is the vendor variant of an LLNDK library, build the LLNDK stubs.
 		nativeAbiResult := ParseNativeAbiDefinition(ctx,
 			String(library.Properties.Llndk.Symbol_file),
-			nativeClampedApiLevel(ctx, version), "--llndk")
+			nativeClampedApiLevel(ctx, version), llndkFlag)
 		objs := CompileStubLibrary(ctx, flags, nativeAbiResult.StubSrc, sharedFlags)
 		if !Bool(library.Properties.Llndk.Unversioned) {
 			library.versionScriptPath = android.OptionalPathForPath(

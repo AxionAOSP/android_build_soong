@@ -310,7 +310,7 @@ var (
 
 	gatherReleasedFlaggedApisRule = pctx.AndroidStaticRule("gatherReleasedFlaggedApisRule",
 		blueprint.RuleParams{
-			Command: `${aconfig} dump-cache --dedup --format='{fully_qualified_name}' ` +
+			Command: `${aconfig} dump-cache --dedup --format=protobuf ` +
 				`--out ${out} ` +
 				`${flags_path} ` +
 				`${filter_args} `,
@@ -320,8 +320,8 @@ var (
 
 	generateMetalavaRevertAnnotationsRule = pctx.AndroidStaticRule("generateMetalavaRevertAnnotationsRule",
 		blueprint.RuleParams{
-			Command:     `${keep-flagged-apis} ${in} > ${out}`,
-			CommandDeps: []string{"${keep-flagged-apis}"},
+			Command:     `${aconfig-to-metalava-flags} ${in} > ${out}`,
+			CommandDeps: []string{"${aconfig-to-metalava-flags}"},
 		})
 
 	generateApiXMLRule = pctx.AndroidStaticRule("generateApiXMLRule",
@@ -339,7 +339,7 @@ func init() {
 	pctx.HostBinToolVariable("aconfig", "aconfig")
 	pctx.HostBinToolVariable("ravenizer", "ravenizer")
 	pctx.HostBinToolVariable("apimapper", "apimapper")
-	pctx.HostBinToolVariable("keep-flagged-apis", "keep-flagged-apis")
+	pctx.HostBinToolVariable("aconfig-to-metalava-flags", "aconfig-to-metalava-flags")
 }
 
 type javaBuilderFlags struct {

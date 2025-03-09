@@ -201,7 +201,8 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
-	unsignedOutput := b.buildBootImage(ctx, b.getKernelPath(ctx))
+	kernelPath := b.getKernelPath(ctx)
+	unsignedOutput := b.buildBootImage(ctx, kernelPath)
 
 	output := unsignedOutput
 	if proptools.Bool(b.properties.Use_avb) {
@@ -212,7 +213,7 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		case "default":
 			output = b.signImage(ctx, unsignedOutput)
 		case "make_legacy":
-			output = b.addAvbFooter(ctx, unsignedOutput, b.getKernelPath(ctx))
+			output = b.addAvbFooter(ctx, unsignedOutput, kernelPath)
 		default:
 			ctx.PropertyErrorf("avb_mode", `Unknown value for avb_mode, expected "default" or "make_legacy", got: %q`, *b.properties.Avb_mode)
 		}
@@ -235,10 +236,11 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	// Set BootimgInfo for building target_files.zip
+	dtbPath := b.getDtbPath(ctx)
 	android.SetProvider(ctx, BootimgInfoProvider, BootimgInfo{
 		Cmdline:    b.properties.Cmdline,
-		Kernel:     b.getKernelPath(ctx),
-		Dtb:        b.getDtbPath(ctx),
+		Kernel:     kernelPath,
+		Dtb:        dtbPath,
 		Bootconfig: b.getBootconfigPath(ctx),
 		Output:     output,
 	})
@@ -263,6 +265,21 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		PublicKey:             extractedPublicKey,
 		Output:                output,
 	})
+
+	// Dump compliance metadata
+	complianceMetadataInfo := ctx.ComplianceMetadataInfo()
+	prebuiltFilesCopied := make([]string, 0)
+	if kernelPath != nil {
+		prebuiltFilesCopied = append(prebuiltFilesCopied, kernelPath.String()+":kernel")
+	}
+	if dtbPath != nil {
+		prebuiltFilesCopied = append(prebuiltFilesCopied, dtbPath.String()+":dtb.img")
+	}
+	complianceMetadataInfo.SetPrebuiltFilesCopied(prebuiltFilesCopied)
+
+	if ramdisk := proptools.String(b.properties.Ramdisk_module); ramdisk != "" {
+		buildComplianceMetadata(ctx, bootimgRamdiskDep)
+	}
 }
 
 var BootimgInfoProvider = blueprint.NewProvider[BootimgInfo]()

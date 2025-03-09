@@ -406,10 +406,11 @@ func (a *AutogenRuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.
 
 	a.aapt.buildActions(ctx,
 		aaptBuildActionOptions{
-			sdkContext:      a,
-			extraLinkFlags:  aaptLinkFlags,
-			rroDirs:         &rroDirs,
-			manifestForAapt: genManifest,
+			sdkContext:       a,
+			extraLinkFlags:   aaptLinkFlags,
+			rroDirs:          &rroDirs,
+			manifestForAapt:  genManifest,
+			aconfigTextFiles: getAconfigFilePaths(ctx),
 		},
 	)
 
@@ -426,6 +427,11 @@ func (a *AutogenRuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.
 	// Install the signed apk
 	installDir := android.PathForModuleInstall(ctx, "overlay")
 	ctx.InstallFile(installDir, signed.Base(), signed)
+
+	android.SetProvider(ctx, RuntimeResourceOverlayInfoProvider, RuntimeResourceOverlayInfo{
+		OutputFile:  signed,
+		Certificate: a.certificate,
+	})
 }
 
 func (a *AutogenRuntimeResourceOverlay) SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {

@@ -40,10 +40,12 @@ type ExtraModuleInfoJSON struct {
 	StaticDependencies  []string `json:"static_dependencies,omitempty"`   // $(sort $(ALL_MODULES.$(m).LOCAL_STATIC_LIBRARIES))
 	DataDependencies    []string `json:"data_dependencies,omitempty"`     // $(sort $(ALL_MODULES.$(m).TEST_DATA_BINS))
 
-	CompatibilitySuites []string `json:"compatibility_suites,omitempty"` // $(sort $(ALL_MODULES.$(m).COMPATIBILITY_SUITES))
-	AutoTestConfig      []string `json:"auto_test_config,omitempty"`     // $(ALL_MODULES.$(m).auto_test_config)
-	TestConfig          []string `json:"test_config,omitempty"`          // $(strip $(ALL_MODULES.$(m).TEST_CONFIG) $(ALL_MODULES.$(m).EXTRA_TEST_CONFIGS)
-	ExtraRequired       []string `json:"-"`
+	CompatibilitySuites  []string `json:"compatibility_suites,omitempty"` // $(sort $(ALL_MODULES.$(m).COMPATIBILITY_SUITES))
+	AutoTestConfig       []string `json:"auto_test_config,omitempty"`     // $(ALL_MODULES.$(m).auto_test_config)
+	TestConfig           []string `json:"test_config,omitempty"`          // $(strip $(ALL_MODULES.$(m).TEST_CONFIG) $(ALL_MODULES.$(m).EXTRA_TEST_CONFIGS)
+	TestModuleConfigBase string   `json:"test_module_config_base,omitempty"`
+	ExtraRequired        []string `json:"-"`
+	ExtraHostRequired    []string `json:"-"`
 
 	SupportedVariantsOverride []string `json:"-"`
 	Disabled                  bool     `json:"-"`

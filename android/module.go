@@ -1654,38 +1654,10 @@ func (m *ModuleBase) generateVariantTarget(ctx *moduleContext) {
 
 }
 
+// generateModuleTarget generates phony targets so that you can do `m <module-name>`.
+// It will be run on every variant of the module, so it relies on the fact that phony targets
+// are deduped to merge all the deps from different variants together.
 func (m *ModuleBase) generateModuleTarget(ctx *moduleContext) {
-	var allInstalledFiles InstallPaths
-	var allCheckbuildTargets Paths
-	var alloutputFiles Paths
-	ctx.VisitAllModuleVariantProxies(func(module ModuleProxy) {
-		var checkbuildTarget Path
-		var uncheckedModule bool
-		var skipAndroidMkProcessing bool
-		if EqualModules(m.module, module) {
-			allInstalledFiles = append(allInstalledFiles, ctx.installFiles...)
-			checkbuildTarget = ctx.checkbuildTarget
-			uncheckedModule = ctx.uncheckedModule
-			skipAndroidMkProcessing = shouldSkipAndroidMkProcessing(ctx, m)
-		} else {
-			info := OtherModuleProviderOrDefault(ctx, module, InstallFilesProvider)
-			allInstalledFiles = append(allInstalledFiles, info.InstallFiles...)
-			checkbuildTarget = info.CheckbuildTarget
-			uncheckedModule = info.UncheckedModule
-			skipAndroidMkProcessing = OtherModuleProviderOrDefault(ctx, module, CommonModuleInfoKey).SkipAndroidMkProcessing
-		}
-		if outputFiles, err := outputFilesForModule(ctx, module, ""); err == nil {
-			alloutputFiles = append(alloutputFiles, outputFiles...)
-		}
-		// A module's -checkbuild phony targets should
-		// not be created if the module is not exported to make.
-		// Those could depend on the build target and fail to compile
-		// for the current build target.
-		if (!ctx.Config().KatiEnabled() || !skipAndroidMkProcessing) && !uncheckedModule && checkbuildTarget != nil {
-			allCheckbuildTargets = append(allCheckbuildTargets, checkbuildTarget)
-		}
-	})
-
 	var namespacePrefix string
 	nameSpace := ctx.Namespace().Path
 	if nameSpace != "." {
@@ -1693,25 +1665,30 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext) {
 	}
 
 	var deps Paths
-	var info FinalModuleBuildTargetsInfo
+	var info ModuleBuildTargetsInfo
 
-	if len(allInstalledFiles) > 0 {
+	if len(ctx.installFiles) > 0 {
 		name := namespacePrefix + ctx.ModuleName() + "-install"
-		ctx.Phony(name, allInstalledFiles.Paths()...)
+		installFiles := ctx.installFiles.Paths()
+		ctx.Phony(name, installFiles...)
 		info.InstallTarget = PathForPhony(ctx, name)
-		deps = append(deps, info.InstallTarget)
+		deps = append(deps, installFiles...)
 	}
 
-	if len(allCheckbuildTargets) > 0 {
+	// A module's -checkbuild phony targets should
+	// not be created if the module is not exported to make.
+	// Those could depend on the build target and fail to compile
+	// for the current build target.
+	if (!ctx.Config().KatiEnabled() || !shouldSkipAndroidMkProcessing(ctx, m)) && !ctx.uncheckedModule && ctx.checkbuildTarget != nil {
 		name := namespacePrefix + ctx.ModuleName() + "-checkbuild"
-		ctx.Phony(name, allCheckbuildTargets...)
-		deps = append(deps, PathForPhony(ctx, name))
+		ctx.Phony(name, ctx.checkbuildTarget)
+		deps = append(deps, ctx.checkbuildTarget)
 	}
 
-	if len(alloutputFiles) > 0 {
+	if outputFiles, err := outputFilesForModule(ctx, ctx.Module(), ""); err == nil && len(outputFiles) > 0 {
 		name := namespacePrefix + ctx.ModuleName() + "-outputs"
-		ctx.Phony(name, alloutputFiles...)
-		deps = append(deps, PathForPhony(ctx, name))
+		ctx.Phony(name, outputFiles...)
+		deps = append(deps, outputFiles...)
 	}
 
 	if len(deps) > 0 {
@@ -1734,7 +1711,7 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext) {
 		}
 
 		info.BlueprintDir = ctx.ModuleDir()
-		SetProvider(ctx, FinalModuleBuildTargetsProvider, info)
+		SetProvider(ctx, ModuleBuildTargetsProvider, info)
 	}
 }
 
@@ -1876,15 +1853,15 @@ type SourceFilesInfo struct {
 
 var SourceFilesInfoProvider = blueprint.NewProvider[SourceFilesInfo]()
 
-// FinalModuleBuildTargetsInfo is used by buildTargetSingleton to create checkbuild and
-// per-directory build targets. Only set on the final variant of each module
-type FinalModuleBuildTargetsInfo struct {
+// ModuleBuildTargetsInfo is used by buildTargetSingleton to create checkbuild and
+// per-directory build targets.
+type ModuleBuildTargetsInfo struct {
 	InstallTarget    WritablePath
 	CheckbuildTarget WritablePath
 	BlueprintDir     string
 }
 
-var FinalModuleBuildTargetsProvider = blueprint.NewProvider[FinalModuleBuildTargetsInfo]()
+var ModuleBuildTargetsProvider = blueprint.NewProvider[ModuleBuildTargetsInfo]()
 
 type CommonModuleInfo struct {
 	Enabled bool
@@ -1938,6 +1915,7 @@ type CommonModuleInfo struct {
 	Dists                                        []Dist
 	ExportedToMake                               bool
 	Team                                         string
+	PartitionTag                                 string
 }
 
 type ApiLevelOrPlatform struct {
@@ -2151,14 +2129,19 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	}
 
 	if sourceFileProducer, ok := m.module.(SourceFileProducer); ok {
+		srcs := sourceFileProducer.Srcs()
+		for _, src := range srcs {
+			if src == nil {
+				ctx.ModuleErrorf("SourceFileProducer cannot return nil srcs")
+				return
+			}
+		}
 		SetProvider(ctx, SourceFilesInfoProvider, SourceFilesInfo{Srcs: sourceFileProducer.Srcs()})
 	}
 
-	if ctx.IsFinalModule(m.module) {
-		m.generateModuleTarget(ctx)
-		if ctx.Failed() {
-			return
-		}
+	m.generateModuleTarget(ctx)
+	if ctx.Failed() {
+		return
 	}
 
 	ctx.TransitiveInstallFiles = depset.New[InstallPath](depset.TOPOLOGICAL, ctx.installFiles, dependencyInstallFiles)
@@ -2186,6 +2169,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			} else {
 				hostRequired = m.baseProperties.Host_required
 			}
+			hostRequired = append(hostRequired, moduleInfoJSON.ExtraHostRequired...)
 
 			var data []string
 			for _, d := range ctx.testData {
@@ -2299,6 +2283,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		Dists:                                        m.Dists(),
 		ExportedToMake:                               m.ExportedToMake(),
 		Team:                                         m.Team(),
+		PartitionTag:                                 m.PartitionTag(ctx.DeviceConfig()),
 	}
 	if mm, ok := m.module.(interface {
 		MinSdkVersion(ctx EarlyModuleContext) ApiLevel
@@ -3098,7 +3083,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	modulesInDir := make(map[string]Paths)
 
 	ctx.VisitAllModuleProxies(func(module ModuleProxy) {
-		info := OtherModuleProviderOrDefault(ctx, module, FinalModuleBuildTargetsProvider)
+		info := OtherModuleProviderOrDefault(ctx, module, ModuleBuildTargetsProvider)
 
 		if info.CheckbuildTarget != nil {
 			checkbuildDeps = append(checkbuildDeps, info.CheckbuildTarget)

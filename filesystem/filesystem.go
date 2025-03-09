@@ -30,6 +30,7 @@ import (
 	"android/soong/linkerconfig"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/depset"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -208,11 +209,6 @@ type FilesystemProperties struct {
 	// Install aconfig_flags.pb file for the modules installed in this partition.
 	Gen_aconfig_flags_pb *bool
 
-	// List of names of other filesystem partitions to import their aconfig flags from.
-	// This is used for the system partition to import system_ext's aconfig flags, as currently
-	// those are considered one "container": aosp/3261300
-	Import_aconfig_flags_from []string
-
 	Fsverity fsverityProperties
 
 	// If this property is set to true, the filesystem will call ctx.UncheckedModule(), causing
@@ -359,9 +355,6 @@ func (f *filesystem) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if f.properties.Android_filesystem_deps.System_ext != nil {
 		ctx.AddDependency(ctx.Module(), interPartitionDependencyTag, proptools.String(f.properties.Android_filesystem_deps.System_ext))
 	}
-	for _, partition := range f.properties.Import_aconfig_flags_from {
-		ctx.AddDependency(ctx.Module(), importAconfigDependencyTag, partition)
-	}
 	for _, partition := range f.properties.Include_files_of {
 		ctx.AddDependency(ctx.Module(), interPartitionInstallDependencyTag, partition)
 	}
@@ -432,8 +425,8 @@ type FilesystemInfo struct {
 
 	FullInstallPaths []FullInstallPathInfo
 
-	// Installed files list
-	InstalledFiles InstalledFilesStruct
+	// Installed files dep set of this module and its dependency filesystem modules
+	InstalledFilesDepSet depset.DepSet[InstalledFilesStruct]
 
 	// Path to compress hints file for erofs filesystems
 	// This will be nil for other fileystems like ext4
@@ -444,6 +437,10 @@ type FilesystemInfo struct {
 	FilesystemConfig android.Path
 
 	Owners []InstalledModuleInfo
+
+	UseAvb bool
+
+	HasFsverity bool
 }
 
 // FullInstallPathInfo contains information about the "full install" paths of all the files
@@ -547,13 +544,13 @@ func (f *filesystem) ModifyPackagingSpec(ps *android.PackagingSpec) {
 	}
 }
 
-func buildInstalledFiles(ctx android.ModuleContext, partition string, rootDir android.Path, image android.Path) (txt android.ModuleOutPath, json android.ModuleOutPath) {
+func buildInstalledFiles(ctx android.ModuleContext, partition string, rootDir android.Path, image android.Path) InstalledFilesStruct {
 	fileName := "installed-files"
 	if len(partition) > 0 {
 		fileName += fmt.Sprintf("-%s", partition)
 	}
-	txt = android.PathForModuleOut(ctx, fmt.Sprintf("%s.txt", fileName))
-	json = android.PathForModuleOut(ctx, fmt.Sprintf("%s.json", fileName))
+	txt := android.PathForModuleOut(ctx, fmt.Sprintf("%s.txt", fileName))
+	json := android.PathForModuleOut(ctx, fmt.Sprintf("%s.json", fileName))
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        installedFilesJsonRule,
@@ -572,7 +569,10 @@ func buildInstalledFiles(ctx android.ModuleContext, partition string, rootDir an
 		Description: "Installed file list txt",
 	})
 
-	return txt, json
+	return InstalledFilesStruct{
+		Txt:  txt,
+		Json: json,
+	}
 }
 
 func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -655,11 +655,15 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	fileListFile := android.PathForModuleOut(ctx, "fileList")
 	android.WriteFileRule(ctx, fileListFile, f.installedFilesList())
 
-	partitionName := f.partitionName()
-	if partitionName == "system" {
-		partitionName = ""
+	var partitionNameForInstalledFiles string
+	switch f.partitionName() {
+	case "system":
+		partitionNameForInstalledFiles = ""
+	case "vendor_ramdisk":
+		partitionNameForInstalledFiles = "vendor-ramdisk"
+	default:
+		partitionNameForInstalledFiles = f.partitionName()
 	}
-	installedFileTxt, installedFileJson := buildInstalledFiles(ctx, partitionName, rootDir, f.output)
 
 	var erofsCompressHints android.Path
 	if f.properties.Erofs.Compress_hints != nil {
@@ -680,14 +684,17 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		BuildImagePropFileDeps: buildImagePropFileDeps,
 		SpecsForSystemOther:    f.systemOtherFiles(ctx),
 		FullInstallPaths:       fullInstallPaths,
-		InstalledFiles: InstalledFilesStruct{
-			Txt:  installedFileTxt,
-			Json: installedFileJson,
-		},
+		InstalledFilesDepSet: depset.New(
+			depset.POSTORDER,
+			[]InstalledFilesStruct{buildInstalledFiles(ctx, partitionNameForInstalledFiles, rootDir, f.output)},
+			includeFilesInstalledFiles(ctx),
+		),
 		ErofsCompressHints: erofsCompressHints,
 		SelinuxFc:          f.selinuxFc,
 		FilesystemConfig:   f.generateFilesystemConfig(ctx, rootDir, rebasedDir),
 		Owners:             f.gatherOwners(specs),
+		UseAvb:             proptools.Bool(f.properties.Use_avb),
+		HasFsverity:        f.properties.Fsverity.Inputs.GetOrDefault(ctx, nil) != nil,
 	}
 
 	android.SetProvider(ctx, FilesystemProvider, fsInfo)
@@ -703,6 +710,14 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	f.setVbmetaPartitionProvider(ctx)
+
+	// Dump metadata that can not be done in android/compliance-metadata.go
+	complianceMetadataInfo := ctx.ComplianceMetadataInfo()
+	filesContained := make([]string, 0, len(fullInstallPaths))
+	for _, file := range fullInstallPaths {
+		filesContained = append(filesContained, file.FullInstallPath.String())
+	}
+	complianceMetadataInfo.SetFilesContained(filesContained)
 }
 
 func (f *filesystem) fileystemStagingDirTimestamp(ctx android.ModuleContext) android.WritablePath {
@@ -887,13 +902,24 @@ func (f *filesystem) buildNonDepsFiles(
 		builder.Command().Text("mkdir -p").Text(filepath.Dir(dst.String()))
 		builder.Command().Text("ln -sf").Text(proptools.ShellEscape(target)).Text(dst.String())
 		f.appendToEntry(ctx, dst)
-		// Only add the fullInstallPath logic for files in the rebased dir. The root dir
-		// is harder to install to.
-		if strings.HasPrefix(name, rebasedPrefix) {
+		// Add the fullInstallPath logic for files in the rebased dir, and for non-rebased files in "system" partition
+		// the fullInstallPath is changed to "root" which aligns to the behavior in Make.
+		if f.PartitionType() == "system" {
+			installPath := android.PathForModuleInPartitionInstall(ctx, f.PartitionType(), strings.TrimPrefix(name, rebasedPrefix))
+			if !strings.HasPrefix(name, rebasedPrefix) {
+				installPath = android.PathForModuleInPartitionInstall(ctx, "root", name)
+			}
 			*fullInstallPaths = append(*fullInstallPaths, FullInstallPathInfo{
-				FullInstallPath: android.PathForModuleInPartitionInstall(ctx, f.PartitionType(), strings.TrimPrefix(name, rebasedPrefix)),
+				FullInstallPath: installPath,
 				SymlinkTarget:   target,
 			})
+		} else {
+			if strings.HasPrefix(name, rebasedPrefix) {
+				*fullInstallPaths = append(*fullInstallPaths, FullInstallPathInfo{
+					FullInstallPath: android.PathForModuleInPartitionInstall(ctx, f.PartitionType(), strings.TrimPrefix(name, rebasedPrefix)),
+					SymlinkTarget:   target,
+				})
+			}
 		}
 	}
 
@@ -1170,6 +1196,15 @@ func includeFilesRootDir(ctx android.ModuleContext) (rootDirs android.Paths, par
 		}
 	})
 	return rootDirs, partitions
+}
+
+func includeFilesInstalledFiles(ctx android.ModuleContext) (ret []depset.DepSet[InstalledFilesStruct]) {
+	ctx.VisitDirectDepsWithTag(interPartitionInstallDependencyTag, func(m android.Module) {
+		if fsProvider, ok := android.OtherModuleProvider(ctx, m, FilesystemProvider); ok {
+			ret = append(ret, fsProvider.InstalledFilesDepSet)
+		}
+	})
+	return
 }
 
 func (f *filesystem) buildCpioImage(

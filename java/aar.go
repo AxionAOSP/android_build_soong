@@ -219,11 +219,7 @@ func (p propagateRROEnforcementTransitionMutator) Mutate(ctx android.BottomUpMut
 func (a *aapt) useResourceProcessorBusyBox(ctx android.BaseModuleContext) bool {
 	return BoolDefault(a.aaptProperties.Use_resource_processor, true) &&
 		// TODO(b/331641946): remove this when ResourceProcessorBusyBox supports generating shared libraries.
-		!slices.Contains(a.aaptProperties.Aaptflags, "--shared-lib") &&
-		// Use the legacy resource processor in kythe builds.
-		// The legacy resource processor creates an R.srcjar, which kythe can use for generating crossrefs.
-		// TODO(b/354854007): Re-enable BusyBox in kythe builds
-		!ctx.Config().EmitXrefRules()
+		!slices.Contains(a.aaptProperties.Aaptflags, "--shared-lib")
 }
 
 func (a *aapt) filterProduct() string {

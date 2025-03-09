@@ -213,13 +213,18 @@ func TestConfiguredJarList(t *testing.T) {
 	})
 }
 
-func (p partialCompileFlags) updateEnabled(value bool) partialCompileFlags {
-	p.Enabled = value
+func (p partialCompileFlags) updateUseD8(value bool) partialCompileFlags {
+	p.Use_d8 = value
 	return p
 }
 
-func (p partialCompileFlags) updateUseD8(value bool) partialCompileFlags {
-	p.Use_d8 = value
+func (p partialCompileFlags) updateDisableApiLint(value bool) partialCompileFlags {
+	p.Disable_api_lint = value
+	return p
+}
+
+func (p partialCompileFlags) updateDisableStubValidation(value bool) partialCompileFlags {
+	p.Disable_stub_validation = value
 	return p
 }
 
@@ -241,10 +246,29 @@ func TestPartialCompile(t *testing.T) {
 		{"false", true, partialCompileFlags{}},
 		{"true", true, enabledPartialCompileFlags},
 		{"true", false, partialCompileFlags{}},
+		{"all", true, partialCompileFlags{}.updateUseD8(true).updateDisableApiLint(true).updateDisableStubValidation(true)},
+
+		// This verifies both use_d8 and the processing order.
 		{"true,use_d8", true, enabledPartialCompileFlags.updateUseD8(true)},
 		{"true,-use_d8", true, enabledPartialCompileFlags.updateUseD8(false)},
 		{"use_d8,false", true, partialCompileFlags{}},
 		{"false,+use_d8", true, partialCompileFlags{}.updateUseD8(true)},
+
+		// disable_api_lint can be specified with any of 3 options.
+		{"false,-api_lint", true, partialCompileFlags{}.updateDisableApiLint(true)},
+		{"false,-enable_api_lint", true, partialCompileFlags{}.updateDisableApiLint(true)},
+		{"false,+disable_api_lint", true, partialCompileFlags{}.updateDisableApiLint(true)},
+		{"false,+api_lint", true, partialCompileFlags{}.updateDisableApiLint(false)},
+		{"false,+enable_api_lint", true, partialCompileFlags{}.updateDisableApiLint(false)},
+		{"false,-disable_api_lint", true, partialCompileFlags{}.updateDisableApiLint(false)},
+
+		// disable_stub_validation can be specified with any of 3 options.
+		{"false,-stub_validation", true, partialCompileFlags{}.updateDisableStubValidation(true)},
+		{"false,-enable_stub_validation", true, partialCompileFlags{}.updateDisableStubValidation(true)},
+		{"false,+disable_stub_validation", true, partialCompileFlags{}.updateDisableStubValidation(true)},
+		{"false,+stub_validation", true, partialCompileFlags{}.updateDisableStubValidation(false)},
+		{"false,+enable_stub_validation", true, partialCompileFlags{}.updateDisableStubValidation(false)},
+		{"false,-disable_stub_validation", true, partialCompileFlags{}.updateDisableStubValidation(false)},
 	}
 
 	for _, test := range tests {

@@ -104,8 +104,7 @@ type PhonyRule struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 
-	phonyDepsModuleNames []string
-	properties           PhonyProperties
+	properties PhonyProperties
 }
 
 type PhonyProperties struct {
@@ -126,18 +125,8 @@ func PhonyRuleFactory() android.Module {
 }
 
 func (p *PhonyRule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	p.phonyDepsModuleNames = p.properties.Phony_deps.GetOrDefault(ctx, nil)
-}
-
-func (p *PhonyRule) AndroidMk() android.AndroidMkData {
-	return android.AndroidMkData{
-		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
-			if len(p.phonyDepsModuleNames) > 0 {
-				depModulesStr := strings.Join(p.phonyDepsModuleNames, " ")
-				fmt.Fprintln(w, ".PHONY:", name)
-				fmt.Fprintln(w, name, ":", depModulesStr)
-			}
-		},
+	for _, dep := range p.properties.Phony_deps.GetOrDefault(ctx, nil) {
+		ctx.Phony(ctx.ModuleName(), android.PathForPhony(ctx, dep))
 	}
 }
 

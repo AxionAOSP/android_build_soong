@@ -287,9 +287,13 @@ python_test_host {
     ],
 }
 
-sh_binary_host {
-    name: "keep-flagged-apis",
-    src: "keep-flagged-apis.sh",
+python_binary_host {
+    name: "aconfig-to-metalava-flags",
+    main: "aconfig-to-metalava-flags.py",
+    srcs: ["aconfig-to-metalava-flags.py"],
+    libs: [
+        "libaconfig_python_proto",
+    ],
 }
 
 python_binary_host {

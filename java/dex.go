@@ -103,6 +103,19 @@ type DexProperties struct {
 		// If true, transitive reverse dependencies of this module will have this
 		// module's proguard spec appended to their optimization action
 		Export_proguard_flags_files *bool
+
+		// Path to a file containing a list of class names that should not be compiled using R8.
+		// These classes will be compiled by D8 similar to when Optimize.Enabled is false.
+		//
+		// Example:
+		//
+		//   r8.exclude:
+		//   com.example.Foo
+		//   com.example.Bar
+		//   com.example.Bar$Baz
+		//
+		// By default all classes are compiled using R8 when Optimize.Enabled is set.
+		Exclude *string `android:"path"`
 	}
 
 	// Keep the data uncompressed. We always need uncompressed dex for execution,
@@ -526,6 +539,11 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams, 
 
 	if ctx.Config().UseR8StoreStoreFenceConstructorInlining() {
 		r8Flags = append(r8Flags, "--store-store-fence-constructor-inlining")
+	}
+
+	if opt.Exclude != nil {
+		r8Flags = append(r8Flags, "--exclude", *opt.Exclude)
+		r8Deps = append(r8Deps, android.PathForModuleSrc(ctx, *opt.Exclude))
 	}
 
 	return r8Flags, r8Deps, artProfileOutput

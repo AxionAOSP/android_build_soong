@@ -11667,7 +11667,7 @@ func TestAconfifDeclarationsValidation(t *testing.T) {
 
 	// Arguments passed to aconfig to retrieve the state of the flags defined in the
 	// textproto files
-	aconfigFlagArgs := m.Output("released-flagged-apis-exportable.txt").Args["flags_path"]
+	aconfigFlagArgs := m.Output("released-flags-exportable.pb").Args["flags_path"]
 
 	// "bar-lib" is a static_lib of "foo" and is passed to metalava as classpath. Thus the
 	// cache file provided by the associated aconfig_declarations module "bar" should be passed
@@ -12215,4 +12215,31 @@ func TestVintfFragmentInApex(t *testing.T) {
 
 	// Ensure that vintf fragment file is being installed
 	ensureContains(t, cmd, "/etc/vintf/my_vintf_fragment.xml ")
+}
+
+func TestNoVintfFragmentInUpdatableApex(t *testing.T) {
+	t.Parallel()
+	testApexError(t, `VINTF fragment .* is not supported in updatable APEX`, apex_default_bp+`
+		apex {
+			name: "myapex",
+			manifest: ":myapex.manifest",
+			key: "myapex.key",
+			binaries: [ "mybin" ],
+			updatable: true,
+			min_sdk_version: "29",
+		}
+
+		cc_binary {
+			name: "mybin",
+			srcs: ["mybin.cpp"],
+			vintf_fragment_modules: ["my_vintf_fragment.xml"],
+			apex_available: [ "myapex" ],
+			min_sdk_version: "29",
+		}
+
+		vintf_fragment {
+			name: "my_vintf_fragment.xml",
+			src: "my_vintf_fragment.xml",
+		}
+	`)
 }

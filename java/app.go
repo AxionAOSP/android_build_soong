@@ -611,7 +611,7 @@ func getAconfigFilePaths(ctx android.ModuleContext) (aconfigTextFilePaths androi
 	ctx.VisitDirectDepsProxy(func(dep android.ModuleProxy) {
 		tag := ctx.OtherModuleDependencyTag(dep)
 		switch tag {
-		case staticLibTag:
+		case staticLibTag, rroDepTag:
 			if flagPackages, ok := android.OtherModuleProvider(ctx, dep, FlagsPackagesProvider); ok {
 				aconfigTextFilePaths = append(aconfigTextFilePaths, flagPackages.AconfigTextFiles...)
 			}
@@ -2209,3 +2209,7 @@ func setCommonAppInfo(appInfo *AppInfo, m androidApp) {
 	appInfo.Certificate = m.Certificate()
 	appInfo.PrivAppAllowlist = m.PrivAppAllowlist()
 }
+
+type AppInfos []AppInfo
+
+var AppInfosProvider = blueprint.NewProvider[AppInfos]()

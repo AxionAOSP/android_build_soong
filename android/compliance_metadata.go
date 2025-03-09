@@ -18,7 +18,9 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
+	"path/filepath"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -127,27 +129,37 @@ var (
 // dependencies, built/installed files, etc. It is a wrapper on a map[string]string with some utility
 // methods to get/set properties' values.
 type ComplianceMetadataInfo struct {
-	properties map[string]string
+	properties          map[string]string
+	filesContained      []string
+	prebuiltFilesCopied []string
 }
 
 type complianceMetadataInfoGob struct {
-	Properties map[string]string
+	Properties          map[string]string
+	FilesContained      []string
+	PrebuiltFilesCopied []string
 }
 
 func NewComplianceMetadataInfo() *ComplianceMetadataInfo {
 	return &ComplianceMetadataInfo{
-		properties: map[string]string{},
+		properties:          map[string]string{},
+		filesContained:      make([]string, 0),
+		prebuiltFilesCopied: make([]string, 0),
 	}
 }
 
 func (m *ComplianceMetadataInfo) ToGob() *complianceMetadataInfoGob {
 	return &complianceMetadataInfoGob{
-		Properties: m.properties,
+		Properties:          m.properties,
+		FilesContained:      m.filesContained,
+		PrebuiltFilesCopied: m.prebuiltFilesCopied,
 	}
 }
 
 func (m *ComplianceMetadataInfo) FromGob(data *complianceMetadataInfoGob) {
 	m.properties = data.Properties
+	m.filesContained = data.FilesContained
+	m.prebuiltFilesCopied = data.PrebuiltFilesCopied
 }
 
 func (c *ComplianceMetadataInfo) GobEncode() ([]byte, error) {
@@ -167,6 +179,22 @@ func (c *ComplianceMetadataInfo) SetStringValue(propertyName string, value strin
 
 func (c *ComplianceMetadataInfo) SetListValue(propertyName string, value []string) {
 	c.SetStringValue(propertyName, strings.TrimSpace(strings.Join(value, " ")))
+}
+
+func (c *ComplianceMetadataInfo) SetFilesContained(files []string) {
+	c.filesContained = files
+}
+
+func (c *ComplianceMetadataInfo) GetFilesContained() []string {
+	return c.filesContained
+}
+
+func (c *ComplianceMetadataInfo) SetPrebuiltFilesCopied(files []string) {
+	c.prebuiltFilesCopied = files
+}
+
+func (c *ComplianceMetadataInfo) GetPrebuiltFilesCopied() []string {
+	return c.prebuiltFilesCopied
 }
 
 func (c *ComplianceMetadataInfo) getStringValue(propertyName string) string {
@@ -316,9 +344,42 @@ func (c *complianceMetadataSingleton) GenerateBuildActions(ctx SingletonContext)
 	makeMetadataCsv := PathForOutput(ctx, "compliance-metadata", deviceProduct, "make-metadata.csv")
 	makeModulesCsv := PathForOutput(ctx, "compliance-metadata", deviceProduct, "make-modules.csv")
 
+	productOutPath := filepath.Join(ctx.Config().OutDir(), "target", "product", String(ctx.Config().productVariables.DeviceName))
 	if !ctx.Config().KatiEnabled() {
-		WriteFileRule(ctx, makeMetadataCsv, "installed_file,module_path,is_soong_module,is_prebuilt_make_module,product_copy_files,kernel_module_copy_files,is_platform_generated,static_libs,whole_static_libs,license_text")
-		WriteFileRule(ctx, makeModulesCsv, "name,module_path,module_class,module_type,static_libs,whole_static_libs,built_files,installed_files")
+		ctx.VisitAllModuleProxies(func(module ModuleProxy) {
+			// In soong-only build the installed file list is from android_device module
+			if androidDeviceInfo, ok := OtherModuleProvider(ctx, module, AndroidDeviceInfoProvider); ok && androidDeviceInfo.Main_device {
+				if metadataInfo, ok := OtherModuleProvider(ctx, module, ComplianceMetadataProvider); ok {
+					if len(metadataInfo.filesContained) > 0 || len(metadataInfo.prebuiltFilesCopied) > 0 {
+						allFiles := make([]string, 0, len(metadataInfo.filesContained)+len(metadataInfo.prebuiltFilesCopied))
+						allFiles = append(allFiles, metadataInfo.filesContained...)
+						prebuiltFilesSrcDest := make(map[string]string)
+						for _, srcDestPair := range metadataInfo.prebuiltFilesCopied {
+							prebuiltFilePath := filepath.Join(productOutPath, strings.Split(srcDestPair, ":")[1])
+							allFiles = append(allFiles, prebuiltFilePath)
+							prebuiltFilesSrcDest[prebuiltFilePath] = srcDestPair
+						}
+						sort.Strings(allFiles)
+
+						csvHeaders := "installed_file,module_path,is_soong_module,is_prebuilt_make_module,product_copy_files,kernel_module_copy_files,is_platform_generated,static_libs,whole_static_libs,license_text"
+						csvContent := make([]string, 0, len(allFiles)+1)
+						csvContent = append(csvContent, csvHeaders)
+						for _, file := range allFiles {
+							if _, ok := prebuiltFilesSrcDest[file]; ok {
+								srcDestPair := prebuiltFilesSrcDest[file]
+								csvContent = append(csvContent, file+",,,,"+srcDestPair+",,,,,")
+							} else {
+								csvContent = append(csvContent, file+",,Y,,,,,,,")
+							}
+						}
+
+						WriteFileRuleVerbatim(ctx, makeMetadataCsv, strings.Join(csvContent, "\n"))
+						WriteFileRuleVerbatim(ctx, makeModulesCsv, "name,module_path,module_class,module_type,static_libs,whole_static_libs,built_files,installed_files")
+					}
+					return
+				}
+			}
+		})
 	}
 
 	// Import metadata from Make and Soong to sqlite3 database

@@ -210,6 +210,9 @@ var _ android.SourceFileProducer = (*avbAddHashFooter)(nil)
 
 // Implements android.SourceFileProducer
 func (a *avbAddHashFooter) Srcs() android.Paths {
+	if a.output == nil {
+		return nil
+	}
 	return append(android.Paths{}, a.output)
 }
 

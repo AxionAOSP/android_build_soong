@@ -162,6 +162,22 @@ func (m *testModuleConfigModule) GenerateAndroidBuildActions(ctx android.ModuleC
 	m.validateBase(ctx, &testModuleConfigTag, "android_test", false)
 	m.generateManifestAndConfig(ctx)
 
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{m.provider.MkAppClass}
+	if m.provider.MkAppClass != "NATIVE_TESTS" {
+		moduleInfoJSON.Tags = append(moduleInfoJSON.Tags, "tests")
+	}
+	if m.provider.IsUnitTest {
+		moduleInfoJSON.IsUnitTest = "true"
+	}
+	moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, m.tradefedProperties.Test_suites...)
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
+	moduleInfoJSON.ExtraRequired = append(moduleInfoJSON.ExtraRequired, m.provider.RequiredModuleNames...)
+	moduleInfoJSON.ExtraRequired = append(moduleInfoJSON.ExtraRequired, *m.Base)
+	moduleInfoJSON.ExtraHostRequired = append(moduleInfoJSON.ExtraRequired, m.provider.HostRequiredModuleNames...)
+	moduleInfoJSON.TestConfig = []string{m.testConfig.String()}
+	moduleInfoJSON.AutoTestConfig = []string{"true"}
+	moduleInfoJSON.TestModuleConfigBase = proptools.String(m.Base)
 }
 
 // Ensure at least one test_suite is listed.  Ideally it should be general-tests

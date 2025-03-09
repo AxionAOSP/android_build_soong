@@ -551,6 +551,9 @@ func (s *sourceModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 }
 
 func (s *sourceModule) Srcs() Paths {
+	if s.src == nil {
+		return nil
+	}
 	return Paths{s.src}
 }
 
