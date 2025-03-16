@@ -164,7 +164,6 @@ type prebuiltModuleProperties struct {
 	Ramdisk             *bool
 
 	Srcs []string
-	Dsts []string
 
 	No_full_install *bool
 
@@ -199,6 +198,7 @@ var (
 		"etc/dsp":             etc.PrebuiltDSPFactory,
 		"etc/firmware":        etc.PrebuiltFirmwareFactory,
 		"firmware":            etc.PrebuiltFirmwareFactory,
+		"gpu":                 etc.PrebuiltGPUFactory,
 		"first_stage_ramdisk": etc.PrebuiltFirstStageRamdiskFactory,
 		"fonts":               etc.PrebuiltFontFactory,
 		"framework":           etc.PrebuiltFrameworkFactory,
@@ -210,6 +210,7 @@ var (
 		"optee":               etc.PrebuiltOpteeFactory,
 		"overlay":             etc.PrebuiltOverlayFactory,
 		"priv-app":            etc.PrebuiltPrivAppFactory,
+		"radio":               etc.PrebuiltRadioFactory,
 		"sbin":                etc.PrebuiltSbinFactory,
 		"system":              etc.PrebuiltSystemFactory,
 		"res":                 etc.PrebuiltResFactory,
@@ -225,6 +226,7 @@ var (
 		"usr/idc":             etc.PrebuiltUserIdcFactory,
 		"vendor":              etc.PrebuiltVendorFactory,
 		"vendor_dlkm":         etc.PrebuiltVendorDlkmFactory,
+		"vendor_overlay":      etc.PrebuiltVendorOverlayFactory,
 		"wallpaper":           etc.PrebuiltWallpaperFactory,
 		"wlc_upt":             etc.PrebuiltWlcUptFactory,
 	}
@@ -299,6 +301,7 @@ func createPrebuiltEtcModulesInDirectory(ctx android.LoadHookContext, partition,
 			etcInstallPathKey = etcInstallPath
 		}
 	}
+	moduleFactory := etcInstallPathToFactoryList[etcInstallPathKey]
 	relDestDirFromInstallDirBase, _ := filepath.Rel(etcInstallPathKey, destDir)
 
 	for fileIndex := range maxLen {
@@ -348,15 +351,23 @@ func createPrebuiltEtcModulesInDirectory(ctx android.LoadHookContext, partition,
 				})
 			}
 		} else {
-			modulePropsPtr.Srcs = srcBaseFiles
-			dsts := []string{}
-			for _, installBaseFile := range installBaseFiles {
-				dsts = append(dsts, filepath.Join(relDestDirFromInstallDirBase, installBaseFile))
+			// If dsts property has to be set and the selected module type is prebuilt_root,
+			// use prebuilt_any instead.
+			if etcInstallPathKey == "" {
+				moduleFactory = etc.PrebuiltAnyFactory
 			}
-			modulePropsPtr.Dsts = dsts
+			modulePropsPtr.Srcs = srcBaseFiles
+			dsts := proptools.NewConfigurable[[]string](nil, nil)
+			for _, installBaseFile := range installBaseFiles {
+				dsts.AppendSimpleValue([]string{filepath.Join(relDestDirFromInstallDirBase, installBaseFile)})
+			}
+
+			propsList = append(propsList, &etc.PrebuiltDstsProperties{
+				Dsts: dsts,
+			})
 		}
 
-		ctx.CreateModuleInDirectory(etcInstallPathToFactoryList[etcInstallPathKey], srcDir, propsList...)
+		ctx.CreateModuleInDirectory(moduleFactory, srcDir, propsList...)
 		moduleNames = append(moduleNames, moduleName)
 	}
 

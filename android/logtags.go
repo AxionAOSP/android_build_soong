@@ -43,7 +43,7 @@ func MergedLogtagsPath(ctx PathContext) OutputPath {
 func (l *logtagsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	var allLogtags Paths
 	ctx.VisitAllModuleProxies(func(module ModuleProxy) {
-		if !OtherModuleProviderOrDefault(ctx, module, CommonModuleInfoKey).ExportedToMake {
+		if !OtherModulePointerProviderOrDefault(ctx, module, CommonModuleInfoProvider).ExportedToMake {
 			return
 		}
 		if logtagsInfo, ok := OtherModuleProvider(ctx, module, LogtagsProviderKey); ok {

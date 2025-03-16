@@ -573,9 +573,7 @@ func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *a
 		} else {
 			cmd.FlagWithArg("--current-version ", ctx.Config().PlatformSdkVersion().String())
 		}
-		if ctx.Config().PlatformSdkVersion().String() != "36" || ctx.Config().PlatformSdkCodename() != "Baklava" {
-			cmd.FlagWithArg("--current-codename ", ctx.Config().PlatformSdkCodename())
-		}
+		cmd.FlagWithArg("--current-codename ", ctx.Config().PlatformSdkCodename())
 		cmd.FlagWithInput("--apply-api-levels ", apiVersions)
 	}
 }

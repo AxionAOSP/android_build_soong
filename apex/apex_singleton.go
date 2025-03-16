@@ -164,7 +164,7 @@ func (a *apexPrebuiltInfo) GenerateBuildActions(ctx android.SingletonContext) {
 		prebuiltInfo, exists := android.OtherModuleProvider(ctx, m, android.PrebuiltInfoProvider)
 		// Use prebuiltInfoProvider to filter out non apex soong modules.
 		// Use HideFromMake to filter out the unselected variants of a specific apex.
-		if exists && !android.OtherModuleProviderOrDefault(ctx, m, android.CommonModuleInfoKey).HideFromMake {
+		if exists && !android.OtherModulePointerProviderOrDefault(ctx, m, android.CommonModuleInfoProvider).HideFromMake {
 			prebuiltInfos = append(prebuiltInfos, prebuiltInfo)
 		}
 	})

@@ -220,7 +220,7 @@ func collectTidyObjModuleTargets(ctx android.SingletonContext, module android.Mo
 
 	// (1) Collect all obj/tidy files into OS-specific groups.
 	ctx.VisitAllModuleVariantProxies(module, func(variant android.ModuleProxy) {
-		osName := android.OtherModuleProviderOrDefault(ctx, variant, android.CommonModuleInfoKey).Target.Os.Name
+		osName := android.OtherModulePointerProviderOrDefault(ctx, variant, android.CommonModuleInfoProvider).Target.Os.Name
 		info := android.OtherModuleProviderOrDefault(ctx, variant, CcObjectInfoProvider)
 		addToOSGroup(osName, info.ObjFiles, allObjFileGroups, subsetObjFileGroups)
 		addToOSGroup(osName, info.TidyFiles, allTidyFileGroups, subsetTidyFileGroups)

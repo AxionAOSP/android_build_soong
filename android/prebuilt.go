@@ -358,7 +358,7 @@ func IsModulePreferred(module Module) bool {
 }
 
 func IsModulePreferredProxy(ctx OtherModuleProviderContext, module ModuleProxy) bool {
-	if OtherModuleProviderOrDefault(ctx, module, CommonModuleInfoKey).ReplacedByPrebuilt {
+	if OtherModulePointerProviderOrDefault(ctx, module, CommonModuleInfoProvider).ReplacedByPrebuilt {
 		// A source module that has been replaced by a prebuilt counterpart.
 		return false
 	}
@@ -397,7 +397,7 @@ func GetEmbeddedPrebuilt(module Module) *Prebuilt {
 // the right module. This function is only safe to call after all TransitionMutators
 // have run, e.g. in GenerateAndroidBuildActions.
 func PrebuiltGetPreferred(ctx BaseModuleContext, module Module) Module {
-	if !OtherModuleProviderOrDefault(ctx, module, CommonModuleInfoKey).ReplacedByPrebuilt {
+	if !OtherModulePointerProviderOrDefault(ctx, module, CommonModuleInfoProvider).ReplacedByPrebuilt {
 		return module
 	}
 	if _, ok := OtherModuleProvider(ctx, module, PrebuiltModuleInfoProvider); ok {
@@ -607,11 +607,6 @@ func hideUnflaggedModules(ctx BottomUpMutatorContext, psi PrebuiltSelectionInfoM
 		if !moduleInFamily.ExportedToMake() {
 			continue
 		}
-		// Skip for the top-level java_sdk_library_(_import). This has some special cases that need to be addressed first.
-		// This does not run into non-determinism because PrebuiltPostDepsMutator also has the special case
-		if sdkLibrary, ok := moduleInFamily.(interface{ SdkLibraryName() *string }); ok && sdkLibrary.SdkLibraryName() != nil {
-			continue
-		}
 		if p := GetEmbeddedPrebuilt(moduleInFamily); p != nil && p.properties.UsePrebuilt {
 			if selectedPrebuilt == nil {
 				selectedPrebuilt = moduleInFamily
@@ -638,26 +633,10 @@ func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 	if p := GetEmbeddedPrebuilt(m); p != nil {
 		bmn, _ := m.(baseModuleName)
 		name := bmn.BaseModuleName()
-		psi := PrebuiltSelectionInfoMap{}
-		ctx.VisitDirectDepsWithTag(AcDepTag, func(am Module) {
-			psi, _ = OtherModuleProvider(ctx, am, PrebuiltSelectionInfoProvider)
-		})
 
 		if p.properties.UsePrebuilt {
 			if p.properties.SourceExists {
 				ctx.ReplaceDependenciesIf(name, func(from blueprint.Module, tag blueprint.DependencyTag, to blueprint.Module) bool {
-					if sdkLibrary, ok := m.(interface{ SdkLibraryName() *string }); ok && sdkLibrary.SdkLibraryName() != nil {
-						// Do not replace deps to the top-level prebuilt java_sdk_library hook.
-						// This hook has been special-cased in #isSelected to be _always_ active, even in next builds
-						// for dexpreopt and hiddenapi processing.
-						// If we do not special-case this here, rdeps referring to a java_sdk_library in next builds via libs
-						// will get prebuilt stubs
-						// TODO (b/308187268): Remove this after the apexes have been added to apex_contributions
-						if psi.IsSelected(name) {
-							return false
-						}
-					}
-
 					if t, ok := tag.(ReplaceSourceWithPrebuilt); ok {
 						return t.ReplaceSourceWithPrebuilt()
 					}
@@ -679,23 +658,13 @@ func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 // java_sdk_library_import is a macro that creates
 // 1. top-level "impl" library
 // 2. stub libraries (suffixed with .stubs...)
-//
-// the impl of java_sdk_library_import is a "hook" for hiddenapi and dexpreopt processing. It does not have an impl jar, but acts as a shim
-// to provide the jar deapxed from the prebuilt apex
-//
-// isSelected uses `all_apex_contributions` to supersede source vs prebuilts selection of the stub libraries. It does not supersede the
-// selection of the top-level "impl" library so that this hook can work
-//
-// TODO (b/308174306) - Fix this when we need to support multiple prebuilts in main
 func isSelected(psi PrebuiltSelectionInfoMap, m Module) bool {
 	if sdkLibrary, ok := m.(interface{ SdkLibraryName() *string }); ok && sdkLibrary.SdkLibraryName() != nil {
 		sln := proptools.String(sdkLibrary.SdkLibraryName())
 
 		// This is the top-level library
-		// Do not supersede the existing prebuilts vs source selection mechanisms
-		// TODO (b/308187268): Remove this after the apexes have been added to apex_contributions
 		if bmn, ok := m.(baseModuleName); ok && sln == bmn.BaseModuleName() {
-			return false
+			return psi.IsSelected(m.Name())
 		}
 
 		// Stub library created by java_sdk_library_import

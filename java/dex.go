@@ -116,6 +116,21 @@ type DexProperties struct {
 		//
 		// By default all classes are compiled using R8 when Optimize.Enabled is set.
 		Exclude *string `android:"path"`
+
+		// Optional list of downstream (Java) libraries from which to trace and preserve references
+		// when optimizing. Note that this requires that the source reference does *not* have
+		// a strict lib dependency on this target; dependencies should be on intermediate targets
+		// statically linked into this target, e.g., if A references B, and we want to trace and
+		// keep references from A when optimizing B, you would create an intermediate B.impl (
+		// containing all static code), have A depend on `B.impl` via libs, and set
+		// `trace_references_from: ["A"]` on B.
+		//
+		// Also note that these are *not* inherited across targets, they must be specified at the
+		// top-level target that is optimized.
+		//
+		// TODO(b/212737576): Handle this implicitly using bottom-up deps mutation and implicit
+		// creation of a proxy `.impl` library.
+		Trace_references_from proptools.Configurable[[]string] `android:"arch_variant"`
 	}
 
 	// Keep the data uncompressed. We always need uncompressed dex for execution,
@@ -457,6 +472,20 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams, 
 	// TODO(ccross): static android library proguard files
 
 	flagFiles = append(flagFiles, android.PathsForModuleSrc(ctx, opt.Proguard_flags_files)...)
+
+	traceReferencesSources := android.Paths{}
+	ctx.VisitDirectDepsProxyWithTag(traceReferencesTag, func(m android.ModuleProxy) {
+		if dep, ok := android.OtherModuleProvider(ctx, m, JavaInfoProvider); ok {
+			traceReferencesSources = append(traceReferencesSources, dep.ImplementationJars...)
+		}
+	})
+	if len(traceReferencesSources) > 0 {
+		traceTarget := dexParams.classesJar
+		traceLibs := android.FirstUniquePaths(append(flags.bootClasspath.Paths(), flags.dexClasspath.Paths()...))
+		traceReferencesFlags := android.PathForModuleOut(ctx, "proguard", "trace_references.flags")
+		TraceReferences(ctx, traceReferencesSources, traceTarget, traceLibs, traceReferencesFlags)
+		flagFiles = append(flagFiles, traceReferencesFlags)
+	}
 
 	flagFiles = android.FirstUniquePaths(flagFiles)
 

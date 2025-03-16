@@ -274,6 +274,12 @@ func (test *testDecorator) moduleInfoJSON(ctx android.ModuleContext, moduleInfoJ
 	}
 }
 
+func (test *testDecorator) testSuiteInfo(ctx ModuleContext) {
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: test.InstallerProperties.Test_suites,
+	})
+}
+
 func NewTestInstaller() *baseInstaller {
 	return NewBaseInstaller("nativetest", "nativetest64", InstallInData)
 }
@@ -340,6 +346,10 @@ func (test *testBinary) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *androi
 	test.testDecorator.moduleInfoJSON(ctx, moduleInfoJSON)
 	moduleInfoJSON.Class = []string{"NATIVE_TESTS"}
 
+}
+
+func (test *testBinary) testSuiteInfo(ctx ModuleContext) {
+	test.testDecorator.testSuiteInfo(ctx)
 }
 
 func (test *testBinary) installerProps() []interface{} {
@@ -578,6 +588,10 @@ func (test *testLibrary) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *andro
 	test.testDecorator.moduleInfoJSON(ctx, moduleInfoJSON)
 }
 
+func (test *testLibrary) testSuiteInfo(ctx ModuleContext) {
+	test.testDecorator.testSuiteInfo(ctx)
+}
+
 func (test *testLibrary) installerProps() []interface{} {
 	return append(test.baseInstaller.installerProps(), test.testDecorator.installerProps()...)
 }
@@ -693,6 +707,12 @@ func (benchmark *benchmarkDecorator) moduleInfoJSON(ctx ModuleContext, moduleInf
 		}
 		moduleInfoJSON.TestConfig = []string{benchmark.testConfig.String()}
 	}
+}
+
+func (benchmark *benchmarkDecorator) testSuiteInfo(ctx ModuleContext) {
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: benchmark.Properties.Test_suites,
+	})
 }
 
 func NewBenchmark(hod android.HostOrDeviceSupported) *Module {

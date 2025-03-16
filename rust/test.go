@@ -165,7 +165,7 @@ func (test *testDecorator) install(ctx ModuleContext) {
 		if linkableDep.OutputFile.Valid() {
 			// Copy the output in "lib[64]" so that it's compatible with
 			// the default rpath values.
-			commonInfo := android.OtherModuleProviderOrDefault(ctx, dep, android.CommonModuleInfoKey)
+			commonInfo := android.OtherModulePointerProviderOrDefault(ctx, dep, android.CommonModuleInfoProvider)
 			libDir := "lib"
 			if commonInfo.Target.Arch.ArchType.Multilib == "lib64" {
 				libDir = "lib64"
@@ -242,6 +242,10 @@ func (test *testDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 		flags.RustFlags = append(flags.RustFlags, "-Z panic_abort_tests")
 	}
 
+	// Add a default rpath to allow tests to dlopen libraries specified in data_libs.
+	flags.GlobalLinkFlags = append(flags.GlobalLinkFlags, `-Wl,-rpath,\$$ORIGIN/lib64`)
+	flags.GlobalLinkFlags = append(flags.GlobalLinkFlags, `-Wl,-rpath,\$$ORIGIN/lib`)
+
 	return flags
 }
 
@@ -316,6 +320,10 @@ func (test *testDecorator) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *and
 	} else {
 		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "null-suite")
 	}
+
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: test.Properties.Test_suites,
+	})
 }
 
 func rustTestHostMultilib(ctx android.LoadHookContext) {

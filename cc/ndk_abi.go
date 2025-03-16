@@ -40,7 +40,7 @@ type ndkAbiDumpSingleton struct{}
 func (n *ndkAbiDumpSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	var depPaths android.Paths
 	ctx.VisitAllModuleProxies(func(module android.ModuleProxy) {
-		if !android.OtherModuleProviderOrDefault(ctx, module, android.CommonModuleInfoKey).Enabled {
+		if !android.OtherModulePointerProviderOrDefault(ctx, module, android.CommonModuleInfoProvider).Enabled {
 			return
 		}
 
@@ -78,7 +78,7 @@ type ndkAbiDiffSingleton struct{}
 func (n *ndkAbiDiffSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	var depPaths android.Paths
 	ctx.VisitAllModuleProxies(func(module android.ModuleProxy) {
-		if !android.OtherModuleProviderOrDefault(ctx, module, android.CommonModuleInfoKey).Enabled {
+		if !android.OtherModulePointerProviderOrDefault(ctx, module, android.CommonModuleInfoProvider).Enabled {
 			return
 		}
 

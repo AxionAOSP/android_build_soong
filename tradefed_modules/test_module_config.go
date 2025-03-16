@@ -426,6 +426,10 @@ func (m *testModuleConfigModule) generateManifestAndConfig(ctx android.ModuleCon
 		LocalCertificate:        m.provider.LocalCertificate,
 		IsUnitTest:              m.provider.IsUnitTest,
 	})
+
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: m.tradefedProperties.Test_suites,
+	})
 }
 
 var _ android.AndroidMkEntriesProvider = (*testModuleConfigHostModule)(nil)

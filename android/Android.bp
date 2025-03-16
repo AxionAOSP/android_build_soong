@@ -171,3 +171,7 @@ bootstrap_go_package {
     // Used by plugins
     visibility: ["//visibility:public"],
 }
+
+otatools_package_filegroup {
+    name: "otatools_package_filegroup",
+}

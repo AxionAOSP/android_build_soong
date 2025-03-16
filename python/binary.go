@@ -125,6 +125,7 @@ func (p *PythonBinaryModule) GenerateAndroidBuildActions(ctx android.ModuleConte
 func (p *PythonBinaryModule) buildBinary(ctx android.ModuleContext) {
 	embeddedLauncher := p.isEmbeddedLauncherEnabled()
 	depsSrcsZips := p.collectPathsFromTransitiveDeps(ctx, embeddedLauncher)
+	bundleSharedLibs := p.collectSharedLibDeps(ctx)
 	main := ""
 	if p.autorun() {
 		main = p.getPyMainFile(ctx, p.srcsPathMappings)
@@ -149,6 +150,11 @@ func (p *PythonBinaryModule) buildBinary(ctx android.ModuleContext) {
 		srcsZips = append(srcsZips, p.srcsZip)
 	}
 	srcsZips = append(srcsZips, depsSrcsZips...)
+	if ctx.Host() && len(bundleSharedLibs) > 0 {
+		// only bundle shared libs for host binaries
+		sharedLibZip := p.zipSharedLibs(ctx, bundleSharedLibs)
+		srcsZips = append(srcsZips, sharedLibZip)
+	}
 	p.installSource = registerBuildActionForParFile(ctx, embeddedLauncher, launcherPath,
 		"python3", main, p.getStem(ctx), srcsZips)
 
@@ -159,6 +165,10 @@ func (p *PythonBinaryModule) buildBinary(ctx android.ModuleContext) {
 		sharedLibs = append(sharedLibs, ctx.OtherModuleName(dep))
 	}
 	p.androidMkSharedLibs = sharedLibs
+
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: p.binaryProperties.Test_suites,
+	})
 }
 
 func (p *PythonBinaryModule) AndroidMkEntries() []android.AndroidMkEntries {

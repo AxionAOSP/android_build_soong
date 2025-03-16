@@ -358,3 +358,21 @@ func TestRuntimeResourceOverlayFlagsPackages(t *testing.T) {
 		"--feature-flags @out/soong/.intermediates/bar/intermediate.txt --feature-flags @out/soong/.intermediates/baz/intermediate.txt",
 	)
 }
+
+func TestCanBeDataOfTest(t *testing.T) {
+	android.GroupFixturePreparers(
+		prepareForJavaTest,
+	).RunTestWithBp(t, `
+		runtime_resource_overlay {
+			name: "foo",
+			sdk_version: "current",
+		}
+		android_test {
+			name: "bar",
+			data: [
+				":foo",
+			],
+		}
+	`)
+	// Just test that this doesn't get errors
+}

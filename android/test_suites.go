@@ -29,10 +29,7 @@ func testSuiteFilesFactory() Singleton {
 	return &testSuiteFiles{}
 }
 
-type testSuiteFiles struct {
-	robolectric []Path
-	ravenwood   []Path
-}
+type testSuiteFiles struct{}
 
 type TestSuiteModule interface {
 	Module
@@ -61,22 +58,22 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 		}
 	})
 
-	t.robolectric = robolectricTestSuite(ctx, files["robolectric-tests"])
-	ctx.Phony("robolectric-tests", t.robolectric...)
+	robolectricZip, robolectrictListZip := buildTestSuite(ctx, "robolectric-tests", files["robolectric-tests"])
+	ctx.Phony("robolectric-tests", robolectricZip, robolectrictListZip)
+	ctx.DistForGoal("robolectric-tests", robolectricZip, robolectrictListZip)
 
-	t.ravenwood = ravenwoodTestSuite(ctx, files["ravenwood-tests"])
-	ctx.Phony("ravenwood-tests", t.ravenwood...)
-	ctx.DistForGoal("robolectric-tests", t.robolectric...)
-	ctx.DistForGoal("ravenwood-tests", t.ravenwood...)
+	ravenwoodZip, ravenwoodListZip := buildTestSuite(ctx, "ravenwood-tests", files["ravenwood-tests"])
+	ctx.Phony("ravenwood-tests", ravenwoodZip, ravenwoodListZip)
+	ctx.DistForGoal("ravenwood-tests", ravenwoodZip, ravenwoodListZip)
 }
 
-func robolectricTestSuite(ctx SingletonContext, files map[string]InstallPaths) []Path {
+func buildTestSuite(ctx SingletonContext, suiteName string, files map[string]InstallPaths) (Path, Path) {
 	var installedPaths InstallPaths
 	for _, module := range SortedKeys(files) {
 		installedPaths = append(installedPaths, files[module]...)
 	}
 
-	outputFile := pathForPackaging(ctx, "robolectric-tests.zip")
+	outputFile := pathForPackaging(ctx, suiteName+".zip")
 	rule := NewRuleBuilder(pctx, ctx)
 	rule.Command().BuiltTool("soong_zip").
 		FlagWithOutput("-o ", outputFile).
@@ -85,8 +82,8 @@ func robolectricTestSuite(ctx SingletonContext, files map[string]InstallPaths) [
 		FlagWithRspFileInputList("-r ", outputFile.ReplaceExtension(ctx, "rsp"), installedPaths.Paths()).
 		Flag("-sha256") // necessary to save cas_uploader's time
 
-	testList := buildTestList(ctx, "robolectric-tests_list", installedPaths)
-	testListZipOutputFile := pathForPackaging(ctx, "robolectric-tests_list.zip")
+	testList := buildTestList(ctx, suiteName+"_list", installedPaths)
+	testListZipOutputFile := pathForPackaging(ctx, suiteName+"_list.zip")
 
 	rule.Command().BuiltTool("soong_zip").
 		FlagWithOutput("-o ", testListZipOutputFile).
@@ -94,38 +91,9 @@ func robolectricTestSuite(ctx SingletonContext, files map[string]InstallPaths) [
 		FlagWithInput("-f ", testList).
 		Flag("-sha256")
 
-	rule.Build("robolectric_tests_zip", "robolectric-tests.zip")
+	rule.Build(strings.ReplaceAll(suiteName, "-", "_")+"_zip", suiteName+".zip")
 
-	return []Path{outputFile, testListZipOutputFile}
-}
-
-func ravenwoodTestSuite(ctx SingletonContext, files map[string]InstallPaths) []Path {
-	var installedPaths InstallPaths
-	for _, module := range SortedKeys(files) {
-		installedPaths = append(installedPaths, files[module]...)
-	}
-
-	outputFile := pathForPackaging(ctx, "ravenwood-tests.zip")
-	rule := NewRuleBuilder(pctx, ctx)
-	rule.Command().BuiltTool("soong_zip").
-		FlagWithOutput("-o ", outputFile).
-		FlagWithArg("-P ", "host/testcases").
-		FlagWithArg("-C ", pathForTestCases(ctx).String()).
-		FlagWithRspFileInputList("-r ", outputFile.ReplaceExtension(ctx, "rsp"), installedPaths.Paths()).
-		Flag("-sha256") // necessary to save cas_uploader's time
-
-	testList := buildTestList(ctx, "ravenwood-tests_list", installedPaths)
-	testListZipOutputFile := pathForPackaging(ctx, "ravenwood-tests_list.zip")
-
-	rule.Command().BuiltTool("soong_zip").
-		FlagWithOutput("-o ", testListZipOutputFile).
-		FlagWithArg("-C ", pathForPackaging(ctx).String()).
-		FlagWithInput("-f ", testList).
-		Flag("-sha256")
-
-	rule.Build("ravenwood_tests_zip", "ravenwood-tests.zip")
-
-	return []Path{outputFile, testListZipOutputFile}
+	return outputFile, testListZipOutputFile
 }
 
 func buildTestList(ctx SingletonContext, listFile string, installedPaths InstallPaths) Path {

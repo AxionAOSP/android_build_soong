@@ -62,7 +62,7 @@ func (p *packageModule) DepsMutator(ctx BottomUpMutatorContext) {
 }
 
 func (p *packageModule) GenerateBuildActions(ctx blueprint.ModuleContext) {
-	ctx.SetProvider(CommonModuleInfoKey, CommonModuleInfo{
+	ctx.SetProvider(CommonModuleInfoProvider, &CommonModuleInfo{
 		Enabled:                 true,
 		PrimaryLicensesProperty: p.primaryLicensesProperty,
 	})

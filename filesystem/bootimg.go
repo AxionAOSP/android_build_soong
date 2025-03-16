@@ -238,11 +238,12 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Set BootimgInfo for building target_files.zip
 	dtbPath := b.getDtbPath(ctx)
 	android.SetProvider(ctx, BootimgInfoProvider, BootimgInfo{
-		Cmdline:    b.properties.Cmdline,
-		Kernel:     kernelPath,
-		Dtb:        dtbPath,
-		Bootconfig: b.getBootconfigPath(ctx),
-		Output:     output,
+		Cmdline:             b.properties.Cmdline,
+		Kernel:              kernelPath,
+		Dtb:                 dtbPath,
+		Bootconfig:          b.getBootconfigPath(ctx),
+		Output:              output,
+		PropFileForMiscInfo: b.buildPropFileForMiscInfo(ctx),
 	})
 
 	extractedPublicKey := android.PathForModuleOut(ctx, b.partitionName()+".avbpubkey")
@@ -285,11 +286,12 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 var BootimgInfoProvider = blueprint.NewProvider[BootimgInfo]()
 
 type BootimgInfo struct {
-	Cmdline    []string
-	Kernel     android.Path
-	Dtb        android.Path
-	Bootconfig android.Path
-	Output     android.Path
+	Cmdline             []string
+	Kernel              android.Path
+	Dtb                 android.Path
+	Bootconfig          android.Path
+	Output              android.Path
+	PropFileForMiscInfo android.Path
 }
 
 func (b *bootimg) getKernelPath(ctx android.ModuleContext) android.Path {
@@ -506,6 +508,25 @@ func (b *bootimg) buildPropFile(ctx android.ModuleContext) (android.Path, androi
 	propFile := android.PathForModuleOut(ctx, "prop")
 	android.WriteFileRule(ctx, propFile, sb.String())
 	return propFile, deps
+}
+
+func (b *bootimg) buildPropFileForMiscInfo(ctx android.ModuleContext) android.Path {
+	var sb strings.Builder
+	addStr := func(name string, value string) {
+		fmt.Fprintf(&sb, "%s=%s\n", name, value)
+	}
+
+	bootImgType := proptools.String(b.properties.Boot_image_type)
+	addStr("avb_"+bootImgType+"_add_hash_footer_args", "TODO(b/398036609)")
+	if b.properties.Avb_private_key != nil {
+		addStr("avb_"+bootImgType+"_algorithm", proptools.StringDefault(b.properties.Avb_algorithm, "SHA256_RSA4096"))
+		addStr("avb_"+bootImgType+"_key_path", android.PathForModuleSrc(ctx, proptools.String(b.properties.Avb_private_key)).String())
+		addStr("avb_"+bootImgType+"_rollback_index_location", strconv.Itoa(proptools.Int(b.properties.Avb_rollback_index_location)))
+	}
+
+	propFile := android.PathForModuleOut(ctx, "prop_for_misc_info")
+	android.WriteFileRuleVerbatim(ctx, propFile, sb.String())
+	return propFile
 }
 
 var _ android.AndroidMkEntriesProvider = (*bootimg)(nil)

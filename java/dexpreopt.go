@@ -650,6 +650,9 @@ func checkSystemServerOrder(ctx android.ModuleContext, libName string) {
 		// for now just exclude any known irrelevant dependencies that would lead to incorrect errors.
 		if _, ok := tag.(bootclasspathDependencyTag); ok {
 			return false
+		} else if tag == traceReferencesTag {
+			// Allow ordering inversion if the dependency is purely for tracing references.
+			return false
 		}
 		depIndex := jars.IndexOfJar(dep.Name())
 		if jarIndex < depIndex && !config.BrokenSuboptimalOrderOfSystemServerJars {

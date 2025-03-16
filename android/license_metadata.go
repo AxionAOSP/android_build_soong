@@ -65,7 +65,7 @@ func buildLicenseMetadata(ctx *moduleContext, licenseMetadataFile WritablePath) 
 	var allDepMetadataDepSets []depset.DepSet[Path]
 
 	ctx.VisitDirectDepsProxy(func(dep ModuleProxy) {
-		if !OtherModuleProviderOrDefault(ctx, dep, CommonModuleInfoKey).Enabled {
+		if !OtherModulePointerProviderOrDefault(ctx, dep, CommonModuleInfoProvider).Enabled {
 			return
 		}
 

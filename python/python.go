@@ -20,11 +20,13 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"android/soong/cc"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/depset"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -36,6 +38,7 @@ type PythonLibraryInfo struct {
 	SrcsZip            android.Path
 	PrecompiledSrcsZip android.Path
 	PkgPath            string
+	BundleSharedLibs   android.Paths
 }
 
 var PythonLibraryInfoProvider = blueprint.NewProvider[PythonLibraryInfo]()
@@ -105,6 +108,10 @@ type BaseProperties struct {
 	// list of the Python libraries compatible both with Python2 and Python3.
 	Libs []string `android:"arch_variant"`
 
+	// TODO: b/403060602 - add unit tests for this property and related code
+	// list of shared libraries that should be packaged with the python code for this module.
+	Shared_libs []string `android:"arch_variant"`
+
 	Version struct {
 		// Python2-specific properties, including whether Python2 is supported for this module
 		// and version-specific sources, exclusions and dependencies.
@@ -158,6 +165,10 @@ type PythonLibraryModule struct {
 	precompiledSrcsZip android.Path
 
 	sourceProperties android.SourceProperties
+
+	// The shared libraries that should be bundled with the python code for
+	// any standalone python binaries that depend on this module.
+	bundleSharedLibs android.Paths
 }
 
 // newModule generates new Python base module
@@ -197,6 +208,10 @@ func (p *PythonLibraryModule) getBaseProperties() *BaseProperties {
 	return &p.properties
 }
 
+func (p *PythonLibraryModule) getBundleSharedLibs() android.Paths {
+	return p.bundleSharedLibs
+}
+
 func (p *PythonLibraryModule) init() android.Module {
 	p.AddProperties(&p.properties, &p.protoProperties, &p.sourceProperties)
 	android.InitAndroidArchModule(p, p.hod, p.multilib)
@@ -224,6 +239,7 @@ type installDependencyTag struct {
 var (
 	pythonLibTag = dependencyTag{name: "pythonLib"}
 	javaDataTag  = dependencyTag{name: "javaData"}
+	sharedLibTag = dependencyTag{name: "sharedLib"}
 	// The python interpreter, with soong module name "py3-launcher" or "py3-launcher-autorun".
 	launcherTag          = dependencyTag{name: "launcher"}
 	launcherSharedLibTag = installDependencyTag{name: "launcherSharedLib"}
@@ -287,6 +303,12 @@ func (p *PythonLibraryModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// so that it can point to java modules.
 	javaDataVariation := []blueprint.Variation{{"arch", android.Common.String()}}
 	ctx.AddVariationDependencies(javaDataVariation, javaDataTag, p.properties.Java_data...)
+
+	if ctx.Host() {
+		ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), sharedLibTag, p.properties.Shared_libs...)
+	} else if len(p.properties.Shared_libs) > 0 {
+		ctx.PropertyErrorf("shared_libs", "shared_libs is not supported for device builds")
+	}
 
 	p.AddDepsOnPythonLauncherAndStdlib(ctx, hostStdLibTag, hostLauncherTag, hostlauncherSharedLibTag, false, ctx.Config().BuildOSTarget)
 }
@@ -377,6 +399,25 @@ func (p *PythonLibraryModule) GenerateAndroidBuildActions(ctx android.ModuleCont
 		expandedData = append(expandedData, android.OutputFilesForModule(ctx, javaData, "")...)
 	}
 
+	var directImplementationDeps android.Paths
+	var transitiveImplementationDeps []depset.DepSet[android.Path]
+	ctx.VisitDirectDepsProxyWithTag(sharedLibTag, func(dep android.ModuleProxy) {
+		sharedLibInfo, _ := android.OtherModuleProvider(ctx, dep, cc.SharedLibraryInfoProvider)
+		if sharedLibInfo.SharedLibrary != nil {
+			expandedData = append(expandedData, android.OutputFilesForModule(ctx, dep, "")...)
+			directImplementationDeps = append(directImplementationDeps, android.OutputFilesForModule(ctx, dep, "")...)
+			if info, ok := android.OtherModuleProvider(ctx, dep, cc.ImplementationDepInfoProvider); ok {
+				transitiveImplementationDeps = append(transitiveImplementationDeps, info.ImplementationDeps)
+				p.bundleSharedLibs = append(p.bundleSharedLibs, info.ImplementationDeps.ToList()...)
+			}
+		} else {
+			ctx.PropertyErrorf("shared_libs", "%q of type %q is not supported", dep.Name(), ctx.OtherModuleType(dep))
+		}
+	})
+	android.SetProvider(ctx, cc.ImplementationDepInfoProvider, &cc.ImplementationDepInfo{
+		ImplementationDeps: depset.New(depset.PREORDER, directImplementationDeps, transitiveImplementationDeps),
+	})
+
 	// Validate pkg_path property
 	pkgPath := String(p.properties.Pkg_path)
 	if pkgPath != "" {
@@ -400,8 +441,7 @@ func (p *PythonLibraryModule) GenerateAndroidBuildActions(ctx android.ModuleCont
 
 	// generate the zipfile of all source and data files
 	p.srcsZip = p.createSrcsZip(ctx, pkgPath)
-	// TODO(b/388344853): precompilation temporarily disabled for python3.13 upgrade
-	p.precompiledSrcsZip = p.srcsZip //p.precompileSrcs(ctx)
+	p.precompiledSrcsZip = p.precompileSrcs(ctx)
 
 	android.SetProvider(ctx, PythonLibraryInfoProvider, PythonLibraryInfo{
 		SrcsPathMappings:   p.getSrcsPathMappings(),
@@ -409,6 +449,7 @@ func (p *PythonLibraryModule) GenerateAndroidBuildActions(ctx android.ModuleCont
 		SrcsZip:            p.getSrcsZip(),
 		PkgPath:            p.getPkgPath(),
 		PrecompiledSrcsZip: p.getPrecompiledSrcsZip(),
+		BundleSharedLibs:   p.getBundleSharedLibs(),
 	})
 }
 
@@ -683,6 +724,56 @@ func (p *PythonLibraryModule) collectPathsFromTransitiveDeps(ctx android.ModuleC
 		return true
 	})
 	return result
+}
+
+func (p *PythonLibraryModule) collectSharedLibDeps(ctx android.ModuleContext) android.Paths {
+	seen := make(map[android.Module]bool)
+
+	var result android.Paths
+
+	ctx.WalkDepsProxy(func(child, _ android.ModuleProxy) bool {
+		// we only collect dependencies tagged as python library deps
+		if ctx.OtherModuleDependencyTag(child) != pythonLibTag {
+			return false
+		}
+		if seen[child] {
+			return false
+		}
+		seen[child] = true
+		dep, isLibrary := android.OtherModuleProvider(ctx, child, PythonLibraryInfoProvider)
+		if isLibrary {
+			result = append(result, dep.BundleSharedLibs...)
+		}
+		return true
+	})
+	return result
+}
+
+func (p *PythonLibraryModule) zipSharedLibs(ctx android.ModuleContext, bundleSharedLibs android.Paths) android.Path {
+	// sort the paths to keep the output deterministic
+	sort.Slice(bundleSharedLibs, func(i, j int) bool {
+		return bundleSharedLibs[i].String() < bundleSharedLibs[j].String()
+	})
+
+	parArgs := []string{"-symlinks=false", "-P lib64"}
+	paths := android.Paths{}
+	for _, path := range bundleSharedLibs {
+		// specify relative root of file in following -f arguments
+		parArgs = append(parArgs, `-C `+filepath.Dir(path.String()))
+		parArgs = append(parArgs, `-f `+path.String())
+		paths = append(paths, path)
+	}
+	srcsZip := android.PathForModuleOut(ctx, ctx.ModuleName()+".sharedlibs.srcszip")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        zip,
+		Description: "bundle shared libraries for python binary",
+		Output:      srcsZip,
+		Implicits:   paths,
+		Args: map[string]string{
+			"args": strings.Join(parArgs, " "),
+		},
+	})
+	return srcsZip
 }
 
 // chckForDuplicateOutputPath checks whether outputPath has already been included in map m, which

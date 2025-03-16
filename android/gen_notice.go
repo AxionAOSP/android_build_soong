@@ -60,7 +60,7 @@ func (s *genNoticeBuildRules) GenerateBuildActions(ctx SingletonContext) {
 		for _, name := range gm.For {
 			mods := ctx.ModuleVariantsFromName(m, name)
 			for _, mod := range mods {
-				if !OtherModuleProviderOrDefault(ctx, mod, CommonModuleInfoKey).Enabled { // don't depend on variants without build rules
+				if !OtherModulePointerProviderOrDefault(ctx, mod, CommonModuleInfoProvider).Enabled { // don't depend on variants without build rules
 					continue
 				}
 				modules = append(modules, mod)

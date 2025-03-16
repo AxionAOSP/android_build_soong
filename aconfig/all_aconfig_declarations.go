@@ -95,11 +95,44 @@ func GenerateFinalizedFlagsForApiSurface(ctx android.ModuleContext, outputPath a
 	})
 }
 
+func GenerateExportedFlagCheck(ctx android.ModuleContext, outputPath android.WritablePath,
+	parsedFlagsFile android.Path, apiSurface ApiSurfaceContributorProperties) {
+
+	apiSignatureFiles := android.Paths{}
+	for _, apiSignatureFile := range apiSurface.Api_signature_files.GetOrDefault(ctx, nil) {
+		if path := android.PathForModuleSrc(ctx, apiSignatureFile); path != nil {
+			apiSignatureFiles = append(apiSignatureFiles, path)
+		}
+	}
+	finalizedFlagsFile := android.PathForModuleSrc(ctx, apiSurface.Finalized_flags_file)
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   ExportedFlagCheckRule,
+		Inputs: append(apiSignatureFiles, finalizedFlagsFile, parsedFlagsFile),
+		Output: outputPath,
+		Args: map[string]string{
+			"api_signature_files":  android.JoinPathsWithPrefix(apiSignatureFiles, "--api-signature-file "),
+			"finalized_flags_file": "--finalized-flags-file " + finalizedFlagsFile.String(),
+			"parsed_flags_file":    "--parsed-flags-file " + parsedFlagsFile.String(),
+		},
+	})
+}
+
 func (this *allAconfigDeclarationsSingleton) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	parsedFlagsFile := android.PathForIntermediates(ctx, "all_aconfig_declarations.pb")
 	this.finalizedFlags = android.PathForIntermediates(ctx, "finalized-flags.txt")
 	GenerateFinalizedFlagsForApiSurface(ctx, this.finalizedFlags, parsedFlagsFile, this.properties)
-	ctx.Phony("all_aconfig_declarations", this.finalizedFlags)
+
+	depsFiles := android.Paths{this.finalizedFlags}
+	if checkExportedFlag, ok := ctx.Config().GetBuildFlag("RELEASE_EXPORTED_FLAG_CHECK"); ok {
+		if checkExportedFlag == "true" {
+			invalidExportedFlags := android.PathForIntermediates(ctx, "invalid_exported_flags.txt")
+			GenerateExportedFlagCheck(ctx, invalidExportedFlags, parsedFlagsFile, this.properties)
+			depsFiles = append(depsFiles, invalidExportedFlags)
+		}
+	}
+
+	ctx.Phony("all_aconfig_declarations", depsFiles...)
 
 	android.SetProvider(ctx, allAconfigDeclarationsInfoProvider, allAconfigDeclarationsInfo{
 		parsedFlagsFile: parsedFlagsFile,
@@ -111,7 +144,7 @@ func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx a
 		// Find all of the aconfig_declarations modules
 		var packages = make(map[string]int)
 		var cacheFiles android.Paths
-		ctx.VisitAllModules(func(module android.Module) {
+		ctx.VisitAllModuleProxies(func(module android.ModuleProxy) {
 			decl, ok := android.OtherModuleProvider(ctx, module, android.AconfigReleaseDeclarationsProviderKey)
 			if !ok {
 				return

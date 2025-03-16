@@ -52,7 +52,7 @@ type Stripper struct {
 func (stripper *Stripper) NeedsStrip(actx android.ModuleContext) bool {
 	forceDisable := Bool(stripper.StripProperties.Strip.None)
 	// Strip is enabled by default for device variants.
-	defaultEnable := actx.Device()
+	defaultEnable := actx.Device() || actx.Config().StripByDefault()
 	forceEnable := Bool(stripper.StripProperties.Strip.All) ||
 		Bool(stripper.StripProperties.Strip.Keep_symbols) ||
 		Bool(stripper.StripProperties.Strip.Keep_symbols_and_debug_frame)

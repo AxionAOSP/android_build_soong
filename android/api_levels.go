@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/google/blueprint/gobtools"
 )
 
 func init() {
@@ -50,6 +52,34 @@ type ApiLevel struct {
 
 	// Identifies this API level as either a preview or final API level.
 	isPreview bool
+}
+
+type apiLevelGob struct {
+	Value     string
+	Number    int
+	IsPreview bool
+}
+
+func (a *ApiLevel) ToGob() *apiLevelGob {
+	return &apiLevelGob{
+		Value:     a.value,
+		Number:    a.number,
+		IsPreview: a.isPreview,
+	}
+}
+
+func (a *ApiLevel) FromGob(data *apiLevelGob) {
+	a.value = data.Value
+	a.number = data.Number
+	a.isPreview = data.IsPreview
+}
+
+func (a ApiLevel) GobEncode() ([]byte, error) {
+	return gobtools.CustomGobEncode[apiLevelGob](&a)
+}
+
+func (a *ApiLevel) GobDecode(data []byte) error {
+	return gobtools.CustomGobDecode[apiLevelGob](data, a)
 }
 
 func (this ApiLevel) FinalInt() int {

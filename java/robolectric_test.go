@@ -107,4 +107,15 @@ func TestRobolectricJniTest(t *testing.T) {
 	// Check that the .so files make it into the output.
 	module := ctx.ModuleForTests(t, "robo-test", "android_common")
 	module.Output(installPathPrefix + "/robo-test/lib64/jni-lib1.so")
+
+	// Ensure they are listed as "test" modules for code coverage
+	expectedTestOnlyModules := []string{
+		"robo-test",
+	}
+
+	expectedTopLevelTests := []string{
+		"robo-test",
+	}
+	assertTestOnlyAndTopLevel(t, ctx, expectedTestOnlyModules, expectedTopLevelTests)
+
 }

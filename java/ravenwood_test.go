@@ -230,4 +230,15 @@ func TestRavenwoodTest(t *testing.T) {
 	android.AssertStringListContains(t, "orderOnly", orderOnly, installPathPrefix+"/ravenwood-runtime/lib64/libred.so")
 	android.AssertStringListContains(t, "orderOnly", orderOnly, installPathPrefix+"/ravenwood-runtime/lib64/ravenwood-runtime-jni3.so")
 	android.AssertStringListContains(t, "orderOnly", orderOnly, installPathPrefix+"/ravenwood-utils/framework-rules.ravenwood.jar")
+
+	// Ensure they are listed as "test" modules for code coverage
+	expectedTestOnlyModules := []string{
+		"ravenwood-test",
+		"ravenwood-test-empty",
+	}
+	expectedTopLevelTests := []string{
+		"ravenwood-test",
+		"ravenwood-test-empty",
+	}
+	assertTestOnlyAndTopLevel(t, ctx, expectedTestOnlyModules, expectedTopLevelTests)
 }

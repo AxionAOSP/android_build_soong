@@ -410,7 +410,7 @@ func (b *baseModuleContext) validateAndroidModuleProxy(
 		return &aModule
 	}
 
-	if !OtherModuleProviderOrDefault(b, module, CommonModuleInfoKey).Enabled {
+	if !OtherModulePointerProviderOrDefault(b, module, CommonModuleInfoProvider).Enabled {
 		if t, ok := tag.(AllowDisabledModuleDependency); !ok || !t.AllowDisabledModuleDependencyProxy(b, aModule) {
 			if b.Config().AllowMissingDependencies() {
 				b.AddMissingDependencies([]string{b.OtherModuleName(aModule)})
@@ -440,7 +440,7 @@ func (b *baseModuleContext) getDirectDepsInternal(name string, tag blueprint.Dep
 func (b *baseModuleContext) getDirectDepsProxyInternal(name string, tag blueprint.DependencyTag) []ModuleProxy {
 	var deps []ModuleProxy
 	b.VisitDirectDepsProxy(func(module ModuleProxy) {
-		if OtherModuleProviderOrDefault(b, module, CommonModuleInfoKey).BaseModuleName == name {
+		if OtherModulePointerProviderOrDefault(b, module, CommonModuleInfoProvider).BaseModuleName == name {
 			returnedTag := b.OtherModuleDependencyTag(module)
 			if tag == nil || returnedTag == tag {
 				deps = append(deps, module)

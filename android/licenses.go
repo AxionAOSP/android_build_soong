@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/gobtools"
 )
 
 // Adds cross-cutting licenses dependency to propagate license metadata through the build system.
@@ -65,6 +66,31 @@ type applicableLicensesProperty interface {
 type applicableLicensesPropertyImpl struct {
 	name             string
 	licensesProperty *[]string
+}
+
+type applicableLicensesPropertyImplGob struct {
+	Name             string
+	LicensesProperty []string
+}
+
+func (a *applicableLicensesPropertyImpl) ToGob() *applicableLicensesPropertyImplGob {
+	return &applicableLicensesPropertyImplGob{
+		Name:             a.name,
+		LicensesProperty: *a.licensesProperty,
+	}
+}
+
+func (a *applicableLicensesPropertyImpl) FromGob(data *applicableLicensesPropertyImplGob) {
+	a.name = data.Name
+	a.licensesProperty = &data.LicensesProperty
+}
+
+func (a applicableLicensesPropertyImpl) GobEncode() ([]byte, error) {
+	return gobtools.CustomGobEncode[applicableLicensesPropertyImplGob](&a)
+}
+
+func (a *applicableLicensesPropertyImpl) GobDecode(data []byte) error {
+	return gobtools.CustomGobDecode[applicableLicensesPropertyImplGob](data, a)
 }
 
 func newApplicableLicensesProperty(name string, licensesProperty *[]string) applicableLicensesProperty {

@@ -177,7 +177,7 @@ type AndroidAppImportProperties struct {
 	Prebuilt_info *string `android:"path"`
 
 	// Path of extracted apk which is extracted from prebuilt apk. Use this extracted to import.
-	Extract_apk *string
+	Extract_apk proptools.Configurable[string]
 
 	// Compress the output APK using gzip. Defaults to false.
 	Compress_apk proptools.Configurable[bool] `android:"arch_variant,replace_instead_of_append"`
@@ -307,7 +307,7 @@ func (a *AndroidAppImport) uncompressEmbeddedJniLibs(
 
 func (a *AndroidAppImport) extractSubApk(
 	ctx android.ModuleContext, inputPath android.Path, outputPath android.WritablePath) {
-	extractApkPath := *a.properties.Extract_apk
+	extractApkPath := a.properties.Extract_apk.GetOrDefault(ctx, "")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   extractApkRule,
 		Input:  inputPath,
@@ -405,7 +405,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	// TODO: LOCAL_PACKAGE_SPLITS
 
 	srcApk := a.prebuilt.SingleSourcePath(ctx)
-	if a.properties.Extract_apk != nil {
+	if a.properties.Extract_apk.GetOrDefault(ctx, "") != "" {
 		extract_apk := android.PathForModuleOut(ctx, "extract-apk", ctx.ModuleName()+".apk")
 		a.extractSubApk(ctx, srcApk, extract_apk)
 		srcApk = extract_apk
@@ -787,6 +787,10 @@ func (a *AndroidTestImport) GenerateAndroidBuildActions(ctx android.ModuleContex
 	a.updateModuleInfoJSON(ctx)
 
 	a.data = android.PathsForModuleSrc(ctx, a.testProperties.Data)
+
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: a.testProperties.Test_suites,
+	})
 }
 
 func (a *AndroidTestImport) updateModuleInfoJSON(ctx android.ModuleContext) {

@@ -659,7 +659,7 @@ func (l *lintSingleton) generateLintReportZips(ctx android.SingletonContext) {
 	var outputs []*LintInfo
 	var dirs []string
 	ctx.VisitAllModuleProxies(func(m android.ModuleProxy) {
-		commonInfo, _ := android.OtherModuleProvider(ctx, m, android.CommonModuleInfoKey)
+		commonInfo := android.OtherModulePointerProviderOrDefault(ctx, m, android.CommonModuleInfoProvider)
 		if ctx.Config().KatiEnabled() && !commonInfo.ExportedToMake {
 			return
 		}

@@ -41,6 +41,14 @@ func OtherModuleProviderOrDefault[K any](ctx OtherModuleProviderContext, module 
 	return value
 }
 
+func OtherModulePointerProviderOrDefault[K *T, T any](ctx OtherModuleProviderContext, module blueprint.Module, provider blueprint.ProviderKey[K]) K {
+	if value, ok := OtherModuleProvider(ctx, module, provider); ok {
+		return value
+	}
+	var val T
+	return &val
+}
+
 // ModuleProviderContext is a helper interface that is a subset of ModuleContext or BottomUpMutatorContext
 // for use in ModuleProvider.
 type ModuleProviderContext interface {

@@ -259,7 +259,7 @@ func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	singletonDists.lock.Unlock()
 
 	ctx.VisitAllModuleProxies(func(m ModuleProxy) {
-		commonInfo, _ := OtherModuleProvider(ctx, m, CommonModuleInfoKey)
+		commonInfo := OtherModulePointerProviderOrDefault(ctx, m, CommonModuleInfoProvider)
 		if provider, ok := OtherModuleProvider(ctx, m, ModuleMakeVarsInfoProvider); ok &&
 			commonInfo.Enabled {
 			mctx := &makeVarsContext{

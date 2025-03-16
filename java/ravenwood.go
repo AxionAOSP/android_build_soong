@@ -117,6 +117,8 @@ func ravenwoodTestFactory() android.Module {
 		"ravenwood-tests",
 	}
 	module.testProperties.Test_options.Unit_test = proptools.BoolPtr(false)
+	module.Module.sourceProperties.Test_only = proptools.BoolPtr(true)
+	module.Module.sourceProperties.Top_level_test_target = true
 
 	InitJavaModule(module, android.DeviceSupported)
 	android.InitDefaultableModule(module)

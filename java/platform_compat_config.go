@@ -277,7 +277,7 @@ func (p *platformCompatConfigSingleton) GenerateBuildActions(ctx android.Singlet
 	var compatConfigMetadata android.Paths
 
 	ctx.VisitAllModuleProxies(func(module android.ModuleProxy) {
-		if !android.OtherModuleProviderOrDefault(ctx, module, android.CommonModuleInfoKey).Enabled {
+		if !android.OtherModulePointerProviderOrDefault(ctx, module, android.CommonModuleInfoProvider).Enabled {
 			return
 		}
 		if c, ok := android.OtherModuleProvider(ctx, module, PlatformCompatConfigMetadataInfoProvider); ok {

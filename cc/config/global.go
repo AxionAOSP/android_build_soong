@@ -373,6 +373,9 @@ var (
 	// Flags that must not appear in any command line.
 	IllegalFlags = []string{
 		"-w",
+		"-pedantic",
+		"-pedantic-errors",
+		"-Werror=pedantic",
 	}
 
 	CStdVersion               = "gnu23"

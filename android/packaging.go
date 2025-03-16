@@ -89,6 +89,8 @@ type packagingSpecGob struct {
 	ArchType              ArchType
 	Overrides             []string
 	Owner                 string
+	RequiresFullInstall   bool
+	FullInstallPath       InstallPath
 	Variation             string
 }
 
@@ -113,6 +115,8 @@ func (p *PackagingSpec) ToGob() *packagingSpecGob {
 		ArchType:              p.archType,
 		Overrides:             p.overrides.ToSlice(),
 		Owner:                 p.owner,
+		RequiresFullInstall:   p.requiresFullInstall,
+		FullInstallPath:       p.fullInstallPath,
 		Variation:             p.variation,
 	}
 }
@@ -129,6 +133,8 @@ func (p *PackagingSpec) FromGob(data *packagingSpecGob) {
 	p.archType = data.ArchType
 	p.overrides = uniquelist.Make(data.Overrides)
 	p.owner = data.Owner
+	p.requiresFullInstall = data.RequiresFullInstall
+	p.fullInstallPath = data.FullInstallPath
 	p.variation = data.Variation
 }
 

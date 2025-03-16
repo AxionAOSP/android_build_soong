@@ -723,26 +723,47 @@ cc_library {
 
 // override_android_* modules implicitly override their base module.
 // If both of these are listed in `deps`, the base module should not be installed.
+// Also, required deps should be updated too.
 func TestOverrideModulesInDeps(t *testing.T) {
 	result := fixture.RunTestWithBp(t, `
+		cc_library_shared {
+			name: "libfoo",
+			stl: "none",
+			system_shared_libs: [],
+		}
+		cc_library_shared {
+			name: "libbar",
+			stl: "none",
+			system_shared_libs: [],
+		}
 		android_filesystem {
 			name: "myfilesystem",
+			deps: ["myapp"],
+		}
+		android_filesystem {
+			name: "myfilesystem_overridden",
 			deps: ["myapp", "myoverrideapp"],
 		}
 
 		android_app {
 			name: "myapp",
 			platform_apis: true,
+			required: ["libfoo"],
 		}
 		override_android_app {
 			name: "myoverrideapp",
 			base: "myapp",
+			required: ["libbar"],
 		}
 	`)
 
 	partition := result.ModuleForTests(t, "myfilesystem", "android_common")
 	fileList := android.ContentFromFileRuleForTests(t, result.TestContext, partition.Output("fileList"))
-	android.AssertStringEquals(t, "filesystem with override app", "app/myoverrideapp/myoverrideapp.apk\n", fileList)
+	android.AssertStringEquals(t, "filesystem without override app", "app/myapp/myapp.apk\nlib64/libfoo.so\n", fileList)
+
+	overriddenPartition := result.ModuleForTests(t, "myfilesystem_overridden", "android_common")
+	overriddenFileList := android.ContentFromFileRuleForTests(t, result.TestContext, overriddenPartition.Output("fileList"))
+	android.AssertStringEquals(t, "filesystem with override app", "app/myoverrideapp/myoverrideapp.apk\nlib64/libbar.so\n", overriddenFileList)
 }
 
 func TestRamdiskPartitionSetsDevNodes(t *testing.T) {

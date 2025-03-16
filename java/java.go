@@ -578,6 +578,7 @@ var (
 	extraLintCheckTag       = dependencyTag{name: "extra-lint-check", toolchain: true}
 	jniLibTag               = dependencyTag{name: "jnilib", runtimeLinked: true}
 	r8LibraryJarTag         = dependencyTag{name: "r8-libraryjar", runtimeLinked: true}
+	traceReferencesTag      = dependencyTag{name: "trace-references"}
 	syspropPublicStubDepTag = dependencyTag{name: "sysprop public stub"}
 	javaApiContributionTag  = dependencyTag{name: "java-api-contribution"}
 	aconfigDeclarationTag   = dependencyTag{name: "aconfig-declaration"}
@@ -608,6 +609,7 @@ var (
 		kotlinPluginTag,
 		syspropPublicStubDepTag,
 		instrumentationForTag,
+		traceReferencesTag,
 	}
 )
 
@@ -1954,6 +1956,10 @@ func (j *Test) generateAndroidBuildActionsWithConfig(ctx android.ModuleContext, 
 			ctx.InstallFile(pathInTestCases, ctx.ModuleName()+".jar", j.outputFile)
 		}
 	}
+
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: j.testProperties.Test_suites,
+	})
 }
 
 func (j *TestHelperLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -1970,6 +1976,10 @@ func (j *TestHelperLibrary) GenerateAndroidBuildActions(ctx android.ModuleContex
 	if optionalConfig.Valid() {
 		moduleInfoJSON.TestConfig = append(moduleInfoJSON.TestConfig, optionalConfig.String())
 	}
+
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: j.testHelperLibraryProperties.Test_suites,
+	})
 }
 
 func (j *JavaTestImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -2225,7 +2235,7 @@ func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// install these alongside the java binary.
 	ctx.VisitDirectDepsProxyWithTag(jniInstallTag, func(jni android.ModuleProxy) {
 		// Use the BaseModuleName of the dependency (without any prebuilt_ prefix)
-		commonInfo, _ := android.OtherModuleProvider(ctx, jni, android.CommonModuleInfoKey)
+		commonInfo := android.OtherModulePointerProviderOrDefault(ctx, jni, android.CommonModuleInfoProvider)
 		j.androidMkNamesOfJniLibs = append(j.androidMkNamesOfJniLibs, commonInfo.BaseModuleName+":"+commonInfo.Target.Arch.ArchType.Bitness())
 	})
 	// Check that native libraries are not listed in `required`. Prompt users to use `jni_libs` instead.

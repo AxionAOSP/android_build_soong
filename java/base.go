@@ -629,7 +629,7 @@ func CheckStableSdkVersion(ctx android.BaseModuleContext, module android.ModuleP
 			return nil
 		}
 		if info.SdkVersion.Kind == android.SdkCorePlatform {
-			if useLegacyCorePlatformApi(ctx, android.OtherModuleProviderOrDefault(ctx, module, android.CommonModuleInfoKey).BaseModuleName) {
+			if useLegacyCorePlatformApi(ctx, android.OtherModulePointerProviderOrDefault(ctx, module, android.CommonModuleInfoProvider).BaseModuleName) {
 				return fmt.Errorf("non stable SDK %v - uses legacy core platform", info.SdkVersion)
 			} else {
 				// Treat stable core platform as stable.
@@ -887,6 +887,10 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 
 	// Add dependency on libraries that provide additional hidden api annotations.
 	ctx.AddVariationDependencies(nil, hiddenApiAnnotationsTag, j.properties.Hiddenapi_additional_annotations...)
+
+	// Add dependency on (soft) downstream libs from which to trace references during optimization.
+	traceRefs := j.dexProperties.Optimize.Trace_references_from.GetOrDefault(ctx, []string{})
+	ctx.AddVariationDependencies(nil, traceReferencesTag, traceRefs...)
 
 	// For library dependencies that are component libraries (like stubs), add the implementation
 	// as a dependency (dexpreopt needs to be against the implementation library, not stubs).

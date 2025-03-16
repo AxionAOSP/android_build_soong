@@ -46,7 +46,7 @@ func (j *jdepsGeneratorSingleton) GenerateBuildActions(ctx android.SingletonCont
 	moduleInfos := make(map[string]android.IdeInfo)
 
 	ctx.VisitAllModuleProxies(func(module android.ModuleProxy) {
-		if !android.OtherModuleProviderOrDefault(ctx, module, android.CommonModuleInfoKey).Enabled {
+		if !android.OtherModulePointerProviderOrDefault(ctx, module, android.CommonModuleInfoProvider).Enabled {
 			return
 		}
 

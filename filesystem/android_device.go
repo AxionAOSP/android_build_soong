@@ -623,6 +623,10 @@ func (a *androidDevice) copyImagesToTargetZip(ctx android.ModuleContext, builder
 					builder.Command().Textf("cp ").Input(info.SubImageInfo[partition].MapFile).Textf(" %s/IMAGES/", targetFilesDir.String())
 				}
 			}
+			// super_empty.img
+			if info.SuperEmptyImage != nil {
+				builder.Command().Textf("cp ").Input(info.SuperEmptyImage).Textf(" %s/IMAGES/", targetFilesDir.String())
+			}
 		} else {
 			ctx.ModuleErrorf("Super partition %s does set SuperImageProvider\n", superPartition.Name())
 		}
@@ -774,6 +778,31 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 	}
 	if a.partitionProps.Boot_partition_name != nil {
 		builder.Command().Textf("echo boot_images=boot.img >> %s", miscInfo)
+	}
+
+	if a.partitionProps.Super_partition_name != nil {
+		superPartition := ctx.GetDirectDepProxyWithTag(*a.partitionProps.Super_partition_name, superPartitionDepTag)
+		if info, ok := android.OtherModuleProvider(ctx, superPartition, SuperImageProvider); ok {
+			// cat dynamic_partition_info.txt
+			builder.Command().Text("cat").Input(info.DynamicPartitionsInfo).Textf(" >> %s", miscInfo)
+		} else {
+			ctx.ModuleErrorf("Super partition %s does set SuperImageProvider\n", superPartition.Name())
+		}
+	}
+	bootImgNames := []*string{
+		a.partitionProps.Boot_partition_name,
+		a.partitionProps.Init_boot_partition_name,
+		a.partitionProps.Vendor_boot_partition_name,
+	}
+	for _, bootImgName := range bootImgNames {
+		if bootImgName == nil {
+			continue
+		}
+
+		bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(bootImgName), filesystemDepTag)
+		bootImgInfo, _ := android.OtherModuleProvider(ctx, bootImg, BootimgInfoProvider)
+		// cat avb_ metadata of the boot images
+		builder.Command().Text("cat").Input(bootImgInfo.PropFileForMiscInfo).Textf(" >> %s", miscInfo)
 	}
 
 	builder.Build("misc_info", "Building misc_info")
@@ -941,7 +970,7 @@ func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalle
 	apkCerts := []string{}
 	for _, installedModule := range allInstalledModules {
 		partition := ""
-		if commonInfo, ok := android.OtherModuleProvider(ctx, installedModule, android.CommonModuleInfoKey); ok {
+		if commonInfo, ok := android.OtherModuleProvider(ctx, installedModule, android.CommonModuleInfoProvider); ok {
 			partition = commonInfo.PartitionTag
 		} else {
 			ctx.ModuleErrorf("%s does not set CommonModuleInfoKey", installedModule.Name())

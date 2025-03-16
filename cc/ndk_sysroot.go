@@ -212,7 +212,7 @@ func (n *ndkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	var licensePaths android.Paths
 	ctx.VisitAllModuleProxies(func(module android.ModuleProxy) {
 
-		if !android.OtherModuleProviderOrDefault(ctx, module, android.CommonModuleInfoKey).Enabled {
+		if !android.OtherModulePointerProviderOrDefault(ctx, module, android.CommonModuleInfoProvider).Enabled {
 			return
 		}
 

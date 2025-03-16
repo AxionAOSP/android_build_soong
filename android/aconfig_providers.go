@@ -248,7 +248,7 @@ func getContainer(m Module) string {
 // Please only access the module's internal data through providers.
 func getContainerUsingProviders(ctx OtherModuleProviderContext, m Module) string {
 	container := "system"
-	commonInfo, _ := OtherModuleProvider(ctx, m, CommonModuleInfoKey)
+	commonInfo := OtherModulePointerProviderOrDefault(ctx, m, CommonModuleInfoProvider)
 	if commonInfo.Vendor || commonInfo.Proprietary || commonInfo.SocSpecific {
 		container = "vendor"
 	} else if commonInfo.ProductSpecific {

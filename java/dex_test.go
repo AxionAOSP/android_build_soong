@@ -866,3 +866,46 @@ func TestDebugReleaseFlags(t *testing.T) {
 		})
 	}
 }
+
+func TestTraceReferences(t *testing.T) {
+	t.Parallel()
+	bp := `
+		android_app {
+			name: "app",
+			libs: ["lib.impl"],
+			srcs: ["foo.java"],
+			platform_apis: true,
+		}
+
+		java_library {
+			name: "lib",
+			optimize: {
+				enabled: true,
+				trace_references_from: ["app"],
+			},
+			srcs: ["bar.java"],
+			static_libs: ["lib.impl"],
+			installable: true,
+		}
+
+		java_library {
+			name: "lib.impl",
+			srcs: ["baz.java"],
+		}
+	`
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+	).RunTestWithBp(t, bp)
+
+	appJar := result.ModuleForTests(t, "app", "android_common").Output("combined/app.jar").Output
+	libJar := result.ModuleForTests(t, "lib", "android_common").Output("combined/lib.jar").Output
+	libTraceRefs := result.ModuleForTests(t, "lib", "android_common").Rule("traceReferences")
+	libR8 := result.ModuleForTests(t, "lib", "android_common").Rule("r8")
+
+	android.AssertStringDoesContain(t, "expected trace reference source from app jar",
+		libTraceRefs.Args["sources"], "--source "+appJar.String())
+	android.AssertStringEquals(t, "expected trace reference target into lib jar",
+		libJar.String(), libTraceRefs.Input.String())
+	android.AssertStringDoesContain(t, "expected trace reference proguard flags in lib r8 flags",
+		libR8.Args["r8Flags"], "trace_references.flags")
+}

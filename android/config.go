@@ -200,6 +200,11 @@ func (c Config) ReleaseAconfigValueSets() []string {
 	return c.config.productVariables.ReleaseAconfigValueSets
 }
 
+// If native modules should have symbols stripped by default. Default false, enabled for build tools
+func (c Config) StripByDefault() bool {
+	return proptools.Bool(c.config.productVariables.StripByDefault)
+}
+
 func (c Config) ReleaseAconfigExtraReleaseConfigs() []string {
 	result := []string{}
 	if val, ok := c.config.productVariables.BuildFlags["RELEASE_ACONFIG_EXTRA_RELEASE_CONFIGS"]; ok {

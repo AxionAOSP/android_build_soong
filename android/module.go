@@ -520,6 +520,11 @@ type baseProperties struct {
 
 	// names of other modules to install on target if this module is installed
 	Target_required []string `android:"arch_variant"`
+
+	// If this is a soong config module, this property will be set to the name of the original
+	// module type. This is used by neverallow to ensure you can't bypass a ModuleType() matcher
+	// just by creating a soong config module type.
+	Soong_config_base_module_type *string `blueprint:"mutated"`
 }
 
 type distProperties struct {
@@ -997,8 +1002,16 @@ func (m *ModuleBase) baseDepsMutator(ctx BottomUpMutatorContext) {
 	pv := ctx.Config().productVariables
 	fullManifest := pv.DeviceArch != nil && pv.DeviceName != nil
 	if fullManifest {
-		addRequiredDeps(ctx)
 		addVintfFragmentDeps(ctx)
+	}
+}
+
+// required property can be overridden too; handle it separately
+func (m *ModuleBase) baseOverridablePropertiesDepsMutator(ctx BottomUpMutatorContext) {
+	pv := ctx.Config().productVariables
+	fullManifest := pv.DeviceArch != nil && pv.DeviceName != nil
+	if fullManifest {
+		addRequiredDeps(ctx)
 	}
 }
 
@@ -1483,7 +1496,7 @@ func (m *ModuleBase) computeInstallDeps(ctx ModuleContext) ([]depset.DepSet[Inst
 			// Installation is still handled by Make, so anything hidden from Make is not
 			// installable.
 			info := OtherModuleProviderOrDefault(ctx, dep, InstallFilesProvider)
-			commonInfo := OtherModuleProviderOrDefault(ctx, dep, CommonModuleInfoKey)
+			commonInfo := OtherModulePointerProviderOrDefault(ctx, dep, CommonModuleInfoProvider)
 			if !commonInfo.HideFromMake && !commonInfo.SkipInstall {
 				installDeps = append(installDeps, info.TransitiveInstallFiles)
 			}
@@ -1500,7 +1513,7 @@ func (m *ModuleBase) computeInstallDeps(ctx ModuleContext) ([]depset.DepSet[Inst
 // should also install the output files of the given dependency and dependency tag.
 func isInstallDepNeeded(ctx ModuleContext, dep ModuleProxy) bool {
 	// Don't add a dependency from the platform to a library provided by an apex.
-	if OtherModuleProviderOrDefault(ctx, dep, CommonModuleInfoKey).UninstallableApexPlatformVariant {
+	if OtherModulePointerProviderOrDefault(ctx, dep, CommonModuleInfoProvider).UninstallableApexPlatformVariant {
 		return false
 	}
 	// Only install modules if the dependency tag is an InstallDepNeeded tag.
@@ -1923,7 +1936,7 @@ type ApiLevelOrPlatform struct {
 	IsPlatform bool
 }
 
-var CommonModuleInfoKey = blueprint.NewProvider[CommonModuleInfo]()
+var CommonModuleInfoProvider = blueprint.NewProvider[*CommonModuleInfo]()
 
 type PrebuiltModuleInfo struct {
 	SourceExists bool
@@ -2331,7 +2344,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	if mm, ok := m.module.(interface{ BaseModuleName() string }); ok {
 		commonData.BaseModuleName = mm.BaseModuleName()
 	}
-	SetProvider(ctx, CommonModuleInfoKey, commonData)
+	SetProvider(ctx, CommonModuleInfoProvider, &commonData)
 	if p, ok := m.module.(PrebuiltInterface); ok && p.Prebuilt() != nil {
 		SetProvider(ctx, PrebuiltModuleInfoProvider, PrebuiltModuleInfo{
 			SourceExists: p.Prebuilt().SourceExists(),
@@ -2649,6 +2662,8 @@ func (e configurationEvalutor) EvaluateConfiguration(condition proptools.Configu
 			return proptools.ConfigurableValueBool(ctx.Config().UseDebugArt())
 		case "selinux_ignore_neverallows":
 			return proptools.ConfigurableValueBool(ctx.Config().SelinuxIgnoreNeverallows())
+		case "always_use_prebuilt_sdks":
+			return proptools.ConfigurableValueBool(ctx.Config().AlwaysUsePrebuiltSdks())
 		default:
 			// TODO(b/323382414): Might add these on a case-by-case basis
 			ctx.OtherModulePropertyErrorf(m, property, fmt.Sprintf("TODO(b/323382414): Product variable %q is not yet supported in selects", variable))

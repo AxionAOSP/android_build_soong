@@ -375,6 +375,20 @@ func (fs fsType) IsUnknown() bool {
 	return fs == unknown
 }
 
+// Type string that build_image.py accepts.
+func (t fsType) String() string {
+	switch t {
+	// TODO(372522486): add more types like f2fs, erofs, etc.
+	case ext4Type:
+		return "ext4"
+	case erofsType:
+		return "erofs"
+	case f2fsType:
+		return "f2fs"
+	}
+	panic(fmt.Errorf("unsupported fs type %d", t))
+}
+
 type InstalledFilesStruct struct {
 	Txt  android.Path
 	Json android.Path
@@ -1031,21 +1045,7 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (android.Path, and
 		deps = append(deps, path)
 	}
 
-	// Type string that build_image.py accepts.
-	fsTypeStr := func(t fsType) string {
-		switch t {
-		// TODO(372522486): add more types like f2fs, erofs, etc.
-		case ext4Type:
-			return "ext4"
-		case erofsType:
-			return "erofs"
-		case f2fsType:
-			return "f2fs"
-		}
-		panic(fmt.Errorf("unsupported fs type %v", t))
-	}
-
-	addStr("fs_type", fsTypeStr(f.fsType(ctx)))
+	addStr("fs_type", f.fsType(ctx).String())
 	addStr("mount_point", proptools.StringDefault(f.properties.Mount_point, "/"))
 	addStr("use_dynamic_partition_size", "true")
 	addPath("ext_mkuserimg", ctx.Config().HostToolPath(ctx, "mkuserimg_mke2fs"))
@@ -1064,28 +1064,7 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (android.Path, and
 			addPath("avb_key_path", key)
 		}
 		addStr("partition_name", f.partitionName())
-		avb_add_hashtree_footer_args := ""
-		if !proptools.BoolDefault(f.properties.Use_fec, true) {
-			avb_add_hashtree_footer_args += " --do_not_generate_fec"
-		}
-		hashAlgorithm := proptools.StringDefault(f.properties.Avb_hash_algorithm, "sha256")
-		avb_add_hashtree_footer_args += " --hash_algorithm " + hashAlgorithm
-		if f.properties.Rollback_index != nil {
-			rollbackIndex := proptools.Int(f.properties.Rollback_index)
-			if rollbackIndex < 0 {
-				ctx.PropertyErrorf("rollback_index", "Rollback index must be non-negative")
-			}
-			avb_add_hashtree_footer_args += " --rollback_index " + strconv.Itoa(rollbackIndex)
-		}
-		avb_add_hashtree_footer_args += fmt.Sprintf(" --prop com.android.build.%s.os_version:%s", f.partitionName(), ctx.Config().PlatformVersionLastStable())
-		// We're not going to add BuildFingerPrintFile as a dep. If it changed, it's likely because
-		// the build number changed, and we don't want to trigger rebuilds solely based on the build
-		// number.
-		avb_add_hashtree_footer_args += fmt.Sprintf(" --prop com.android.build.%s.fingerprint:{CONTENTS_OF:%s}", f.partitionName(), ctx.Config().BuildFingerprintFile(ctx))
-		if f.properties.Security_patch != nil && proptools.String(f.properties.Security_patch) != "" {
-			avb_add_hashtree_footer_args += fmt.Sprintf(" --prop com.android.build.%s.security_patch:%s", f.partitionName(), proptools.String(f.properties.Security_patch))
-		}
-		addStr("avb_add_hashtree_footer_args", avb_add_hashtree_footer_args)
+		addStr("avb_add_hashtree_footer_args", f.getAvbAddHashtreeFooterArgs(ctx))
 	}
 
 	if f.properties.File_contexts != nil && f.properties.Precompiled_file_contexts != nil {
@@ -1134,7 +1113,7 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (android.Path, and
 			addStr("f2fs_sparse_flag", "-S")
 		}
 	}
-	f.checkFsTypePropertyError(ctx, fst, fsTypeStr(fst))
+	f.checkFsTypePropertyError(ctx, fst, fst.String())
 
 	if f.properties.Partition_size != nil {
 		addStr("partition_size", strconv.FormatInt(*f.properties.Partition_size, 10))
@@ -1163,6 +1142,31 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (android.Path, and
 		Output: propFile,
 	})
 	return propFile, deps
+}
+
+func (f *filesystem) getAvbAddHashtreeFooterArgs(ctx android.ModuleContext) string {
+	avb_add_hashtree_footer_args := ""
+	if !proptools.BoolDefault(f.properties.Use_fec, true) {
+		avb_add_hashtree_footer_args += " --do_not_generate_fec"
+	}
+	hashAlgorithm := proptools.StringDefault(f.properties.Avb_hash_algorithm, "sha256")
+	avb_add_hashtree_footer_args += " --hash_algorithm " + hashAlgorithm
+	if f.properties.Rollback_index != nil {
+		rollbackIndex := proptools.Int(f.properties.Rollback_index)
+		if rollbackIndex < 0 {
+			ctx.PropertyErrorf("rollback_index", "Rollback index must be non-negative")
+		}
+		avb_add_hashtree_footer_args += " --rollback_index " + strconv.Itoa(rollbackIndex)
+	}
+	avb_add_hashtree_footer_args += fmt.Sprintf(" --prop com.android.build.%s.os_version:%s", f.partitionName(), ctx.Config().PlatformVersionLastStable())
+	// We're not going to add BuildFingerPrintFile as a dep. If it changed, it's likely because
+	// the build number changed, and we don't want to trigger rebuilds solely based on the build
+	// number.
+	avb_add_hashtree_footer_args += fmt.Sprintf(" --prop com.android.build.%s.fingerprint:{CONTENTS_OF:%s}", f.partitionName(), ctx.Config().BuildFingerprintFile(ctx))
+	if f.properties.Security_patch != nil && proptools.String(f.properties.Security_patch) != "" {
+		avb_add_hashtree_footer_args += fmt.Sprintf(" --prop com.android.build.%s.security_patch:%s", f.partitionName(), proptools.String(f.properties.Security_patch))
+	}
+	return avb_add_hashtree_footer_args
 }
 
 // This method checks if there is any property set for the fstype(s) other than
@@ -1469,7 +1473,7 @@ func (f *filesystem) getLibsForLinkerConfig(ctx android.ModuleContext) ([]androi
 
 	deps := f.gatherFilteredPackagingSpecs(ctx)
 	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
-		if !android.OtherModuleProviderOrDefault(ctx, child, android.CommonModuleInfoKey).Enabled {
+		if !android.OtherModulePointerProviderOrDefault(ctx, child, android.CommonModuleInfoProvider).Enabled {
 			return false
 		}
 		for _, ps := range android.OtherModuleProviderOrDefault(
@@ -1490,7 +1494,7 @@ func (f *filesystem) getLibsForLinkerConfig(ctx android.ModuleContext) ([]androi
 
 	var requireModules []android.ModuleProxy
 	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
-		if !android.OtherModuleProviderOrDefault(ctx, child, android.CommonModuleInfoKey).Enabled {
+		if !android.OtherModulePointerProviderOrDefault(ctx, child, android.CommonModuleInfoProvider).Enabled {
 			return false
 		}
 		_, parentInPackage := modulesInPackageByModule[parent]

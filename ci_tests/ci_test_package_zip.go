@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -139,6 +140,9 @@ func TestPackageZipFactory() android.Module {
 }
 
 func (p *testPackageZip) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// Never install this test package, it's for disting only
+	p.SkipInstall()
+
 	if !android.InList(ctx.ModuleName(), moduleNamesAllowed) {
 		ctx.ModuleErrorf("%s is not allowed to use module type test_package")
 	}
@@ -166,6 +170,9 @@ func createOutput(ctx android.ModuleContext, pctx android.PackageContext) androi
 	builder.Command().Text("mkdir").Flag("-p").Output(stagingDir)
 	builder.Temporary(stagingDir)
 	ctx.WalkDeps(func(child, parent android.Module) bool {
+		if !child.Enabled(ctx) {
+			return false
+		}
 		if android.EqualModules(parent, ctx.Module()) && ctx.OtherModuleDependencyTag(child) == testPackageZipDepTag {
 			// handle direct deps
 			extendBuilderCommand(ctx, child, builder, stagingDir, productOut, arch, secondArch)
@@ -214,7 +221,13 @@ func extendBuilderCommand(ctx android.ModuleContext, m android.Module, builder *
 		ctx.ModuleErrorf("Module %s doesn't set InstallFilesProvider", m.Name())
 	}
 
-	for _, installedFile := range installedFilesInfo.InstallFiles {
+	for _, spec := range installedFilesInfo.PackagingSpecs {
+		if spec.SrcPath() == nil {
+			// Probably a symlink
+			continue
+		}
+		installedFile := spec.FullInstallPath()
+
 		ext := installedFile.Ext()
 		// there are additional installed files for some app-class modules, we only need the .apk, .odex and .vdex files in the test package
 		excludeInstalledFile := ext != ".apk" && ext != ".odex" && ext != ".vdex"
@@ -253,7 +266,9 @@ func extendBuilderCommand(ctx android.ModuleContext, m android.Module, builder *
 
 		tempOut := android.PathForModuleOut(ctx, "STAGING", f)
 		builder.Command().Text("mkdir").Flag("-p").Text(filepath.Join(stagingDir.String(), dir))
-		builder.Command().Text("cp").Flag("-Rf").Input(installedFile).Output(tempOut)
+		// Copy srcPath instead of installedFile because some rules like target-files.zip
+		// are non-hermetic and would be affected if we built the installed files.
+		builder.Command().Text("cp").Flag("-Rf").Input(spec.SrcPath()).Output(tempOut)
 		builder.Temporary(tempOut)
 	}
 }

@@ -99,15 +99,6 @@ type RuntimeResourceOverlayProperties struct {
 	Overrides []string
 }
 
-// RuntimeResourceOverlayModule interface is used by the apex package to gather information from
-// a RuntimeResourceOverlay module.
-type RuntimeResourceOverlayModule interface {
-	android.Module
-	OutputFile() android.Path
-	Certificate() Certificate
-	Theme() string
-}
-
 // RRO's partition logic is different from the partition logic of other modules defined in soong/android/paths.go
 // The default partition for RRO is "/product" and not "/system"
 func rroPartition(ctx android.ModuleContext) string {
@@ -217,10 +208,12 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 	})
 
 	android.SetProvider(ctx, RuntimeResourceOverlayInfoProvider, RuntimeResourceOverlayInfo{
-		OutputFile:  r.OutputFile(),
+		OutputFile:  r.outputFile,
 		Certificate: r.Certificate(),
 		Theme:       r.Theme(),
 	})
+
+	ctx.SetOutputFiles([]android.Path{r.outputFile}, "")
 
 	buildComplianceMetadata(ctx)
 }
@@ -250,10 +243,6 @@ func (r *RuntimeResourceOverlay) TargetSdkVersion(ctx android.EarlyModuleContext
 
 func (r *RuntimeResourceOverlay) Certificate() Certificate {
 	return r.certificate
-}
-
-func (r *RuntimeResourceOverlay) OutputFile() android.Path {
-	return r.outputFile
 }
 
 func (r *RuntimeResourceOverlay) Theme() string {
