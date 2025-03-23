@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -43,6 +44,14 @@ type Module interface {
 	// but GenerateAndroidBuildActions also has access to Android-specific information.
 	// For more information, see Module.GenerateBuildActions within Blueprint's module_ctx.go
 	GenerateAndroidBuildActions(ModuleContext)
+
+	// CleanupAfterBuildActions is called after ModuleBase.GenerateBuildActions is finished.
+	// If all interactions with this module are handled via providers instead of direct access
+	// to the module then it can free memory attached to the module.
+	// This is a temporary measure to reduce memory usage, eventually blueprint's reference
+	// to the Module should be dropped after GenerateAndroidBuildActions once all accesses
+	// can be done through providers.
+	CleanupAfterBuildActions()
 
 	// Add dependencies to the components of a module, i.e. modules that are created
 	// by the module and which are considered to be part of the creating module.
@@ -128,6 +137,9 @@ type Module interface {
 	// WARNING: This should not be used outside build/soong/fsgen
 	// Overrides returns the list of modules which should not be installed if this module is installed.
 	Overrides() []string
+
+	// If this is true, the module must not read product-specific configurations.
+	UseGenericConfig() bool
 }
 
 // Qualified id for a module
@@ -507,6 +519,10 @@ type commonProperties struct {
 	// List of module names that are prevented from being installed when this module gets
 	// installed.
 	Overrides []string
+
+	// Set to true if this module must be generic and does not require product-specific information.
+	// To be included in the system image, this property must be set to true.
+	Use_generic_config *bool
 }
 
 // Properties common to all modules inheriting from ModuleBase. Unlike commonProperties, these
@@ -2379,7 +2395,11 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			})
 		}
 	}
+
+	m.module.CleanupAfterBuildActions()
 }
+
+func (m *ModuleBase) CleanupAfterBuildActions() {}
 
 func SetJarJarPrefixHandler(handler func(ModuleContext)) {
 	if jarJarPrefixHandler != nil {
@@ -2588,6 +2608,10 @@ func (m *ModuleBase) Overrides() []string {
 	return m.commonProperties.Overrides
 }
 
+func (m *ModuleBase) UseGenericConfig() bool {
+	return proptools.Bool(m.commonProperties.Use_generic_config)
+}
+
 type ConfigContext interface {
 	Config() Config
 }
@@ -2688,6 +2712,13 @@ func (e configurationEvalutor) EvaluateConfiguration(condition proptools.Configu
 					return proptools.ConfigurableValueString(v)
 				case "bool":
 					return proptools.ConfigurableValueBool(v == "true")
+				case "int":
+					i, err := strconv.ParseInt(v, 10, 64)
+					if err != nil {
+						ctx.OtherModulePropertyErrorf(m, property, "integer soong_config_variable was not an int: %q", v)
+						return proptools.ConfigurableValueUndefined()
+					}
+					return proptools.ConfigurableValueInt(i)
 				case "string_list":
 					return proptools.ConfigurableValueStringList(strings.Split(v, " "))
 				default:

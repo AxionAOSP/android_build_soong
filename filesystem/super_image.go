@@ -122,6 +122,8 @@ type SuperImageInfo struct {
 	DynamicPartitionsInfo android.Path
 
 	SuperEmptyImage android.Path
+
+	AbUpdate bool
 }
 
 var SuperImageProvider = blueprint.NewProvider[SuperImageInfo]()
@@ -201,6 +203,7 @@ func (s *superImage) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		SubImageInfo:          subImageInfos,
 		DynamicPartitionsInfo: s.generateDynamicPartitionsInfo(ctx),
 		SuperEmptyImage:       superEmptyImage,
+		AbUpdate:              proptools.Bool(s.properties.Ab_update),
 	})
 	ctx.SetOutputFiles([]android.Path{output}, "")
 	ctx.CheckbuildFile(output)

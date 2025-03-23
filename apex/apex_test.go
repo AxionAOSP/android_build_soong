@@ -11468,6 +11468,16 @@ func TestInstallationRulesForMultipleApexPrebuilts(t *testing.T) {
 		// 1. The contents of the selected apex_contributions are visible to make
 		// 2. The rest of the apexes in the mainline module family (source or other prebuilt) is hidden from make
 		checkHideFromMake(t, ctx, tc.expectedVisibleModuleName, tc.expectedHiddenModuleNames)
+
+		// Check that source_apex_name is written as LOCAL_MODULE for make packaging
+		if tc.expectedVisibleModuleName == "prebuilt_com.google.android.foo.v2" {
+			apex := ctx.ModuleForTests(t, "prebuilt_com.google.android.foo.v2", "android_common_prebuilt_com.android.foo").Module()
+			entries := android.AndroidMkEntriesForTest(t, ctx, apex)[0]
+
+			expected := "com.google.android.foo"
+			actual := entries.EntryMap["LOCAL_MODULE"][0]
+			android.AssertStringEquals(t, "LOCAL_MODULE", expected, actual)
+		}
 	}
 }
 

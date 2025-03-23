@@ -15,20 +15,29 @@
 package build
 
 import (
+	"os"
+	"slices"
 	"strings"
 )
 
 var androidmk_denylist []string = []string{
+	"art/",
 	"bionic/",
-	"chained_build_config/",
+	"bootable/",
+	"build/",
 	"cts/",
 	"dalvik/",
 	"developers/",
 	"development/",
 	"device/common/",
+	"device/generic/",
+	"device/google/",
 	"device/google_car/",
 	"device/sample/",
+	"external/",
 	"frameworks/",
+	"hardware/google/",
+	"hardware/interfaces/",
 	"hardware/libhardware/",
 	"hardware/libhardware_legacy/",
 	"hardware/ril/",
@@ -45,24 +54,38 @@ var androidmk_denylist []string = []string{
 	"sdk/",
 	"system/",
 	"test/",
+	"tools/",
 	"trusty/",
-	// Add back toolchain/ once defensive Android.mk files are removed
-	//"toolchain/",
-	"vendor/google_contexthub/",
-	"vendor/google_data/",
-	"vendor/google_elmyra/",
-	"vendor/google_mhl/",
-	"vendor/google_pdk/",
-	"vendor/google_testing/",
-	"vendor/partner_testing/",
-	"vendor/partner_tools/",
-	"vendor/pdk/",
+	"toolchain/",
+}
+
+var androidmk_allowlist []string = []string{
+	"art/Android.mk",
+	"bootable/deprecated-ota/updater/Android.mk",
+}
+
+func getAllLines(ctx Context, filename string) []string {
+	bytes, err := os.ReadFile(filename)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []string{}
+		} else {
+			ctx.Fatalf("Could not read %s: %v", filename, err)
+		}
+	}
+	return strings.Split(strings.Trim(string(bytes), " \n"), "\n")
 }
 
 func blockAndroidMks(ctx Context, androidMks []string) {
+	allowlist := getAllLines(ctx, "vendor/google/build/androidmk/allowlist.txt")
+	androidmk_allowlist = append(androidmk_allowlist, allowlist...)
+
+	denylist := getAllLines(ctx, "vendor/google/build/androidmk/denylist.txt")
+	androidmk_denylist = append(androidmk_denylist, denylist...)
+
 	for _, mkFile := range androidMks {
 		for _, d := range androidmk_denylist {
-			if strings.HasPrefix(mkFile, d) {
+			if strings.HasPrefix(mkFile, d) && !slices.Contains(androidmk_allowlist, mkFile) {
 				ctx.Fatalf("Found blocked Android.mk file: %s. "+
 					"Please see androidmk_denylist.go for the blocked directories and contact build system team if the file should not be blocked.", mkFile)
 			}
@@ -86,6 +109,12 @@ var external_androidmks []string = []string{
 	// These directories hold the published Android SDK, used in Unbundled Gradle builds.
 	"prebuilts/fullsdk-darwin",
 	"prebuilts/fullsdk-linux",
+	// wpa_supplicant_8 has been converted to Android.bp and Android.mk files are kept for troubleshooting.
+	"external/wpa_supplicant_8/",
+	// Empty Android.mk in package's top directory
+	"external/proguard/",
+	"external/swig/",
+	"toolchain/",
 }
 
 var art_androidmks = []string{

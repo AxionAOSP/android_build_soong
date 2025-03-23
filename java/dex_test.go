@@ -797,12 +797,14 @@ func TestDebugReleaseFlags(t *testing.T) {
 		},
 		{
 			name:          "app_eng",
+			useD8:         true,
 			isEng:         true,
 			expectedFlags: "--debug",
 		},
 		{
 			name:    "app_release_eng",
 			isEng:   true,
+			useD8:   true,
 			dxFlags: "--release",
 			// Eng mode does *not* override explicit dxflags.
 			expectedFlags: "--release",

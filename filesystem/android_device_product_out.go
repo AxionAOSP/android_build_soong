@@ -167,7 +167,7 @@ func (a *androidDevice) copyFilesToProductOutForSoongOnly(ctx android.ModuleCont
 	}
 
 	if proptools.String(a.deviceProps.Android_info) != "" {
-		installPath := android.PathForModuleInPartitionInstall(ctx, "", "android_info.txt")
+		installPath := android.PathForModuleInPartitionInstall(ctx, "", "android-info.txt")
 		ctx.Build(pctx, android.BuildParams{
 			Rule:   android.Cp,
 			Input:  android.PathForModuleSrc(ctx, *a.deviceProps.Android_info),

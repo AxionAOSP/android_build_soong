@@ -90,6 +90,10 @@ type DeviceProperties struct {
 	Releasetools_extension *string `android:"path"`
 	FastbootInfo           *string `android:"path"`
 
+	Partial_ota_update_partitions []string
+	Flash_block_size              *string
+	Bootloader_in_update_package  *bool
+
 	// The kernel version in the build. Will be verified against the actual kernel.
 	// If not provided, will attempt to extract it from the loose kernel or the kernel inside
 	// the boot image. The version is later used to decide whether or not to enable uffd_gc
@@ -391,6 +395,13 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 		if a.deviceProps.Android_info != nil {
 			ctx.DistForGoal("droidcore-unbundled", android.PathForModuleSrc(ctx, *a.deviceProps.Android_info))
 		}
+		if a.miscInfo != nil {
+			ctx.DistForGoal("droidcore-unbundled", a.miscInfo)
+			if a.partitionProps.Super_partition_name != nil {
+				ctx.DistForGoalWithFilename("dist_files", a.miscInfo, "super_misc_info.txt")
+			}
+		}
+
 	}
 }
 
@@ -748,26 +759,91 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 
 }
 
+var (
+	// https://cs.android.com/android/_/android/platform/build/+/30f05352c3e6f4333c77d4af66c253572d3ea6c9:core/Makefile;l=2111-2120;drc=519f75666431ee2926e0ec8991c682b28a4c9521;bpv=1;bpt=0
+	defaultTargetRecoveryFstypeMountOptions = "ext4=max_batch_time=0,commit=1,data=ordered,barrier=1,errors=panic,nodelalloc"
+)
+
 // A partial implementation of make's $PRODUCT_OUT/misc_info.txt
 // https://cs.android.com/android/platform/superproject/main/+/main:build/make/core/Makefile;l=5894?q=misc_info.txt%20f:build%2Fmake%2Fcore%2FMakefile&ss=android%2Fplatform%2Fsuperproject%2Fmain
 // This file is subsequently used by add_img_to_target_files to create additioanl metadata files like apex_info.pb
 // TODO (b/399788119): Complete the migration of misc_info.txt
 func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
+	buildType := func() string {
+		if ctx.Config().Debuggable() {
+			return "userdebug"
+		} else if ctx.Config().Eng() {
+			return "eng"
+		} else {
+			return "user"
+		}
+	}
+	defaultAppCertificate := func() string {
+		pem, _ := ctx.Config().DefaultAppCertificate(ctx)
+		return strings.TrimSuffix(pem.String(), ".x509.pem")
+	}
+
 	builder := android.NewRuleBuilder(pctx, ctx)
 	miscInfo := android.PathForModuleOut(ctx, "misc_info.txt")
 	builder.Command().
 		Textf("rm -f %s", miscInfo).
 		Textf("&& echo recovery_api_version=%s >> %s", ctx.Config().VendorConfig("recovery").String("recovery_api_version"), miscInfo).
 		Textf("&& echo fstab_version=%s >> %s", ctx.Config().VendorConfig("recovery").String("recovery_fstab_version"), miscInfo).
+		Textf("&& echo build_type=%s >> %s", buildType(), miscInfo).
+		Textf("&& echo default_system_dev_certificate=%s >> %s", defaultAppCertificate(), miscInfo).
+		Textf("&& echo root_dir=%s >> %s", android.PathForModuleInPartitionInstall(ctx, "root"), miscInfo).
 		ImplicitOutput(miscInfo)
+	if len(ctx.Config().ExtraOtaRecoveryKeys()) > 0 {
+		builder.Command().Textf(`echo "extra_recovery_keys=%s" >> %s`, strings.Join(ctx.Config().ExtraOtaRecoveryKeys(), ""), miscInfo)
+	} else {
+		if a.partitionProps.Boot_partition_name != nil {
+			builder.Command().
+				Textf("echo mkbootimg_args='--header_version %s' >> %s", a.getBootimgHeaderVersion(ctx, a.partitionProps.Boot_partition_name), miscInfo).
+				// TODO: Use boot's header version for recovery for now since cuttlefish does not set `BOARD_RECOVERY_MKBOOTIMG_ARGS`
+				Textf(" && echo recovery_mkbootimg_args='--header_version %s' >> %s", a.getBootimgHeaderVersion(ctx, a.partitionProps.Boot_partition_name), miscInfo)
+		}
+		if a.partitionProps.Init_boot_partition_name != nil {
+			builder.Command().
+				Textf("echo mkbootimg_init_args='--header_version' %s >> %s", a.getBootimgHeaderVersion(ctx, a.partitionProps.Init_boot_partition_name), miscInfo)
+		}
+		builder.Command().
+			Textf("echo mkbootimg_version_args='--os_version %s --os_patch_level %s' >> %s", ctx.Config().PlatformVersionLastStable(), ctx.Config().PlatformSecurityPatch(), miscInfo).
+			Textf(" && echo multistage_support=1 >> %s", miscInfo).
+			Textf(" && echo blockimgdiff_versions=3,4 >> %s", miscInfo)
+	}
+	fsInfos := a.getFsInfos(ctx)
+	if _, ok := fsInfos["vendor"]; ok {
+		builder.Command().Textf("echo board_uses_vendorimage=true >> %s", miscInfo)
+	}
+	if fsInfos["system"].ErofsCompressHints != nil {
+		builder.Command().Textf("echo erofs_default_compress_hints=%s >> %s", fsInfos["system"].ErofsCompressHints, miscInfo)
+	}
+	if releaseTools := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Releasetools_extension)); releaseTools != nil {
+		builder.Command().Textf("echo tool_extensions=%s >> %s", filepath.Dir(releaseTools.String()), miscInfo)
+	}
+	// ramdisk uses `compressed_cpio` fs_type
+	// https://cs.android.com/android/_/android/platform/build/+/30f05352c3e6f4333c77d4af66c253572d3ea6c9:core/Makefile;l=5923-5925;drc=519f75666431ee2926e0ec8991c682b28a4c9521;bpv=1;bpt=0
+	if _, ok := fsInfos["ramdisk"]; ok {
+		builder.Command().Textf("echo lz4_ramdisks=true >> %s", miscInfo)
+	}
+	// recovery_mount_options
+	// TODO: Add support for TARGET_RECOVERY_FSTYPE_MOUNT_OPTIONS which can be used to override the default
+	builder.Command().Textf("echo recovery_mount_options=%s >> %s", defaultTargetRecoveryFstypeMountOptions, miscInfo)
+
+	// vintf information
+	if proptools.Bool(ctx.Config().ProductVariables().Enforce_vintf_manifest) {
+		builder.Command().Textf("echo vintf_enforce=true >> %s", miscInfo)
+	}
+	if len(ctx.Config().DeviceManifestFiles()) > 0 {
+		builder.Command().Textf("echo vintf_include_empty_vendor_sku=true >> %s", miscInfo)
+	}
 
 	if a.partitionProps.Recovery_partition_name == nil {
 		builder.Command().Textf("echo no_recovery=true >> %s", miscInfo)
 	}
-	fsInfos := a.getFsInfos(ctx)
 	for _, partition := range android.SortedKeys(fsInfos) {
-		if fsInfos[partition].UseAvb {
-			builder.Command().Textf("echo 'avb_%s_hashtree_enable=true' >> %s", partition, miscInfo)
+		if fsInfos[partition].PropFileForMiscInfo != nil {
+			builder.Command().Text("cat").Input(fsInfos[partition].PropFileForMiscInfo).Textf(" >> %s", miscInfo)
 		}
 	}
 	if len(a.partitionProps.Vbmeta_partitions) > 0 {
@@ -775,6 +851,26 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 			Textf("echo avb_enable=true >> %s", miscInfo).
 			Textf("&& echo avb_building_vbmeta_image=true >> %s", miscInfo).
 			Textf("&& echo avb_avbtool=avbtool >> %s", miscInfo)
+
+		var allChainedVbmetaPartitionTypes []string
+		for _, vbmetaPartitionName := range a.partitionProps.Vbmeta_partitions {
+			img := ctx.GetDirectDepProxyWithTag(vbmetaPartitionName, filesystemDepTag)
+			if provider, ok := android.OtherModuleProvider(ctx, img, vbmetaPartitionProvider); ok {
+				builder.Command().Text("cat").Input(provider.PropFileForMiscInfo).Textf(" >> %s", miscInfo)
+				if provider.FilesystemPartitionType != "" { // the top-level vbmeta.img
+					allChainedVbmetaPartitionTypes = append(allChainedVbmetaPartitionTypes, provider.FilesystemPartitionType)
+				}
+			} else {
+				ctx.ModuleErrorf("vbmeta dep %s does not set vbmetaPartitionProvider\n", vbmetaPartitionName)
+			}
+		}
+		// Determine the custom vbmeta partitions by removing system and vendor
+		customVbmetaPartitionTypes := android.RemoveListFromList(allChainedVbmetaPartitionTypes, []string{"system", "vendor"})
+		builder.Command().Textf("echo avb_custom_vbmeta_images_partition_list=%s >> %s",
+			strings.Join(android.SortedUniqueStrings(customVbmetaPartitionTypes), " "),
+			miscInfo,
+		)
+
 	}
 	if a.partitionProps.Boot_partition_name != nil {
 		builder.Command().Textf("echo boot_images=boot.img >> %s", miscInfo)
@@ -785,6 +881,10 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 		if info, ok := android.OtherModuleProvider(ctx, superPartition, SuperImageProvider); ok {
 			// cat dynamic_partition_info.txt
 			builder.Command().Text("cat").Input(info.DynamicPartitionsInfo).Textf(" >> %s", miscInfo)
+			if info.AbUpdate {
+				builder.Command().Textf("echo ab_update=true >> %s", miscInfo)
+			}
+
 		} else {
 			ctx.ModuleErrorf("Super partition %s does set SuperImageProvider\n", superPartition.Name())
 		}
@@ -805,9 +905,26 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 		builder.Command().Text("cat").Input(bootImgInfo.PropFileForMiscInfo).Textf(" >> %s", miscInfo)
 	}
 
+	builder.Command().Textf("echo blocksize=%s >> %s", proptools.String(a.deviceProps.Flash_block_size), miscInfo)
+	if proptools.Bool(a.deviceProps.Bootloader_in_update_package) {
+		builder.Command().Textf("echo bootloader_in_update_package=true >> %s", miscInfo)
+	}
+	if len(a.deviceProps.Partial_ota_update_partitions) > 0 {
+		builder.Command().Textf("echo partial_ota_update_partitions_list=%s >> %s", strings.Join(a.deviceProps.Partial_ota_update_partitions, " "), miscInfo)
+	}
+
+	// Sort and dedup
+	builder.Command().Textf("sort -u %s -o %s", miscInfo, miscInfo)
+
 	builder.Build("misc_info", "Building misc_info")
 
 	return miscInfo
+}
+
+func (a *androidDevice) getBootimgHeaderVersion(ctx android.ModuleContext, bootImgName *string) string {
+	bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(bootImgName), filesystemDepTag)
+	bootImgInfo, _ := android.OtherModuleProvider(ctx, bootImg, BootimgInfoProvider)
+	return bootImgInfo.HeaderVersion
 }
 
 // addImgToTargetFiles invokes `add_img_to_target_files` and creates the following files in META/
@@ -968,6 +1085,7 @@ func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalle
 	}
 
 	apkCerts := []string{}
+	var apkCertsFiles android.Paths
 	for _, installedModule := range allInstalledModules {
 		partition := ""
 		if commonInfo, ok := android.OtherModuleProvider(ctx, installedModule, android.CommonModuleInfoProvider); ok {
@@ -976,7 +1094,11 @@ func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalle
 			ctx.ModuleErrorf("%s does not set CommonModuleInfoKey", installedModule.Name())
 		}
 		if info, ok := android.OtherModuleProvider(ctx, installedModule, java.AppInfoProvider); ok {
-			apkCerts = append(apkCerts, formatLine(info.Certificate, info.InstallApkName+".apk", partition))
+			if info.AppSet {
+				apkCertsFiles = append(apkCertsFiles, info.ApkCertsFile)
+			} else {
+				apkCerts = append(apkCerts, formatLine(info.Certificate, info.InstallApkName+".apk", partition))
+			}
 		} else if info, ok := android.OtherModuleProvider(ctx, installedModule, java.AppInfosProvider); ok {
 			for _, certInfo := range info {
 				// Partition information of apk-in-apex is not exported to the legacy Make packaging system.
@@ -997,7 +1119,14 @@ func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalle
 		}
 	}
 
+	apkCertsInfoWithoutAppSets := android.PathForModuleOut(ctx, "apkcerts_without_app_sets.txt")
+	android.WriteFileRuleVerbatim(ctx, apkCertsInfoWithoutAppSets, strings.Join(apkCerts, "\n")+"\n")
 	apkCertsInfo := android.PathForModuleOut(ctx, "apkcerts.txt")
-	android.WriteFileRuleVerbatim(ctx, apkCertsInfo, strings.Join(apkCerts, "\n")+"\n")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        android.Cat,
+		Description: "combine apkcerts.txt",
+		Output:      apkCertsInfo,
+		Inputs:      append(apkCertsFiles, apkCertsInfoWithoutAppSets),
+	})
 	return apkCertsInfo
 }

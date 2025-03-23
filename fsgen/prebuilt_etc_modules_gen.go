@@ -215,6 +215,7 @@ var (
 		"system":              etc.PrebuiltSystemFactory,
 		"res":                 etc.PrebuiltResFactory,
 		"rfs":                 etc.PrebuiltRfsFactory,
+		"tee":                 etc.PrebuiltTeeFactory,
 		"tts":                 etc.PrebuiltVoicepackFactory,
 		"tvconfig":            etc.PrebuiltTvConfigFactory,
 		"tvservice":           etc.PrebuiltTvServiceFactory,
@@ -336,32 +337,43 @@ func createPrebuiltEtcModulesInDirectory(ctx android.LoadHookContext, partition,
 			propsList = append(propsList, &prebuiltInstallInRootProperties{
 				Install_in_root: proptools.BoolPtr(true),
 			})
+			// Discard any previously picked module and force it to prebuilt_{root,any} as
+			// they are the only modules allowed to specify the `install_in_root` property.
+			etcInstallPathKey = ""
+			relDestDirFromInstallDirBase = destDir
 		}
 
 		// Set appropriate srcs, dsts, and releative_install_path based on
 		// the source and install file names
-		if allCopyFileNamesUnchanged {
-			modulePropsPtr.Srcs = srcBaseFiles
+		modulePropsPtr.Srcs = srcBaseFiles
 
-			// Specify relative_install_path if it is not installed in the root directory of the
-			// partition
+		// prebuilt_root should only be used in very limited cases in prebuilt_etc moddule gen, where:
+		// - all source file names are identical to the installed file names, and
+		// - all source files are installed in root, not the subdirectories of root
+		// prebuilt_root currently does not have a good way to specify the names of the multiple
+		// installed files, and prebuilt_root does not allow installing files at a subdirectory
+		// of the root.
+		// Use prebuilt_any instead of prebuilt_root if either of the conditions are not met as
+		// a fallback behavior.
+		if etcInstallPathKey == "" {
+			if !(allCopyFileNamesUnchanged && android.InList(relDestDirFromInstallDirBase, []string{"", "."})) {
+				moduleFactory = etc.PrebuiltAnyFactory
+			}
+		}
+
+		if allCopyFileNamesUnchanged {
+			// Specify relative_install_path if it is not installed in the base directory of the module.
+			// In case of prebuilt_{root,any} this is equivalent to the root of the partition.
 			if !android.InList(relDestDirFromInstallDirBase, []string{"", "."}) {
 				propsList = append(propsList, &prebuiltSubdirProperties{
 					Relative_install_path: proptools.StringPtr(relDestDirFromInstallDirBase),
 				})
 			}
 		} else {
-			// If dsts property has to be set and the selected module type is prebuilt_root,
-			// use prebuilt_any instead.
-			if etcInstallPathKey == "" {
-				moduleFactory = etc.PrebuiltAnyFactory
-			}
-			modulePropsPtr.Srcs = srcBaseFiles
 			dsts := proptools.NewConfigurable[[]string](nil, nil)
 			for _, installBaseFile := range installBaseFiles {
 				dsts.AppendSimpleValue([]string{filepath.Join(relDestDirFromInstallDirBase, installBaseFile)})
 			}
-
 			propsList = append(propsList, &etc.PrebuiltDstsProperties{
 				Dsts: dsts,
 			})

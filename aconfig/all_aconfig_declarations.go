@@ -129,6 +129,7 @@ func (this *allAconfigDeclarationsSingleton) GenerateAndroidBuildActions(ctx and
 			invalidExportedFlags := android.PathForIntermediates(ctx, "invalid_exported_flags.txt")
 			GenerateExportedFlagCheck(ctx, invalidExportedFlags, parsedFlagsFile, this.properties)
 			depsFiles = append(depsFiles, invalidExportedFlags)
+			ctx.Phony("droidcore", invalidExportedFlags)
 		}
 	}
 

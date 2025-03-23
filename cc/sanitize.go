@@ -1422,6 +1422,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 				sanitizers = append(sanitizers,
 					"bool",
 					"integer-divide-by-zero",
+					"object-size",
 					"return",
 					"returns-nonnull-attribute",
 					"shift-exponent",
@@ -1438,10 +1439,6 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 					//"shift-base",
 					//"signed-integer-overflow",
 				)
-
-				if mctx.Config().ReleaseBuildObjectSizeSanitizer() {
-					sanitizers = append(sanitizers, "object-size")
-				}
 			}
 			sanitizers = append(sanitizers, sanProps.Misc_undefined...)
 		}

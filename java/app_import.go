@@ -338,7 +338,7 @@ func (a *AndroidAppImport) stripEmbeddedJniLibsUnusedArch(
 	for _, target := range ctx.MultiTargets() {
 		supported_abis := target.Arch.Abi
 		for _, arch := range supported_abis {
-			wantedJniLibSlice = append(wantedJniLibSlice, " -X lib/"+arch+"/*.so")
+			wantedJniLibSlice = append(wantedJniLibSlice, " -X 'lib/"+arch+"/*.so'")
 		}
 	}
 	wantedJniLibString := strings.Join(wantedJniLibSlice, " ")

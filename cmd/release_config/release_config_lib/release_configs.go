@@ -314,6 +314,9 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 				}
 			}
 		}
+		if flagDeclaration.Namespace == nil {
+			return fmt.Errorf("Flag declaration %s has no namespace.", path)
+		}
 
 		m.FlagDeclarations = append(m.FlagDeclarations, *flagDeclaration)
 		name := *flagDeclaration.Name

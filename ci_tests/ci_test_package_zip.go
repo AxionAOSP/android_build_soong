@@ -284,6 +284,10 @@ func (p *testPackageZip) AndroidMkEntries() []android.AndroidMkEntries {
 		android.AndroidMkEntries{
 			Class:      "ETC",
 			OutputFile: android.OptionalPathForPath(p.output),
+			ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+				func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+					entries.SetBool("LOCAL_UNINSTALLABLE_MODULE", true)
+				}},
 		},
 	}
 }

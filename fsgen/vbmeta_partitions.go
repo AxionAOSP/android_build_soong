@@ -76,6 +76,7 @@ func (f *filesystemCreator) createVbmetaPartitions(ctx android.LoadHookContext, 
 	var chainedPartitionTypes []string
 	for _, chainedName := range android.SortedKeys(partitionVars.ChainedVbmetaPartitions) {
 		props := partitionVars.ChainedVbmetaPartitions[chainedName]
+		filesystemPartitionType := chainedName
 		chainedName = "vbmeta_" + chainedName
 		if len(props.Partitions) == 0 {
 			continue
@@ -123,13 +124,14 @@ func (f *filesystemCreator) createVbmetaPartitions(ctx android.LoadHookContext, 
 			filesystem.VbmetaFactory,
 			".", // Create in the root directory for now so its easy to get the key
 			&filesystem.VbmetaProperties{
-				Partition_name:          proptools.StringPtr(chainedName),
-				Stem:                    proptools.StringPtr(chainedName + ".img"),
-				Private_key:             proptools.StringPtr(props.Key),
-				Algorithm:               &props.Algorithm,
-				Rollback_index:          rollbackIndex,
-				Rollback_index_location: &ril,
-				Partitions:              proptools.NewSimpleConfigurable(partitionModules),
+				Partition_name:            proptools.StringPtr(chainedName),
+				Filesystem_partition_type: proptools.StringPtr(filesystemPartitionType),
+				Stem:                      proptools.StringPtr(chainedName + ".img"),
+				Private_key:               proptools.StringPtr(props.Key),
+				Algorithm:                 &props.Algorithm,
+				Rollback_index:            rollbackIndex,
+				Rollback_index_location:   &ril,
+				Partitions:                proptools.NewSimpleConfigurable(partitionModules),
 			}, &struct {
 				Name *string
 			}{

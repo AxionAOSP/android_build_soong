@@ -281,3 +281,72 @@ func TestPartialCompile(t *testing.T) {
 		})
 	}
 }
+
+type configTestProperties struct {
+	Use_generic_config *bool
+}
+
+type configTestModule struct {
+	ModuleBase
+	properties configTestProperties
+}
+
+func (d *configTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
+	deviceName := ctx.Config().DeviceName()
+	if ctx.ModuleName() == "foo" {
+		if ctx.Module().UseGenericConfig() {
+			ctx.PropertyErrorf("use_generic_config", "must not be set for this test")
+		}
+	} else if ctx.ModuleName() == "bar" {
+		if !ctx.Module().UseGenericConfig() {
+			ctx.ModuleErrorf("\"use_generic_config: true\" must be set for this test")
+		}
+	}
+
+	if ctx.Module().UseGenericConfig() {
+		if deviceName != "generic" {
+			ctx.ModuleErrorf("Device name for this module must be \"generic\" but %q\n", deviceName)
+		}
+	} else {
+		if deviceName == "generic" {
+			ctx.ModuleErrorf("Device name for this module must not be \"generic\"\n")
+		}
+	}
+}
+
+func configTestModuleFactory() Module {
+	module := &configTestModule{}
+	module.AddProperties(&module.properties)
+	InitAndroidModule(module)
+	return module
+}
+
+var prepareForConfigTest = GroupFixturePreparers(
+	FixtureRegisterWithContext(func(ctx RegistrationContext) {
+		ctx.RegisterModuleType("test", configTestModuleFactory)
+	}),
+)
+
+func TestGenericConfig(t *testing.T) {
+	bp := `
+		test {
+			name: "foo",
+		}
+
+		test {
+			name: "bar",
+			use_generic_config: true,
+		}
+	`
+
+	result := GroupFixturePreparers(
+		prepareForConfigTest,
+		FixtureWithRootAndroidBp(bp),
+	).RunTest(t)
+
+	foo := result.Module("foo", "").(*configTestModule)
+	bar := result.Module("bar", "").(*configTestModule)
+
+	AssertBoolEquals(t, "Do not use generic config", false, foo.UseGenericConfig())
+	AssertBoolEquals(t, "Use generic config", true, bar.UseGenericConfig())
+}

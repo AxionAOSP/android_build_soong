@@ -573,9 +573,8 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 
 func getRequiredMemberOutputFile(ctx android.SdkMemberContext, ccModule *Module) android.Path {
 	var path android.Path
-	outputFile := ccModule.OutputFile()
-	if outputFile.Valid() {
-		path = outputFile.Path()
+	if info, ok := android.OtherModuleProvider(ctx.SdkModuleContext(), ccModule, LinkableInfoProvider); ok && info.OutputFile.Valid() {
+		path = info.OutputFile.Path()
 	} else {
 		ctx.SdkModuleContext().ModuleErrorf("member variant %s does not have a valid output file", ccModule)
 	}

@@ -181,7 +181,12 @@ func Banner(config Config, make_vars map[string]string) string {
 			fmt.Fprintf(b, "%s=%s\n", name, make_vars[name])
 		}
 	}
-	fmt.Fprintf(b, "SOONG_ONLY=%t\n", config.soongOnlyRequested)
+	if config.skipKatiControlledByFlags {
+		fmt.Fprintf(b, "SOONG_ONLY=%t\n", config.soongOnlyRequested)
+	} else { // default for this product
+		fmt.Fprintf(b, "SOONG_ONLY=%t\n", make_vars["PRODUCT_SOONG_ONLY"] == "true")
+	}
+
 	fmt.Fprint(b, "============================================")
 
 	return b.String()

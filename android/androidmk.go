@@ -510,6 +510,9 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod Module) {
 	a.EntryMap = make(map[string][]string)
 	base := mod.base()
 	name := base.BaseModuleName()
+	if bmn, ok := mod.(baseModuleName); ok {
+		name = bmn.BaseModuleName()
+	}
 	if a.OverrideName != "" {
 		name = a.OverrideName
 	}

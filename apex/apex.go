@@ -569,19 +569,6 @@ const (
 	shBinary
 )
 
-var (
-	classes = map[string]apexFileClass{
-		"app":              app,
-		"appSet":           appSet,
-		"etc":              etc,
-		"javaSharedLib":    javaSharedLib,
-		"nativeExecutable": nativeExecutable,
-		"nativeSharedLib":  nativeSharedLib,
-		"nativeTest":       nativeTest,
-		"shBinary":         shBinary,
-	}
-)
-
 // apexFile represents a file in an APEX bundle. This is created during the first half of
 // GenerateAndroidBuildActions by traversing the dependencies of the APEX. Then in the second half
 // of the function, this is used to create commands that copies the files into a staging directory,
@@ -1970,7 +1957,11 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 		case testTag:
 			if ccInfo, ok := android.OtherModuleProvider(ctx, child, cc.CcInfoProvider); ok {
 				af := apexFileForExecutable(ctx, child, commonInfo, ccInfo)
-				af.class = nativeTest
+				// We make this a nativeExecutable instead of a nativeTest because we don't want
+				// the androidmk modules generated in AndroidMkForFiles to be treated as real
+				// tests that are then packaged into suites. Our AndroidMkForFiles does not
+				// implement enough functionality to support real tests.
+				af.class = nativeExecutable
 				vctx.filesInfo = append(vctx.filesInfo, af)
 				return true // track transitive dependencies
 			} else {

@@ -2054,7 +2054,7 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 	var partitionPaths []string
 
 	if os.Class == Device {
-		partitionPaths = []string{"target", "product", ctx.Config().DeviceName(), partition}
+		partitionPaths = []string{"target", "product", *ctx.Config().deviceNameToInstall, partition}
 	} else {
 		osName := os.String()
 		if os == Linux {

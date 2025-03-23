@@ -311,9 +311,9 @@ func createLimitGenruleRules() []Rule {
 		"trusty_tee_package",
 		// Trusty vm target names
 		"trusty_desktop_vm_arm64.bin",
-		"trusty_desktop_vm_x86_64.elf",
+		"trusty_desktop_vm_x86_64.bin",
 		"trusty_desktop_test_vm_arm64.bin",
-		"trusty_desktop_test_vm_x86_64.elf",
+		"trusty_desktop_test_vm_x86_64.bin",
 		"trusty_test_vm_arm64.bin",
 		"trusty_test_vm_x86_64.elf",
 		"trusty_test_vm_os_arm64.bin",
@@ -388,6 +388,7 @@ func createPrebuiltEtcBpDefineRule() Rule {
 			"prebuilt_radio",
 			"prebuilt_gpu",
 			"prebuilt_vendor_overlay",
+			"prebuilt_tee",
 		).
 		DefinedInBpFile().
 		Because("module type not allowed to be defined in bp file")

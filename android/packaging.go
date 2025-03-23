@@ -506,13 +506,11 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 	// all packaging specs gathered from the high priority deps.
 	var highPriorities []PackagingSpec
 
-	// Name of the dependency which requested the packaging spec.
-	// If this dep is overridden, the packaging spec will not be installed via this dependency chain.
-	// (the packaging spec might still be installed if there are some other deps which depend on it).
-	var depNames []string
-
 	// list of module names overridden
-	var overridden []string
+	overridden := make(map[string]bool)
+
+	// all installed modules which are not overridden.
+	modulesToInstall := make(map[string]bool)
 
 	var arches []ArchType
 	for _, target := range getSupportedTargets(ctx) {
@@ -529,6 +527,7 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 		return false
 	}
 
+	// find all overridden modules and packaging specs
 	ctx.VisitDirectDepsProxy(func(child ModuleProxy) {
 		depTag := ctx.OtherModuleDependencyTag(child)
 		if pi, ok := depTag.(PackagingItem); !ok || !pi.IsPackagingItem() {
@@ -556,20 +555,32 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 				regularPriorities = append(regularPriorities, ps)
 			}
 
-			depNames = append(depNames, child.Name())
-			overridden = append(overridden, ps.overrides.ToSlice()...)
+			for o := range ps.overrides.Iter() {
+				overridden[o] = true
+			}
 		}
 	})
 
-	filterOverridden := func(input []PackagingSpec) []PackagingSpec {
-		// input minus packaging specs that are overridden
-		var filtered []PackagingSpec
-		for index, ps := range input {
-			if ps.owner != "" && InList(ps.owner, overridden) {
-				continue
+	// gather modules to install, skipping overridden modules
+	ctx.WalkDeps(func(child, parent Module) bool {
+		owner := ctx.OtherModuleName(child)
+		if o, ok := child.(OverridableModule); ok {
+			if overriddenBy := o.GetOverriddenBy(); overriddenBy != "" {
+				owner = overriddenBy
 			}
-			// The dependency which requested this packaging spec has been overridden.
-			if InList(depNames[index], overridden) {
+		}
+		if overridden[owner] {
+			return false
+		}
+		modulesToInstall[owner] = true
+		return true
+	})
+
+	filterOverridden := func(input []PackagingSpec) []PackagingSpec {
+		// input minus packaging specs that are not installed
+		var filtered []PackagingSpec
+		for _, ps := range input {
+			if !modulesToInstall[ps.owner] {
 				continue
 			}
 			filtered = append(filtered, ps)

@@ -53,6 +53,16 @@ var (
 			"-mbranch-protection=standard",
 			"-fno-stack-protector",
 		},
+		"armv9-3a": []string{
+			"-march=armv9.3-a",
+			"-mbranch-protection=standard",
+			"-fno-stack-protector",
+		},
+		"armv9-4a": []string{
+			"-march=armv9.4-a",
+			"-mbranch-protection=standard",
+			"-fno-stack-protector",
+		},
 	}
 
 	arm64Ldflags = []string{

@@ -42,6 +42,9 @@ type DexProperties struct {
 		// True if the module containing this has it set by default.
 		EnabledByDefault bool `blueprint:"mutated"`
 
+		// If true, then this module will be optimized on eng builds.
+		Enabled_on_eng *bool
+
 		// Whether to allow that library classes inherit from program classes.
 		// Defaults to false.
 		Ignore_library_extends_program *bool
@@ -161,7 +164,10 @@ type dexer struct {
 	providesTransitiveHeaderJarsForR8
 }
 
-func (d *dexer) effectiveOptimizeEnabled() bool {
+func (d *dexer) effectiveOptimizeEnabled(ctx android.EarlyModuleContext) bool {
+	if ctx.Config().Eng() {
+		return proptools.Bool(d.dexProperties.Optimize.Enabled_on_eng)
+	}
 	return BoolDefault(d.dexProperties.Optimize.Enabled, d.dexProperties.Optimize.EnabledByDefault)
 }
 
@@ -173,8 +179,8 @@ func (d *DexProperties) optimizedResourceShrinkingEnabled(ctx android.ModuleCont
 	return d.resourceShrinkingEnabled(ctx) && BoolDefault(d.Optimize.Optimized_shrink_resources, ctx.Config().UseOptimizedResourceShrinkingByDefault())
 }
 
-func (d *dexer) optimizeOrObfuscateEnabled() bool {
-	return d.effectiveOptimizeEnabled() && (proptools.Bool(d.dexProperties.Optimize.Optimize) || proptools.Bool(d.dexProperties.Optimize.Obfuscate))
+func (d *dexer) optimizeOrObfuscateEnabled(ctx android.EarlyModuleContext) bool {
+	return d.effectiveOptimizeEnabled(ctx) && (proptools.Bool(d.dexProperties.Optimize.Optimize) || proptools.Bool(d.dexProperties.Optimize.Obfuscate))
 }
 
 var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
@@ -353,7 +359,7 @@ func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
 		flags = append(flags, "--release")
 	} else if ctx.Config().Eng() {
 		flags = append(flags, "--debug")
-	} else if !d.effectiveOptimizeEnabled() && d.dexProperties.Optimize.EnabledByDefault {
+	} else if !d.effectiveOptimizeEnabled(ctx) && d.dexProperties.Optimize.EnabledByDefault {
 		// D8 uses --debug by default, whereas R8 uses --release by default.
 		// For targets that default to R8 usage (e.g., apps), but override this default, we still
 		// want D8 to run in release mode, preserving semantics as much as possible between the two.
@@ -627,7 +633,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 		mergeZipsFlags = "-stripFile META-INF/*.kotlin_module -stripFile **/*.kotlin_builtins"
 	}
 
-	useR8 := d.effectiveOptimizeEnabled()
+	useR8 := d.effectiveOptimizeEnabled(ctx)
 	useD8 := !useR8 || ctx.Config().PartialCompileFlags().Use_d8
 	rbeR8 := ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_R8")
 	rbeD8 := ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_D8")

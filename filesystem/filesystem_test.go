@@ -736,15 +736,14 @@ func TestOverrideModulesInDeps(t *testing.T) {
 			stl: "none",
 			system_shared_libs: [],
 		}
-		android_filesystem {
-			name: "myfilesystem",
-			deps: ["myapp"],
+		phony {
+			name: "myapp_phony",
+			required: ["myapp"],
 		}
-		android_filesystem {
-			name: "myfilesystem_overridden",
-			deps: ["myapp", "myoverrideapp"],
+		phony {
+			name: "myoverrideapp_phony",
+			required: ["myoverrideapp"],
 		}
-
 		android_app {
 			name: "myapp",
 			platform_apis: true,
@@ -755,15 +754,29 @@ func TestOverrideModulesInDeps(t *testing.T) {
 			base: "myapp",
 			required: ["libbar"],
 		}
+		android_filesystem {
+			name: "myfilesystem",
+			deps: ["myapp"],
+		}
+		android_filesystem {
+			name: "myfilesystem_overridden",
+			deps: ["myapp", "myoverrideapp"],
+		}
+		android_filesystem {
+			name: "myfilesystem_overridden_indirect",
+			deps: ["myapp_phony", "myoverrideapp_phony"],
+		}
 	`)
 
 	partition := result.ModuleForTests(t, "myfilesystem", "android_common")
 	fileList := android.ContentFromFileRuleForTests(t, result.TestContext, partition.Output("fileList"))
 	android.AssertStringEquals(t, "filesystem without override app", "app/myapp/myapp.apk\nlib64/libfoo.so\n", fileList)
 
-	overriddenPartition := result.ModuleForTests(t, "myfilesystem_overridden", "android_common")
-	overriddenFileList := android.ContentFromFileRuleForTests(t, result.TestContext, overriddenPartition.Output("fileList"))
-	android.AssertStringEquals(t, "filesystem with override app", "app/myoverrideapp/myoverrideapp.apk\nlib64/libbar.so\n", overriddenFileList)
+	for _, overridden := range []string{"myfilesystem_overridden", "myfilesystem_overridden_indirect"} {
+		overriddenPartition := result.ModuleForTests(t, overridden, "android_common")
+		overriddenFileList := android.ContentFromFileRuleForTests(t, result.TestContext, overriddenPartition.Output("fileList"))
+		android.AssertStringEquals(t, "filesystem with "+overridden, "app/myoverrideapp/myoverrideapp.apk\nlib64/libbar.so\n", overriddenFileList)
+	}
 }
 
 func TestRamdiskPartitionSetsDevNodes(t *testing.T) {

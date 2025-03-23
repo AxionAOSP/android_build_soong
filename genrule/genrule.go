@@ -969,29 +969,8 @@ func DefaultsFactory(props ...interface{}) android.Module {
 	return module
 }
 
-var sandboxingAllowlistKey = android.NewOnceKey("genruleSandboxingAllowlistKey")
-
-type sandboxingAllowlistSets struct {
-	sandboxingDenyModuleSet map[string]bool
-}
-
-func getSandboxingAllowlistSets(ctx android.PathContext) *sandboxingAllowlistSets {
-	return ctx.Config().Once(sandboxingAllowlistKey, func() interface{} {
-		sandboxingDenyModuleSet := map[string]bool{}
-
-		android.AddToStringSet(sandboxingDenyModuleSet, SandboxingDenyModuleList)
-		return &sandboxingAllowlistSets{
-			sandboxingDenyModuleSet: sandboxingDenyModuleSet,
-		}
-	}).(*sandboxingAllowlistSets)
-}
-
 func getSandboxedRuleBuilder(ctx android.ModuleContext, r *android.RuleBuilder) *android.RuleBuilder {
 	if !ctx.DeviceConfig().GenruleSandboxing() {
-		return r.SandboxTools()
-	}
-	sandboxingAllowlistSets := getSandboxingAllowlistSets(ctx)
-	if sandboxingAllowlistSets.sandboxingDenyModuleSet[ctx.ModuleName()] {
 		return r.SandboxTools()
 	}
 	return r.SandboxInputs()

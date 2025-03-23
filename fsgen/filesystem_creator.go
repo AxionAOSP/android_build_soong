@@ -419,13 +419,16 @@ func (f *filesystemCreator) createDeviceModule(
 	partitionProps.Vbmeta_partitions = vbmetaPartitions
 
 	deviceProps := &filesystem.DeviceProperties{
-		Main_device:               proptools.BoolPtr(true),
-		Ab_ota_updater:            proptools.BoolPtr(ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaUpdater),
-		Ab_ota_partitions:         ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaPartitions,
-		Ab_ota_postinstall_config: ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaPostInstallConfig,
-		Ramdisk_node_list:         proptools.StringPtr(":ramdisk_node_list"),
-		Android_info:              proptools.StringPtr(":" + generatedModuleName(ctx.Config(), "android_info.prop{.txt}")),
-		Kernel_version:            ctx.Config().ProductVariables().BoardKernelVersion,
+		Main_device:                   proptools.BoolPtr(true),
+		Ab_ota_updater:                proptools.BoolPtr(ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaUpdater),
+		Ab_ota_partitions:             ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaPartitions,
+		Ab_ota_postinstall_config:     ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaPostInstallConfig,
+		Ramdisk_node_list:             proptools.StringPtr(":ramdisk_node_list"),
+		Android_info:                  proptools.StringPtr(":" + generatedModuleName(ctx.Config(), "android_info.prop{.txt}")),
+		Kernel_version:                ctx.Config().ProductVariables().BoardKernelVersion,
+		Partial_ota_update_partitions: ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BoardPartialOtaUpdatePartitionsList,
+		Flash_block_size:              proptools.StringPtr(ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BoardFlashBlockSize),
+		Bootloader_in_update_package:  proptools.BoolPtr(ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BootloaderInUpdatePackage),
 	}
 
 	if bootloader, ok := f.createBootloaderFilegroup(ctx); ok {

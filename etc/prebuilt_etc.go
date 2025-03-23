@@ -78,6 +78,7 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_rfs", PrebuiltRfsFactory)
 	ctx.RegisterModuleType("prebuilt_framework", PrebuiltFrameworkFactory)
 	ctx.RegisterModuleType("prebuilt_res", PrebuiltResFactory)
+	ctx.RegisterModuleType("prebuilt_tee", PrebuiltTeeFactory)
 	ctx.RegisterModuleType("prebuilt_wlc_upt", PrebuiltWlcUptFactory)
 	ctx.RegisterModuleType("prebuilt_odm", PrebuiltOdmFactory)
 	ctx.RegisterModuleType("prebuilt_vendor_dlkm", PrebuiltVendorDlkmFactory)
@@ -906,6 +907,16 @@ func PrebuiltRFSAFactory() android.Module {
 	InitPrebuiltEtcModule(module, "lib/rfsa")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+// prebuilt_tee installs files in <partition>/tee directory.
+func PrebuiltTeeFactory() android.Module {
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, "tee")
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	return module
 }
