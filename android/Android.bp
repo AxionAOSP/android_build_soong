@@ -12,6 +12,7 @@ bootstrap_go_package {
         "blueprint-gobtools",
         "blueprint-metrics",
         "blueprint-pool",
+        "blueprint-syncmap",
         "sbox_proto",
         "soong",
         "soong-android_team_proto",

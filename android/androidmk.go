@@ -435,13 +435,18 @@ func getDistContributions(ctx ConfigAndOtherModuleProviderContext, mod Module) *
 				suffix = *dist.Suffix
 			}
 
-			productString := ""
-			if dist.Append_artifact_with_product != nil && *dist.Append_artifact_with_product {
-				productString = fmt.Sprintf("_%s", ctx.Config().DeviceProduct())
+			prependProductString := ""
+			if proptools.Bool(dist.Prepend_artifact_with_product) {
+				prependProductString = fmt.Sprintf("%s-", ctx.Config().DeviceProduct())
 			}
 
-			if suffix != "" || productString != "" {
-				dest = strings.TrimSuffix(dest, ext) + suffix + productString + ext
+			appendProductString := ""
+			if proptools.Bool(dist.Append_artifact_with_product) {
+				appendProductString = fmt.Sprintf("_%s", ctx.Config().DeviceProduct())
+			}
+
+			if suffix != "" || appendProductString != "" || prependProductString != "" {
+				dest = prependProductString + strings.TrimSuffix(dest, ext) + suffix + appendProductString + ext
 			}
 
 			if dist.Dir != nil {

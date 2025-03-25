@@ -208,6 +208,12 @@ type Dist struct {
 	// no change to the artifact file name.
 	Append_artifact_with_product *bool `android:"arch_variant"`
 
+	// If true, then the artifact file will be prepended with <product name>-. For
+	// example, if the product is coral and the module is an android_app module
+	// of name foo, then the artifact would be coral-foo.apk. If false, there is
+	// no change to the artifact file name.
+	Prepend_artifact_with_product *bool `android:"arch_variant"`
+
 	// A string tag to select the OutputFiles associated with the tag.
 	//
 	// If no tag is specified then it will select the default dist paths provided

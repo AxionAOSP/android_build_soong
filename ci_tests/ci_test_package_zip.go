@@ -68,7 +68,7 @@ var (
 	pctx = android.NewPackageContext("android/soong/ci_tests")
 	// test_package module type should only be used for the following modules.
 	// TODO: remove "_soong" from the module names inside when eliminating the corresponding make modules
-	moduleNamesAllowed = []string{"continuous_native_tests_soong", "continuous_instrumentation_tests_soong", "platform_tests"}
+	moduleNamesAllowed = []string{"continuous_instrumentation_tests_soong", "continuous_instrumentation_metric_tests_soong", "continuous_native_tests_soong", "continuous_native_metric_tests_soong", "platform_tests"}
 )
 
 func (p *testPackageZip) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -150,12 +150,6 @@ func (p *testPackageZip) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	p.output = createOutput(ctx, pctx)
 
 	ctx.SetOutputFiles(android.Paths{p.output}, "")
-
-	// dist the test output
-	if ctx.ModuleName() == "platform_tests" {
-		distedName := ctx.Config().Getenv("TARGET_PRODUCT") + "-tests-FILE_NAME_TAG_PLACEHOLDER.zip"
-		ctx.DistForGoalWithFilename("platform_tests", p.output, distedName)
-	}
 }
 
 func createOutput(ctx android.ModuleContext, pctx android.PackageContext) android.ModuleOutPath {

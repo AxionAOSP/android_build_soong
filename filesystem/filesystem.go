@@ -249,6 +249,10 @@ type FilesystemProperties struct {
 
 	// Whether to enable per-file compression in f2fs
 	Enable_compression *bool
+
+	// Whether this partition is not supported by flashall.
+	// If true, this partition will not be included in the `updatedpackage` dist artifact.
+	No_flashall *bool
 }
 
 type AndroidFilesystemDeps struct {
@@ -464,6 +468,7 @@ type FilesystemInfo struct {
 	AvbHashAlgorithm string
 	AvbKey           android.Path
 	PartitionName    string
+	NoFlashall       bool
 	// HasOrIsRecovery returns true for recovery and for ramdisks with a recovery partition.
 	HasOrIsRecovery bool
 }
@@ -725,6 +730,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		PartitionSize:       f.properties.Partition_size,
 		PartitionName:       f.partitionName(),
 		HasOrIsRecovery:     f.hasOrIsRecovery(ctx),
+		NoFlashall:          proptools.Bool(f.properties.No_flashall),
 	}
 	if proptools.Bool(f.properties.Use_avb) {
 		fsInfo.UseAvb = true

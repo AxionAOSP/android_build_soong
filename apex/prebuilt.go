@@ -15,7 +15,9 @@
 package apex
 
 import (
+	"fmt"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -80,6 +82,10 @@ type prebuiltCommon struct {
 	// systemServerDexJars stores the list of dexjars for system server jars in the prebuilt for use when
 	// dexpreopting system server jars that are later in the system server classpath.
 	systemServerDexJars android.Paths
+
+	// Certificate information of any apk packaged inside the prebuilt apex.
+	// This will be nil if the prebuilt apex does not contain any apk.
+	apkCertsFile android.WritablePath
 }
 
 type sanitizedPrebuilt interface {
@@ -273,6 +279,10 @@ func (p *prebuiltCommon) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !p.installable())
 					entries.AddStrings("LOCAL_OVERRIDES_MODULES", p.prebuiltCommonProperties.Overrides...)
 					entries.SetString("LOCAL_APEX_KEY_PATH", p.apexKeysPath.String())
+					if p.apkCertsFile != nil {
+						entries.SetString("LOCAL_APKCERTS_FILE", p.apkCertsFile.String())
+					}
+
 				},
 			},
 		},
@@ -285,6 +295,14 @@ func (p *prebuiltCommon) hasExportedDeps() bool {
 	return len(p.prebuiltCommonProperties.Exported_bootclasspath_fragments) > 0 ||
 		len(p.prebuiltCommonProperties.Exported_systemserverclasspath_fragments) > 0
 }
+
+type appInPrebuiltApexDepTag struct {
+	blueprint.BaseDependencyTag
+}
+
+func (appInPrebuiltApexDepTag) ExcludeFromVisibilityEnforcement() {}
+
+var appInPrebuiltApexTag = appInPrebuiltApexDepTag{}
 
 // prebuiltApexContentsDeps adds dependencies onto the prebuilt apex module's contents.
 func (p *prebuiltCommon) prebuiltApexContentsDeps(ctx android.BottomUpMutatorContext) {
@@ -432,6 +450,12 @@ type PrebuiltProperties struct {
 	ApexFileProperties
 
 	PrebuiltCommonProperties
+
+	// List of apps that are bundled inside this prebuilt apex.
+	// This will be used to create the certificate info of those apps for apkcerts.txt
+	// This dependency will only be used for apkcerts.txt processing.
+	// Notably, building the prebuilt apex will not build the source app.
+	Apps []string
 }
 
 func (a *Prebuilt) hasSanitizedSource(sanitizer string) bool {
@@ -545,6 +569,9 @@ var (
 
 func (p *Prebuilt) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
 	p.prebuiltApexContentsDeps(ctx)
+	for _, app := range p.properties.Apps {
+		ctx.AddDependency(p, appInPrebuiltApexTag, app)
+	}
 }
 
 var _ ApexTransitionMutator = (*Prebuilt)(nil)
@@ -677,9 +704,57 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		p.provenanceMetaDataFile = provenance.GenerateArtifactProvenanceMetaData(ctx, p.inputApex, p.installedFile)
 	}
 
+	p.addApkCertsInfo(ctx)
+
 	ctx.SetOutputFiles(android.Paths{p.outputApex}, "")
 
 	android.SetProvider(ctx, filesystem.ApexKeyPathInfoProvider, filesystem.ApexKeyPathInfo{p.apexKeysPath})
+}
+
+// `addApkCertsInfo` sets a provider that will be used to create apkcerts.txt
+func (p *Prebuilt) addApkCertsInfo(ctx android.ModuleContext) {
+	formatLine := func(cert java.Certificate, name, partition string) string {
+		pem := cert.AndroidMkString()
+		var key string
+		if cert.Key == nil {
+			key = ""
+		} else {
+			key = cert.Key.String()
+		}
+		return fmt.Sprintf(`name="%s" certificate="%s" private_key="%s" partition="%s"`, name, pem, key, partition)
+	}
+
+	// Determine if this prebuilt_apex contains any .apks
+	var appInfos java.AppInfos
+	ctx.VisitDirectDepsProxyWithTag(appInPrebuiltApexTag, func(app android.ModuleProxy) {
+		if appInfo, ok := android.OtherModuleProvider(ctx, app, java.AppInfoProvider); ok {
+			appInfos = append(appInfos, *appInfo)
+		} else {
+			ctx.ModuleErrorf("App %s does not set AppInfoProvider\n", app.Name())
+		}
+	})
+	sort.Slice(appInfos, func(i, j int) bool {
+		return appInfos[i].InstallApkName < appInfos[j].InstallApkName
+	})
+
+	if len(appInfos) == 0 {
+		return
+	}
+
+	// Set a provider for use by `android_device`.
+	// `android_device` will create an apkcerts.txt with the list of installed apps for that device.
+	android.SetProvider(ctx, java.AppInfosProvider, appInfos)
+
+	// Set a Make variable for legacy apkcerts.txt creation
+	// p.apkCertsFile will become `LOCAL_APKCERTS_FILE`
+	var lines []string
+	for _, appInfo := range appInfos {
+		lines = append(lines, formatLine(appInfo.Certificate, appInfo.InstallApkName+".apk", p.PartitionTag(ctx.DeviceConfig())))
+	}
+	if len(lines) > 0 {
+		p.apkCertsFile = android.PathForModuleOut(ctx, "apkcerts.txt")
+		android.WriteFileRule(ctx, p.apkCertsFile, strings.Join(lines, "\n"))
+	}
 }
 
 func (p *Prebuilt) ProvenanceMetaDataFile() android.Path {

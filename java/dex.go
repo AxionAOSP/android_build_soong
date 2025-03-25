@@ -42,9 +42,6 @@ type DexProperties struct {
 		// True if the module containing this has it set by default.
 		EnabledByDefault bool `blueprint:"mutated"`
 
-		// If true, then this module will be optimized on eng builds.
-		Enabled_on_eng *bool
-
 		// Whether to allow that library classes inherit from program classes.
 		// Defaults to false.
 		Ignore_library_extends_program *bool
@@ -165,10 +162,7 @@ type dexer struct {
 }
 
 func (d *dexer) effectiveOptimizeEnabled(ctx android.EarlyModuleContext) bool {
-	if ctx.Config().Eng() {
-		return proptools.Bool(d.dexProperties.Optimize.Enabled_on_eng)
-	}
-	return BoolDefault(d.dexProperties.Optimize.Enabled, d.dexProperties.Optimize.EnabledByDefault)
+	return BoolDefault(d.dexProperties.Optimize.Enabled, d.dexProperties.Optimize.EnabledByDefault && !ctx.Config().Eng())
 }
 
 func (d *DexProperties) resourceShrinkingEnabled(ctx android.ModuleContext) bool {

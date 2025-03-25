@@ -42,6 +42,12 @@ type TestSuiteInfo struct {
 
 var TestSuiteInfoProvider = blueprint.NewProvider[TestSuiteInfo]()
 
+type SupportFilesInfo struct {
+	SupportFiles InstallPaths
+}
+
+var SupportFilesInfoProvider = blueprint.NewProvider[SupportFilesInfo]()
+
 func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	files := make(map[string]map[string]InstallPaths)
 

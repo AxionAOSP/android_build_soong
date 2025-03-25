@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/syncmap"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -213,10 +214,10 @@ type rawFileInfo struct {
 
 var rawFileSetKey OnceKey = NewOnceKey("raw file set")
 
-func getRawFileSet(config Config) *SyncMap[string, rawFileInfo] {
+func getRawFileSet(config Config) *syncmap.SyncMap[string, rawFileInfo] {
 	return config.Once(rawFileSetKey, func() any {
-		return &SyncMap[string, rawFileInfo]{}
-	}).(*SyncMap[string, rawFileInfo])
+		return &syncmap.SyncMap[string, rawFileInfo]{}
+	}).(*syncmap.SyncMap[string, rawFileInfo])
 }
 
 // ContentFromFileRuleForTests returns the content that was passed to a WriteFileRule for use
