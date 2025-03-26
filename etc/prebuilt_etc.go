@@ -92,6 +92,7 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_system", PrebuiltSystemFactory)
 	ctx.RegisterModuleType("prebuilt_first_stage_ramdisk", PrebuiltFirstStageRamdiskFactory)
 	ctx.RegisterModuleType("prebuilt_any", PrebuiltAnyFactory)
+	ctx.RegisterModuleType("prebuilt_lib", PrebuiltLibFactory)
 
 	ctx.RegisterModuleType("prebuilt_defaults", defaultsFactory)
 
@@ -752,7 +753,7 @@ func PrebuiltUserShareFactory() android.Module {
 	return module
 }
 
-// prebuild_usr_share_host is for a host prebuilt artifact that is installed in
+// prebuilt_usr_share_host is for a host prebuilt artifact that is installed in
 // $(HOST_OUT)/usr/share/<sub_dir> directory.
 func PrebuiltUserShareHostFactory() android.Module {
 	module := &PrebuiltEtc{}
@@ -780,7 +781,7 @@ func PrebuiltUserKeyLayoutFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "usr/keylayout")
 	// This module is device-only
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)
 	return module
 }
@@ -791,7 +792,7 @@ func PrebuiltUserKeyCharsFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "usr/keychars")
 	// This module is device-only
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)
 	return module
 }
@@ -802,7 +803,7 @@ func PrebuiltUserIdcFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "usr/idc")
 	// This module is device-only
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)
 	return module
 }
@@ -856,6 +857,20 @@ func PrebuiltFirmwareFactory() android.Module {
 	module := &PrebuiltEtc{}
 	module.socInstallDirBase = "firmware"
 	InitPrebuiltEtcModule(module, "etc/firmware")
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+// prebuilt_lib installs a prebuilt file to <partition>/lib directory for system
+// image.
+// If soc_specific property is set to true, the prebuilt file is installed to the
+// vendor <partition>/lib directory for vendor image.
+func PrebuiltLibFactory() android.Module {
+	module := &PrebuiltEtc{}
+	module.socInstallDirBase = "lib"
+	InitPrebuiltEtcModule(module, "lib")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)

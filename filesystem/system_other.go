@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/depset"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -93,7 +94,7 @@ func (m *systemOtherImage) GenerateAndroidBuildActions(ctx android.ModuleContext
 	}
 
 	output := android.PathForModuleOut(ctx, "system_other.img")
-	stagingDir := android.PathForModuleOut(ctx, "staging_dir")
+	stagingDir := android.PathForModuleOut(ctx, "system_other")
 	stagingDirTimestamp := android.PathForModuleOut(ctx, "staging_dir.timestamp")
 
 	builder := android.NewRuleBuilder(pctx, ctx)
@@ -183,6 +184,11 @@ func (m *systemOtherImage) GenerateAndroidBuildActions(ctx android.ModuleContext
 		RootDir:             stagingDir,
 		FilesystemConfig:    m.generateFilesystemConfig(ctx, stagingDir, stagingDirTimestamp),
 		PropFileForMiscInfo: m.buildPropFileForMiscInfo(ctx),
+		InstalledFilesDepSet: depset.New(
+			depset.POSTORDER,
+			[]InstalledFilesStruct{buildInstalledFiles(ctx, "system-other", stagingDir, output)},
+			nil,
+		),
 	}
 
 	android.SetProvider(ctx, FilesystemProvider, fsInfo)

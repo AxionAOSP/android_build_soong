@@ -45,14 +45,6 @@ type Module interface {
 	// For more information, see Module.GenerateBuildActions within Blueprint's module_ctx.go
 	GenerateAndroidBuildActions(ModuleContext)
 
-	// CleanupAfterBuildActions is called after ModuleBase.GenerateBuildActions is finished.
-	// If all interactions with this module are handled via providers instead of direct access
-	// to the module then it can free memory attached to the module.
-	// This is a temporary measure to reduce memory usage, eventually blueprint's reference
-	// to the Module should be dropped after GenerateAndroidBuildActions once all accesses
-	// can be done through providers.
-	CleanupAfterBuildActions()
-
 	// Add dependencies to the components of a module, i.e. modules that are created
 	// by the module and which are considered to be part of the creating module.
 	//
@@ -140,6 +132,8 @@ type Module interface {
 
 	// If this is true, the module must not read product-specific configurations.
 	UseGenericConfig() bool
+
+	NoFullInstall() bool
 }
 
 // Qualified id for a module
@@ -1315,6 +1309,10 @@ func (m *ModuleBase) IsCommonOSVariant() bool {
 	return m.commonProperties.CompileOS == CommonOS
 }
 
+func (m *ModuleBase) NoFullInstall() bool {
+	return proptools.Bool(m.commonProperties.No_full_install)
+}
+
 // supportsTarget returns true if the given Target is supported by the current module.
 func (m *ModuleBase) supportsTarget(target Target) bool {
 	switch target.Os.Class {
@@ -1951,6 +1949,9 @@ type CommonModuleInfo struct {
 	ExportedToMake                               bool
 	Team                                         string
 	PartitionTag                                 string
+	IsPrebuilt                                   bool
+	PrebuiltSourceExists                         bool
+	UsePrebuilt                                  bool
 }
 
 type ApiLevelOrPlatform struct {
@@ -1959,13 +1960,6 @@ type ApiLevelOrPlatform struct {
 }
 
 var CommonModuleInfoProvider = blueprint.NewProvider[*CommonModuleInfo]()
-
-type PrebuiltModuleInfo struct {
-	SourceExists bool
-	UsePrebuilt  bool
-}
-
-var PrebuiltModuleInfoProvider = blueprint.NewProvider[PrebuiltModuleInfo]()
 
 type HostToolProviderInfo struct {
 	HostToolPath OptionalPath
@@ -2366,13 +2360,13 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	if mm, ok := m.module.(interface{ BaseModuleName() string }); ok {
 		commonData.BaseModuleName = mm.BaseModuleName()
 	}
-	SetProvider(ctx, CommonModuleInfoProvider, &commonData)
 	if p, ok := m.module.(PrebuiltInterface); ok && p.Prebuilt() != nil {
-		SetProvider(ctx, PrebuiltModuleInfoProvider, PrebuiltModuleInfo{
-			SourceExists: p.Prebuilt().SourceExists(),
-			UsePrebuilt:  p.Prebuilt().UsePrebuilt(),
-		})
+		commonData.IsPrebuilt = true
+		commonData.PrebuiltSourceExists = p.Prebuilt().SourceExists()
+		commonData.UsePrebuilt = p.Prebuilt().UsePrebuilt()
 	}
+	SetProvider(ctx, CommonModuleInfoProvider, &commonData)
+
 	if h, ok := m.module.(HostToolProvider); ok {
 		SetProvider(ctx, HostToolProviderInfoProvider, HostToolProviderInfo{
 			HostToolPath: h.HostToolPath()})
@@ -2401,11 +2395,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			})
 		}
 	}
-
-	m.module.CleanupAfterBuildActions()
 }
-
-func (m *ModuleBase) CleanupAfterBuildActions() {}
 
 func SetJarJarPrefixHandler(handler func(ModuleContext)) {
 	if jarJarPrefixHandler != nil {

@@ -27,10 +27,6 @@ func (m ModuleProxy) GenerateAndroidBuildActions(context ModuleContext) {
 	panic("method is not implemented on ModuleProxy")
 }
 
-func (m ModuleProxy) CleanupAfterBuildActions() {
-	panic("method is not implemented on ModuleProxy")
-}
-
 func (m ModuleProxy) ComponentDepsMutator(ctx BottomUpMutatorContext) {
 	panic("method is not implemented on ModuleProxy")
 }
@@ -237,5 +233,9 @@ func (m ModuleProxy) VintfFragments(ctx ConfigurableEvaluatorContext) []string {
 }
 
 func (m ModuleProxy) UseGenericConfig() bool {
+	panic("method is not implemented on ModuleProxy")
+}
+
+func (m ModuleProxy) NoFullInstall() bool {
 	panic("method is not implemented on ModuleProxy")
 }

@@ -253,6 +253,7 @@ func createInstallInRootAllowingRules() []Rule {
 			NotModuleType("prebuilt_first_stage_ramdisk").
 			NotModuleType("prebuilt_res").
 			NotModuleType("prebuilt_any").
+			NotModuleType("prebuilt_lib").
 			Because("install_in_root is only for init_first_stage or librecovery_ui_ext."),
 	}
 }

@@ -2237,6 +2237,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	android.SetProvider(ctx, filesystem.ApexKeyPathInfoProvider, filesystem.ApexKeyPathInfo{a.apexKeysPath})
 
 	android.SetProvider(ctx, java.AppInfosProvider, a.appInfos)
+	a.setSymbolInfosProvider(ctx)
 }
 
 // Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file
@@ -2900,6 +2901,45 @@ func (a *apexBundle) enforceNoVintfInUpdatable(ctx android.ModuleContext) {
 		if match, _ := path.Match("etc/vintf/*", fi.path()); match {
 			ctx.ModuleErrorf("VINTF fragment (%s) is not supported in updatable APEX.", fi.path())
 			break
+		}
+	}
+}
+
+func (a *apexBundle) setSymbolInfosProvider(ctx android.ModuleContext) {
+	if !a.properties.HideFromMake && a.installable() {
+		infos := &cc.SymbolInfos{}
+		for _, fi := range a.filesInfo {
+			linkToSystemLib := a.linkToSystemLib && fi.transitiveDep && fi.availableToPlatform()
+			if linkToSystemLib {
+				// No need to copy the file since it's linked to the system file
+				continue
+			}
+			moduleDir := android.PathForModuleInPartitionInstall(ctx, "apex", a.BaseModuleName(), fi.installDir)
+			info := &cc.SymbolInfo{
+				Name:          a.fullModuleName(a.BaseModuleName(), linkToSystemLib, &fi),
+				ModuleDir:     moduleDir.String(),
+				Uninstallable: !a.installable(),
+			}
+			switch fi.class {
+			case nativeSharedLib, nativeExecutable, nativeTest:
+				info.Stem = fi.stem()
+				if ccMod, ok := fi.module.(*cc.Module); ok {
+					if ccMod.UnstrippedOutputFile() != nil {
+						info.UnstrippedBinaryPath = ccMod.UnstrippedOutputFile()
+					}
+				} else if rustMod, ok := fi.module.(*rust.Module); ok {
+					if rustMod.UnstrippedOutputFile() != nil {
+						info.UnstrippedBinaryPath = rustMod.UnstrippedOutputFile()
+					}
+				}
+				if info.UnstrippedBinaryPath != nil {
+					infos.AppendSymbols(info)
+				}
+			case app:
+				if app, ok := fi.module.(*java.AndroidApp); ok {
+					infos.AppendSymbols(app.GetJniSymbolInfos(ctx, moduleDir)...)
+				}
+			}
 		}
 	}
 }

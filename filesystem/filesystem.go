@@ -104,7 +104,7 @@ type filesystem struct {
 }
 
 type filesystemBuilder interface {
-	BuildLinkerConfigFile(ctx android.ModuleContext, builder *android.RuleBuilder, rebasedDir android.OutputPath, fullInstallPaths *[]FullInstallPathInfo)
+	BuildLinkerConfigFile(ctx android.ModuleContext, builder *android.RuleBuilder, rebasedDir android.OutputPath, fullInstallPaths *[]FullInstallPathInfo, platformGeneratedFiles *[]string)
 	// Function that filters PackagingSpec in PackagingBase.GatherPackagingSpecs()
 	FilterPackagingSpec(spec android.PackagingSpec) bool
 	// Function that modifies PackagingSpec in PackagingBase.GatherPackagingSpecs() to customize.
@@ -401,6 +401,7 @@ type InstalledFilesStruct struct {
 type InstalledModuleInfo struct {
 	Name      string
 	Variation string
+	Prebuilt  bool
 }
 
 type FilesystemInfo struct {
@@ -454,7 +455,7 @@ type FilesystemInfo struct {
 
 	FilesystemConfig android.Path
 
-	Owners []InstalledModuleInfo
+	Owners depset.DepSet[InstalledModuleInfo]
 
 	HasFsverity bool
 
@@ -637,12 +638,13 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		})
 	}
 
+	platformGeneratedFiles := []string{}
 	f.entries = f.copyPackagingSpecs(ctx, builder, specs, rootDir, rebasedDir)
-	f.buildNonDepsFiles(ctx, builder, rootDir, rebasedDir, &fullInstallPaths)
+	f.buildNonDepsFiles(ctx, builder, rootDir, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
 	f.buildFsverityMetadataFiles(ctx, builder, specs, rootDir, rebasedDir, &fullInstallPaths)
-	f.buildEventLogtagsFile(ctx, builder, rebasedDir, &fullInstallPaths)
-	f.buildAconfigFlagsFiles(ctx, builder, specs, rebasedDir, &fullInstallPaths)
-	f.filesystemBuilder.BuildLinkerConfigFile(ctx, builder, rebasedDir, &fullInstallPaths)
+	f.buildEventLogtagsFile(ctx, builder, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
+	f.buildAconfigFlagsFiles(ctx, builder, specs, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
+	f.filesystemBuilder.BuildLinkerConfigFile(ctx, builder, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
 	// Assemeble the staging dir and output a timestamp
 	builder.Command().Text("touch").Output(f.fileystemStagingDirTimestamp(ctx))
 	builder.Build("assemble_filesystem_staging_dir", fmt.Sprintf("Assemble filesystem staging dir %s", f.BaseModuleName()))
@@ -718,13 +720,17 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		FullInstallPaths:       fullInstallPaths,
 		InstalledFilesDepSet: depset.New(
 			depset.POSTORDER,
-			[]InstalledFilesStruct{buildInstalledFiles(ctx, partitionNameForInstalledFiles, rootDir, f.output)},
+			[]InstalledFilesStruct{buildInstalledFiles(ctx, partitionNameForInstalledFiles, rebasedDir, f.output)},
 			includeFilesInstalledFiles(ctx),
 		),
-		ErofsCompressHints:  erofsCompressHints,
-		SelinuxFc:           f.selinuxFc,
-		FilesystemConfig:    f.generateFilesystemConfig(ctx, rootDir, rebasedDir),
-		Owners:              f.gatherOwners(specs),
+		ErofsCompressHints: erofsCompressHints,
+		SelinuxFc:          f.selinuxFc,
+		FilesystemConfig:   f.generateFilesystemConfig(ctx, rootDir, rebasedDir),
+		Owners: depset.New(
+			depset.POSTORDER,
+			f.gatherOwners(specs),
+			f.gatherSubPartitionOwners(ctx),
+		),
 		HasFsverity:         f.properties.Fsverity.Inputs.GetOrDefault(ctx, nil) != nil,
 		PropFileForMiscInfo: propFileForMiscInfo,
 		PartitionSize:       f.properties.Partition_size,
@@ -762,6 +768,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		filesContained = append(filesContained, file.FullInstallPath.String())
 	}
 	complianceMetadataInfo.SetFilesContained(filesContained)
+	complianceMetadataInfo.SetPlatformGeneratedFiles(platformGeneratedFiles)
 }
 
 func (f *filesystem) fileystemStagingDirTimestamp(ctx android.ModuleContext) android.WritablePath {
@@ -900,6 +907,7 @@ func (f *filesystem) buildNonDepsFiles(
 	rootDir android.OutputPath,
 	rebasedDir android.OutputPath,
 	fullInstallPaths *[]FullInstallPathInfo,
+	platformGeneratedFiles *[]string,
 ) {
 	rebasedPrefix, err := filepath.Rel(rootDir.String(), rebasedDir.String())
 	if err != nil || strings.HasPrefix(rebasedPrefix, "../") {
@@ -953,16 +961,19 @@ func (f *filesystem) buildNonDepsFiles(
 			if !strings.HasPrefix(name, rebasedPrefix) {
 				installPath = android.PathForModuleInPartitionInstall(ctx, "root", name)
 			}
+			*platformGeneratedFiles = append(*platformGeneratedFiles, installPath.String())
 			*fullInstallPaths = append(*fullInstallPaths, FullInstallPathInfo{
 				FullInstallPath: installPath,
 				SymlinkTarget:   target,
 			})
 		} else {
 			if strings.HasPrefix(name, rebasedPrefix) {
+				installPath := android.PathForModuleInPartitionInstall(ctx, f.PartitionType(), strings.TrimPrefix(name, rebasedPrefix))
 				*fullInstallPaths = append(*fullInstallPaths, FullInstallPathInfo{
-					FullInstallPath: android.PathForModuleInPartitionInstall(ctx, f.PartitionType(), strings.TrimPrefix(name, rebasedPrefix)),
+					FullInstallPath: installPath,
 					SymlinkTarget:   target,
 				})
+				*platformGeneratedFiles = append(*platformGeneratedFiles, installPath.String())
 			}
 		}
 	}
@@ -1397,6 +1408,7 @@ func (f *filesystem) buildEventLogtagsFile(
 	builder *android.RuleBuilder,
 	rebasedDir android.OutputPath,
 	fullInstallPaths *[]FullInstallPathInfo,
+	platformGeneratedFiles *[]string,
 ) {
 	if !proptools.Bool(f.properties.Build_logtags) {
 		return
@@ -1407,12 +1419,14 @@ func (f *filesystem) buildEventLogtagsFile(
 	builder.Command().Text("mkdir").Flag("-p").Text(etcPath.String())
 	builder.Command().Text("cp").Input(android.MergedLogtagsPath(ctx)).Text(eventLogtagsPath.String())
 
+	installPath := android.PathForModuleInPartitionInstall(ctx, f.PartitionType(), "etc", "event-log-tags")
 	*fullInstallPaths = append(*fullInstallPaths, FullInstallPathInfo{
-		FullInstallPath: android.PathForModuleInPartitionInstall(ctx, f.PartitionType(), "etc", "event-log-tags"),
+		FullInstallPath: installPath,
 		SourcePath:      android.MergedLogtagsPath(ctx),
 	})
 
 	f.appendToEntry(ctx, eventLogtagsPath)
+	*platformGeneratedFiles = append(*platformGeneratedFiles, installPath.String())
 }
 
 func (f *filesystem) BuildLinkerConfigFile(
@@ -1420,6 +1434,7 @@ func (f *filesystem) BuildLinkerConfigFile(
 	builder *android.RuleBuilder,
 	rebasedDir android.OutputPath,
 	fullInstallPaths *[]FullInstallPathInfo,
+	platformGeneratedFiles *[]string,
 ) {
 	if !proptools.Bool(f.properties.Linker_config.Gen_linker_config) {
 		return
@@ -1431,10 +1446,12 @@ func (f *filesystem) BuildLinkerConfigFile(
 	output := rebasedDir.Join(ctx, "etc", "linker.config.pb")
 	builder.Command().Text("cp").Input(intermediateOutput).Output(output)
 
+	installPath := android.PathForModuleInPartitionInstall(ctx, f.PartitionType(), "etc", "linker.config.pb")
 	*fullInstallPaths = append(*fullInstallPaths, FullInstallPathInfo{
-		FullInstallPath: android.PathForModuleInPartitionInstall(ctx, f.PartitionType(), "etc", "linker.config.pb"),
+		FullInstallPath: installPath,
 		SourcePath:      intermediateOutput,
 	})
+	*platformGeneratedFiles = append(*platformGeneratedFiles, installPath.String())
 
 	f.appendToEntry(ctx, output)
 }
@@ -1508,9 +1525,19 @@ func (f *filesystem) gatherOwners(specs map[string]android.PackagingSpec) []Inst
 		owners = append(owners, InstalledModuleInfo{
 			Name:      spec.Owner(),
 			Variation: spec.Variation(),
+			Prebuilt:  spec.Prebuilt(),
 		})
 	}
 	return owners
+}
+
+func (f *filesystem) gatherSubPartitionOwners(ctx android.ModuleContext) (ret []depset.DepSet[InstalledModuleInfo]) {
+	ctx.VisitDirectDepsWithTag(interPartitionInstallDependencyTag, func(m android.Module) {
+		if fsProvider, ok := android.OtherModuleProvider(ctx, m, FilesystemProvider); ok {
+			ret = append(ret, fsProvider.Owners)
+		}
+	})
+	return
 }
 
 // Dexpreopt files are installed to system_other. Collect the packaingSpecs for the dexpreopt files

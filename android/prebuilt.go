@@ -362,8 +362,8 @@ func IsModulePreferredProxy(ctx OtherModuleProviderContext, module ModuleProxy) 
 		// A source module that has been replaced by a prebuilt counterpart.
 		return false
 	}
-	if p, ok := OtherModuleProvider(ctx, module, PrebuiltModuleInfoProvider); ok {
-		return p.UsePrebuilt
+	if commonInfo, ok := OtherModuleProvider(ctx, module, CommonModuleInfoProvider); ok && commonInfo.IsPrebuilt {
+		return commonInfo.UsePrebuilt
 	}
 	return true
 }
@@ -400,7 +400,7 @@ func PrebuiltGetPreferred(ctx BaseModuleContext, module Module) Module {
 	if !OtherModulePointerProviderOrDefault(ctx, module, CommonModuleInfoProvider).ReplacedByPrebuilt {
 		return module
 	}
-	if _, ok := OtherModuleProvider(ctx, module, PrebuiltModuleInfoProvider); ok {
+	if commonInfo, ok := OtherModuleProvider(ctx, module, CommonModuleInfoProvider); ok && commonInfo.IsPrebuilt {
 		// If we're given a prebuilt then assume there's no source module around.
 		return module
 	}

@@ -75,6 +75,9 @@ type PackagingSpec struct {
 
 	// String representation of the variation of the module where this packaging spec is output of
 	variation string
+
+	// Whether the owner module is a prebuilt module or not
+	prebuilt bool
 }
 
 type packagingSpecGob struct {
@@ -92,6 +95,7 @@ type packagingSpecGob struct {
 	RequiresFullInstall   bool
 	FullInstallPath       InstallPath
 	Variation             string
+	Prebuilt              bool
 }
 
 func (p *PackagingSpec) Owner() string {
@@ -100,6 +104,10 @@ func (p *PackagingSpec) Owner() string {
 
 func (p *PackagingSpec) Variation() string {
 	return p.variation
+}
+
+func (p *PackagingSpec) Prebuilt() bool {
+	return p.prebuilt
 }
 
 func (p *PackagingSpec) ToGob() *packagingSpecGob {
@@ -118,6 +126,7 @@ func (p *PackagingSpec) ToGob() *packagingSpecGob {
 		RequiresFullInstall:   p.requiresFullInstall,
 		FullInstallPath:       p.fullInstallPath,
 		Variation:             p.variation,
+		Prebuilt:              p.prebuilt,
 	}
 }
 
@@ -136,6 +145,7 @@ func (p *PackagingSpec) FromGob(data *packagingSpecGob) {
 	p.requiresFullInstall = data.RequiresFullInstall
 	p.fullInstallPath = data.FullInstallPath
 	p.variation = data.Variation
+	p.prebuilt = data.Prebuilt
 }
 
 func (p *PackagingSpec) GobEncode() ([]byte, error) {

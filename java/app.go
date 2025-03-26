@@ -432,6 +432,27 @@ func (a *AndroidTestHelperApp) GenerateAndroidBuildActions(ctx android.ModuleCon
 	})
 }
 
+func (a *AndroidApp) baseSymbolInfo(ctx android.ModuleContext) *cc.SymbolInfo {
+	return &cc.SymbolInfo{
+		Name:          a.BaseModuleName(),
+		ModuleDir:     ctx.ModuleDir(),
+		Uninstallable: a.IsSkipInstall() || !proptools.BoolDefault(a.properties.Installable, true) || a.NoFullInstall(),
+	}
+}
+
+func (a *AndroidApp) GetJniSymbolInfos(ctx android.ModuleContext, JniSymbolInstallPath android.Path) []*cc.SymbolInfo {
+	infos := []*cc.SymbolInfo{}
+	for _, install := range a.JNISymbolsInstalls(JniSymbolInstallPath.String()) {
+		info := a.baseSymbolInfo(ctx)
+		info.UnstrippedBinaryPath = install.From
+		info.ModuleDir = filepath.Dir(install.To)
+		info.InstalledStem = filepath.Base(install.To)
+
+		infos = append(infos, info)
+	}
+	return infos
+}
+
 func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.checkAppSdkVersions(ctx)
 	a.checkEmbedJnis(ctx)

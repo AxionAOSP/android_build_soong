@@ -129,30 +129,34 @@ var (
 // dependencies, built/installed files, etc. It is a wrapper on a map[string]string with some utility
 // methods to get/set properties' values.
 type ComplianceMetadataInfo struct {
-	properties          map[string]string
-	filesContained      []string
-	prebuiltFilesCopied []string
+	properties             map[string]string
+	filesContained         []string
+	prebuiltFilesCopied    []string
+	platformGeneratedFiles []string
 }
 
 type complianceMetadataInfoGob struct {
-	Properties          map[string]string
-	FilesContained      []string
-	PrebuiltFilesCopied []string
+	Properties             map[string]string
+	FilesContained         []string
+	PrebuiltFilesCopied    []string
+	PlatformGeneratedFiles []string
 }
 
 func NewComplianceMetadataInfo() *ComplianceMetadataInfo {
 	return &ComplianceMetadataInfo{
-		properties:          map[string]string{},
-		filesContained:      make([]string, 0),
-		prebuiltFilesCopied: make([]string, 0),
+		properties:             map[string]string{},
+		filesContained:         make([]string, 0),
+		prebuiltFilesCopied:    make([]string, 0),
+		platformGeneratedFiles: make([]string, 0),
 	}
 }
 
 func (m *ComplianceMetadataInfo) ToGob() *complianceMetadataInfoGob {
 	return &complianceMetadataInfoGob{
-		Properties:          m.properties,
-		FilesContained:      m.filesContained,
-		PrebuiltFilesCopied: m.prebuiltFilesCopied,
+		Properties:             m.properties,
+		FilesContained:         m.filesContained,
+		PrebuiltFilesCopied:    m.prebuiltFilesCopied,
+		PlatformGeneratedFiles: m.platformGeneratedFiles,
 	}
 }
 
@@ -160,6 +164,7 @@ func (m *ComplianceMetadataInfo) FromGob(data *complianceMetadataInfoGob) {
 	m.properties = data.Properties
 	m.filesContained = data.FilesContained
 	m.prebuiltFilesCopied = data.PrebuiltFilesCopied
+	m.platformGeneratedFiles = data.PlatformGeneratedFiles
 }
 
 func (c *ComplianceMetadataInfo) GobEncode() ([]byte, error) {
@@ -195,6 +200,14 @@ func (c *ComplianceMetadataInfo) SetPrebuiltFilesCopied(files []string) {
 
 func (c *ComplianceMetadataInfo) GetPrebuiltFilesCopied() []string {
 	return c.prebuiltFilesCopied
+}
+
+func (c *ComplianceMetadataInfo) SetPlatformGeneratedFiles(files []string) {
+	c.platformGeneratedFiles = files
+}
+
+func (c *ComplianceMetadataInfo) GetPlatformGeneratedFiles() []string {
+	return c.platformGeneratedFiles
 }
 
 func (c *ComplianceMetadataInfo) getStringValue(propertyName string) string {
@@ -368,6 +381,8 @@ func (c *complianceMetadataSingleton) GenerateBuildActions(ctx SingletonContext)
 							if _, ok := prebuiltFilesSrcDest[file]; ok {
 								srcDestPair := prebuiltFilesSrcDest[file]
 								csvContent = append(csvContent, file+",,,,"+srcDestPair+",,,,,")
+							} else if slices.Contains(metadataInfo.platformGeneratedFiles, file) {
+								csvContent = append(csvContent, file+",,,,,,Y,,,build/soong/licenses/LICENSE")
 							} else {
 								csvContent = append(csvContent, file+",,Y,,,,,,,")
 							}

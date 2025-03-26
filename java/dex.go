@@ -42,6 +42,10 @@ type DexProperties struct {
 		// True if the module containing this has it set by default.
 		EnabledByDefault bool `blueprint:"mutated"`
 
+		// If true, then `d8` will be used on eng builds instead of `r8`, even though
+		// optimize.enabled is true.
+		D8_on_eng *bool
+
 		// Whether to allow that library classes inherit from program classes.
 		// Defaults to false.
 		Ignore_library_extends_program *bool
@@ -162,7 +166,12 @@ type dexer struct {
 }
 
 func (d *dexer) effectiveOptimizeEnabled(ctx android.EarlyModuleContext) bool {
-	return BoolDefault(d.dexProperties.Optimize.Enabled, d.dexProperties.Optimize.EnabledByDefault && !ctx.Config().Eng())
+	// For eng builds, if Optimize.D8_on_eng is true, then disable optimization.
+	if ctx.Config().Eng() && proptools.Bool(d.dexProperties.Optimize.D8_on_eng) {
+		return false
+	}
+	// Otherwise, use the legacy logic of a default value which can be explicitly overridden by the module.
+	return BoolDefault(d.dexProperties.Optimize.Enabled, d.dexProperties.Optimize.EnabledByDefault)
 }
 
 func (d *DexProperties) resourceShrinkingEnabled(ctx android.ModuleContext) bool {
