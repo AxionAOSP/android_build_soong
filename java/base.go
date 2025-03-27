@@ -229,6 +229,11 @@ type CommonProperties struct {
 	// If true, then only the headers are built and not the implementation jar.
 	Headers_only *bool
 
+	// If specified, this is used for this library's header jar, rather than generating it. This
+	// should only be used if the library adds nothing new to the header jars vs the provided path.
+	// For example, this could be used if the module only adds implementation code.
+	Header_jar_override string `android:"path,arch_variant"`
+
 	// A list of files or dependencies to make available to the build sandbox. This is
 	// useful if source files are symlinks, the targets of the symlinks must be listed here.
 	// Note that currently not all actions implemented by android_apps are sandboxed, so you
@@ -508,9 +513,8 @@ type Module struct {
 	jacocoReportClassesFile android.Path
 
 	// output file of the module, which may be a classes jar or a dex jar
-	outputFile          android.Path
-	installedOutputFile android.Path
-	extraOutputFiles    android.Paths
+	outputFile       android.Path
+	extraOutputFiles android.Paths
 
 	exportAidlIncludeDirs     android.Paths
 	ignoredAidlPermissionList android.Paths
@@ -1302,6 +1306,9 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 			return nil
 		}
 		j.headerJarFile = combinedHeaderJarFile
+		if deps.headerJarOverride.Valid() {
+			j.headerJarFile = deps.headerJarOverride.Path()
+		}
 
 		if len(localHeaderJars) > 0 {
 			ctx.CheckbuildFile(localHeaderJars...)
@@ -1926,6 +1933,9 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 	// Save the output file with no relative path so that it doesn't end up in a subdirectory when used as a resource
 	j.outputFile = outputFile.WithoutRel()
 
+	if deps.headerJarOverride.Valid() {
+		j.headerJarFile = deps.headerJarOverride.Path()
+	}
 	return &JavaInfo{
 		HeaderJars:           android.PathsIfNonNil(j.headerJarFile),
 		RepackagedHeaderJars: android.PathsIfNonNil(repackagedHeaderJarFile),
@@ -2076,7 +2086,9 @@ func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars 
 	deps deps, flags javaBuilderFlags, jarName string,
 	extraJars android.Paths) (localHeaderJars android.Paths, combinedHeaderJar android.Path) {
 
-	if len(srcFiles) > 0 || len(srcJars) > 0 {
+	if deps.headerJarOverride.Valid() {
+		localHeaderJars = append(localHeaderJars, deps.headerJarOverride.Path())
+	} else if len(srcFiles) > 0 || len(srcJars) > 0 {
 		// Compile java sources into turbine.jar.
 		turbineJar := android.PathForModuleOut(ctx, "turbine", jarName)
 		TransformJavaToHeaderClasses(ctx, turbineJar, srcFiles, srcJars, flags)
@@ -2090,9 +2102,10 @@ func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars 
 	depSet := depset.New(depset.PREORDER, localHeaderJars, deps.transitiveStaticLibsHeaderJars)
 	jars := depSet.ToList()
 
+	var combinedHeaderJarOutputPath android.WritablePath
 	// we cannot skip the combine step for now if there is only one jar
 	// since we have to strip META-INF/TRANSITIVE dir from turbine.jar
-	combinedHeaderJarOutputPath := android.PathForModuleOut(ctx, "turbine-combined", jarName)
+	combinedHeaderJarOutputPath = android.PathForModuleOut(ctx, "turbine-combined", jarName)
 	TransformJarsToJar(ctx, combinedHeaderJarOutputPath, "for turbine", jars, android.OptionalPath{},
 		false, nil, []string{"META-INF/TRANSITIVE"})
 
@@ -2464,6 +2477,14 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.disableTurbine = deps.disableTurbine || dep.ExportedPluginDisableTurbine
 
 				transitiveClasspathHeaderJars = append(transitiveClasspathHeaderJars, dep.TransitiveStaticLibsHeaderJars)
+			case headerJarOverrideTag:
+				if dep.HeaderJars == nil {
+					ctx.ModuleErrorf("%s does not provide header jars", otherName)
+				} else if len(dep.HeaderJars) > 1 {
+					ctx.ModuleErrorf("%s does not provides too many header jars", otherName)
+				} else {
+					deps.headerJarOverride = android.OptionalPathForPath(dep.HeaderJars[0])
+				}
 			case java9LibTag:
 				deps.java9Classpath = append(deps.java9Classpath, dep.HeaderJars...)
 				transitiveJava9ClasspathHeaderJars = append(transitiveJava9ClasspathHeaderJars, dep.TransitiveStaticLibsHeaderJars)

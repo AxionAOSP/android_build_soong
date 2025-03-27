@@ -496,15 +496,13 @@ func PrebuiltSourceDepsMutator(ctx BottomUpMutatorContext) {
 
 // checkInvariantsForSourceAndPrebuilt checks if invariants are kept when replacing
 // source with prebuilt. Note that the current module for the context is the source module.
-func checkInvariantsForSourceAndPrebuilt(ctx BaseModuleContext, s, p Module) {
-	if _, ok := s.(OverrideModule); ok {
-		// skip the check when the source module is `override_X` because it's only a placeholder
-		// for the actual source module. The check will be invoked for the actual module.
-		return
-	}
-	if sourcePartition, prebuiltPartition := s.PartitionTag(ctx.DeviceConfig()), p.PartitionTag(ctx.DeviceConfig()); sourcePartition != prebuiltPartition {
-		ctx.OtherModuleErrorf(p, "partition is different: %s(%s) != %s(%s)",
-			sourcePartition, ctx.ModuleName(), prebuiltPartition, ctx.OtherModuleName(p))
+func checkInvariantsForSourceAndPrebuilt(ctx BaseModuleContext, sourcePartition string,
+	prebuiltPartitions, prebuiltModuleNames []string) {
+	for i, prebuiltPartition := range prebuiltPartitions {
+		if sourcePartition != prebuiltPartition {
+			ctx.ModuleErrorf("partition is different: %s(%s) != %s(%s)",
+				sourcePartition, ctx.ModuleName(), prebuiltPartition, prebuiltModuleNames[i])
+		}
 	}
 }
 
@@ -541,7 +539,15 @@ func PrebuiltSelectModuleMutator(ctx BottomUpMutatorContext) {
 		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(prebuiltModule Module) {
 			p := GetEmbeddedPrebuilt(prebuiltModule)
 			if p.usePrebuilt(ctx, s, prebuiltModule) {
-				checkInvariantsForSourceAndPrebuilt(ctx, s, prebuiltModule)
+				// skip the check when the source module is `override_X` because it's only a placeholder
+				// for the actual source module. The check will be invoked for the actual module.
+				if _, isOverride := s.(OverrideModule); !isOverride {
+					sourcePartition := s.PartitionTag(ctx.DeviceConfig())
+					prebuiltPartition := prebuiltModule.PartitionTag(ctx.DeviceConfig())
+					checkInvariantsForSourceAndPrebuilt(ctx, sourcePartition, []string{prebuiltPartition},
+						[]string{ctx.OtherModuleName(prebuiltModule)})
+
+				}
 
 				p.properties.UsePrebuilt = true
 				s.ReplacedByPrebuilt()

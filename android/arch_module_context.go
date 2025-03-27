@@ -30,19 +30,17 @@ type ArchModuleContext interface {
 	Darwin() bool
 	Windows() bool
 	PrimaryArch() bool
-	PrimaryNativeBridgeArch() bool
 }
 
 type archModuleContext struct {
 	// TODO: these should eventually go through a (possibly cached) provider like any other configuration instead
 	//  of being special cased.
-	ready                   bool
-	os                      OsType
-	target                  Target
-	targetPrimary           bool
-	multiTargets            []Target
-	primaryArch             bool
-	primaryNativeBridgeArch bool
+	ready         bool
+	os            OsType
+	target        Target
+	targetPrimary bool
+	multiTargets  []Target
+	primaryArch   bool
 }
 
 // ArchReady returns true if the arch mutator has run on the module. Before this returns
@@ -90,8 +88,4 @@ func (a *archModuleContext) Windows() bool {
 
 func (b *archModuleContext) PrimaryArch() bool {
 	return b.primaryArch
-}
-
-func (b *archModuleContext) PrimaryNativeBridgeArch() bool {
-	return b.primaryNativeBridgeArch
 }

@@ -45,7 +45,6 @@ func init() {
 }
 
 func registerBuildComponents(ctx android.RegistrationContext) {
-	ctx.RegisterModuleType("android_device", AndroidDeviceFactory)
 	ctx.RegisterModuleType("android_filesystem", FilesystemFactory)
 	ctx.RegisterModuleType("android_filesystem_defaults", filesystemDefaultsFactory)
 	ctx.RegisterModuleType("android_system_image", SystemImageFactory)
@@ -440,8 +439,6 @@ type FilesystemInfo struct {
 	BuildImagePropFile android.Path
 	// Paths to all the tools referenced inside of the build image property file.
 	BuildImagePropFileDeps android.Paths
-	// Packaging specs to be installed in this filesystem.
-	Specs map[string]android.PackagingSpec
 	// Packaging specs to be installed on the system_other image, for the initial boot's dexpreopt.
 	SpecsForSystemOther map[string]android.PackagingSpec
 
@@ -742,7 +739,6 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ModuleName:             ctx.ModuleName(),
 		BuildImagePropFile:     buildImagePropFile,
 		BuildImagePropFileDeps: buildImagePropFileDeps,
-		Specs:                  specs,
 		SpecsForSystemOther:    f.systemOtherFiles(ctx),
 		FullInstallPaths:       fullInstallPaths,
 		InstalledFilesDepSet: depset.New(

@@ -2299,6 +2299,10 @@ func (c *config) GetBuildFlag(name string) (string, bool) {
 	return val, ok
 }
 
+func (c *config) GetBuildFlagBool(name string) bool {
+	return c.productVariables.GetBuildFlagBool(name)
+}
+
 func (c *config) UseOptimizedResourceShrinkingByDefault() bool {
 	return c.productVariables.GetBuildFlagBool("RELEASE_USE_OPTIMIZED_RESOURCE_SHRINKING_BY_DEFAULT")
 }

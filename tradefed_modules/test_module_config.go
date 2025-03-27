@@ -435,22 +435,9 @@ func (m *testModuleConfigModule) generateManifestAndConfig(ctx android.ModuleCon
 		IsUnitTest:              m.provider.IsUnitTest,
 	})
 
-	ctx.SetTestSuiteInfo(android.TestSuiteInfo{
-		TestSuites:      m.tradefedProperties.Test_suites,
-		MainFile:        baseApk,
-		MainFileExt:     ".apk",
-		ConfigFile:      m.testConfig,
-		NeedsArchFolder: ctx.Device(),
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: m.tradefedProperties.Test_suites,
 	})
-
-	// Install the UNUSED- file to match the UNUSED- stem specified in javaExtraEntries
-	if m.provider.MkAppClass == "APPS" {
-		installDir2 := android.PathForModuleInstall(ctx, ctx.ModuleName(), ctx.DeviceConfig().DeviceArch())
-		ctx.InstallFile(installDir2, fmt.Sprintf("UNUSED-%s.apk", *m.Base), m.manifest)
-	} else if m.provider.MkAppClass == "JAVA_LIBRARIES" {
-		installDir2 := android.PathForModuleInstall(ctx, ctx.ModuleName())
-		ctx.InstallFile(installDir2, fmt.Sprintf("UNUSED-%s.jar", *m.Base), m.manifest)
-	}
 }
 
 var _ android.AndroidMkEntriesProvider = (*testModuleConfigHostModule)(nil)

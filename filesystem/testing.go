@@ -14,19 +14,6 @@
 
 package filesystem
 
-import (
-	"android/soong/android"
-	"android/soong/cc"
-)
+import "android/soong/android"
 
-var PrepareForTestWithFilesystemBuildComponents = android.GroupFixturePreparers(
-	android.FixtureRegisterWithContext(registerBuildComponents),
-	cc.PrepareForIntegrationTestWithCc,
-	android.FixtureAddTextFile("testdeps/Android.bp",
-		`
-cc_library_shared {
-	name: "liblz4",
-	host_supported: true,
-}
-`),
-)
+var PrepareForTestWithFilesystemBuildComponents = android.FixtureRegisterWithContext(registerBuildComponents)

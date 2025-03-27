@@ -116,7 +116,7 @@ func TestLoadState(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		actual, err := LoadState(tc.Filename, tc.Mapfs)
+		actual, err := loadState(tc.Filename, tc.Mapfs)
 		if tc.Err == nil {
 			android.AssertSame(t, tc.Name, tc.Err, err)
 		} else if err == nil {
@@ -164,7 +164,7 @@ func TestCreateState(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		actual, err := CreateState(tc.Inputs, tc.Inspect, tc.Mapfs)
+		actual, err := createState(tc.Inputs, tc.Inspect, tc.Mapfs)
 		if tc.Err == nil {
 			android.AssertSame(t, tc.Name, tc.Err, err)
 		} else if err == nil {
@@ -253,7 +253,7 @@ func TestCompareInternalState(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		actual := CompareInternalState(tc.Prior, tc.New, tc.Target)
+		actual := compareInternalState(tc.Prior, tc.New, tc.Target)
 		if !tc.Expected.Equal(actual) {
 			t.Errorf("%s: expected %v, actual %v", tc.Name, tc.Expected, actual)
 		}

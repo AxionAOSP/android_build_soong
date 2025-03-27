@@ -16,8 +16,6 @@ package android
 
 import (
 	"path/filepath"
-	"slices"
-	"sort"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -39,34 +37,7 @@ type TestSuiteModule interface {
 }
 
 type TestSuiteInfo struct {
-	// A suffix to append to the name of the test.
-	// Useful because historically different variants of soong modules became differently-named
-	// make modules, like "my_test.vendor" for the vendor variant.
-	NameSuffix string
-
 	TestSuites []string
-
-	NeedsArchFolder bool
-
-	MainFile Path
-
-	MainFileStem string
-
-	MainFileExt string
-
-	ConfigFile Path
-
-	ConfigFileSuffix string
-
-	ExtraConfigs Paths
-
-	PerTestcaseDirectory bool
-
-	Data []DataPath
-
-	NonArchData []DataPath
-
-	CompatibilitySupportFiles []Path
 }
 
 var TestSuiteInfoProvider = blueprint.NewProvider[TestSuiteInfo]()
@@ -77,20 +48,8 @@ type SupportFilesInfo struct {
 
 var SupportFilesInfoProvider = blueprint.NewProvider[SupportFilesInfo]()
 
-type filePair struct {
-	src Path
-	dst WritablePath
-}
-
-type testSuiteInstallsInfo struct {
-	Files []filePair
-}
-
-var testSuiteInstallsInfoProvider = blueprint.NewProvider[testSuiteInstallsInfo]()
-
 func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	files := make(map[string]map[string]InstallPaths)
-	var toInstall []filePair
 
 	ctx.VisitAllModuleProxies(func(m ModuleProxy) {
 		if tsm, ok := OtherModuleProvider(ctx, m, TestSuiteInfoProvider); ok {
@@ -103,42 +62,7 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 					OtherModuleProviderOrDefault(ctx, m, InstallFilesProvider).InstallFiles...)
 			}
 		}
-		if testSuiteInstalls, ok := OtherModuleProvider(ctx, m, testSuiteInstallsInfoProvider); ok {
-			installs := OtherModuleProviderOrDefault(ctx, m, InstallFilesProvider).InstallFiles
-			for _, f := range testSuiteInstalls.Files {
-				alreadyInstalled := false
-				for _, install := range installs {
-					if install.String() == f.dst.String() {
-						alreadyInstalled = true
-						break
-					}
-				}
-				if !alreadyInstalled {
-					toInstall = append(toInstall, f)
-				}
-			}
-		}
 	})
-
-	sort.Slice(toInstall, func(i, j int) bool {
-		c := strings.Compare(toInstall[i].src.String(), toInstall[j].src.String())
-		if c < 0 {
-			return true
-		} else if c > 0 {
-			return false
-		}
-		return toInstall[i].dst.String() < toInstall[j].dst.String()
-	})
-	// Dedup, as multiple tests may install the same test data to the same folder
-	toInstall = slices.Compact(toInstall)
-
-	for _, install := range toInstall {
-		ctx.Build(pctx, BuildParams{
-			Rule:   Cp,
-			Input:  install.src,
-			Output: install.dst,
-		})
-	}
 
 	robolectricZip, robolectrictListZip := buildTestSuite(ctx, "robolectric-tests", files["robolectric-tests"])
 	ctx.Phony("robolectric-tests", robolectricZip, robolectrictListZip)

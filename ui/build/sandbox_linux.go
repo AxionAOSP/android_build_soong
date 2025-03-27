@@ -16,6 +16,7 @@ package build
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"os/user"
@@ -217,6 +218,27 @@ func (c *Cmd) workDir() string {
 	return abfsSrcDir
 }
 
+func abfsCacheFromMount(mntDir string) (string, error) {
+	type Config struct {
+		CacheDir string
+	}
+	type MountDetails struct {
+		Config Config
+	}
+	var m MountDetails
+	file, err := os.Open(filepath.Join(mntDir, ".repo/mount-details"))
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	d := json.NewDecoder(file)
+	if err := d.Decode(&m); err != nil {
+		return "", err
+	}
+
+	return m.Config.CacheDir, nil
+}
+
 func (c *Cmd) wrapSandbox() {
 	wd := c.workDir()
 
@@ -277,7 +299,11 @@ func (c *Cmd) wrapSandbox() {
 		"-q",
 	)
 	if c.config.UseABFS() {
-		sandboxArgs = append(sandboxArgs, "-B", "{ABFS_DIR}")
+		cacheDir, err := abfsCacheFromMount(wd)
+		if err != nil {
+			c.ctx.Fatalln(err)
+		}
+		sandboxArgs = append(sandboxArgs, "-B", cacheDir)
 	}
 
 	// Mount srcDir RW allowlists as Read-Write

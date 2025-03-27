@@ -48,6 +48,16 @@ var (
 		CommandDeps: []string{"${deapexer}"},
 		Description: "decompress $out",
 	})
+	// Compares the declared apps of `prebuilt_apex` with the actual apks
+	validateApkInPrebuiltApex = pctx.StaticRule("validateApkinPrebuiltApex", blueprint.RuleParams{
+		Command: `rm -rf ${out} ${actualApks} &&` +
+			` ${apex_ls} ${in} | grep apk$$ | awk -F '/' '{print $$NF}' | sort -u > ${actualApks} &&` +
+			` cmp -s ${expectedApks} ${actualApks} && touch ${out}` +
+			` || (echo "Found diffs between "apps" property of ${apexName} and actual contents of ${in}.` +
+			` Please ensure that all apk-in-apexes are declared in 'apps' property." && exit 1)`,
+		CommandDeps: []string{"${apex_ls}"},
+		Description: "validate apk in prebuilt_apex $out",
+	}, "expectedApks", "actualApks", "apexName")
 )
 
 type prebuilt interface {
@@ -711,6 +721,38 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	android.SetProvider(ctx, filesystem.ApexKeyPathInfoProvider, filesystem.ApexKeyPathInfo{p.apexKeysPath})
 }
 
+// Creates a timestamp file that will be used to validate that there is no mismtach
+// between apks declared via `apps` and the actual apks inside the apex.
+func (p *Prebuilt) validateApkInPrebuiltApex(ctx android.ModuleContext, appInfos java.AppInfos) android.Path {
+	timestamp := android.PathForModuleOut(ctx, "apk_in_prebuilt_apex.timestamp")
+	// Create a list of expected installed apks.
+	var installedApks []string
+	for _, appInfo := range appInfos {
+		installedApks = append(installedApks, appInfo.InstallApkName+".apk")
+	}
+	expectedApksFile := android.PathForModuleOut(ctx, "expected_apk_in_prebuilt_apex.txt")
+	if len(installedApks) == 0 {
+		android.WriteFileRuleVerbatim(ctx, expectedApksFile, "") // Without newline
+	} else {
+		android.WriteFileRule(ctx, expectedApksFile, strings.Join(android.SortedUniqueStrings(installedApks), "\n")) // With newline
+	}
+
+	actualApksFile := android.PathForModuleOut(ctx, "actual_apk_in_prebuilt_apex.txt")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:           validateApkInPrebuiltApex,
+		Input:          p.inputApex,
+		Output:         timestamp,
+		Implicit:       expectedApksFile,
+		ImplicitOutput: actualApksFile,
+		Args: map[string]string{
+			"expectedApks": expectedApksFile.String(),
+			"actualApks":   actualApksFile.String(),
+			"apexName":     p.Name(),
+		},
+	})
+	return timestamp
+}
+
 // `addApkCertsInfo` sets a provider that will be used to create apkcerts.txt
 func (p *Prebuilt) addApkCertsInfo(ctx android.ModuleContext) {
 	formatLine := func(cert java.Certificate, name, partition string) string {
@@ -737,24 +779,21 @@ func (p *Prebuilt) addApkCertsInfo(ctx android.ModuleContext) {
 		return appInfos[i].InstallApkName < appInfos[j].InstallApkName
 	})
 
-	if len(appInfos) == 0 {
-		return
-	}
-
-	// Set a provider for use by `android_device`.
-	// `android_device` will create an apkcerts.txt with the list of installed apps for that device.
-	android.SetProvider(ctx, java.AppInfosProvider, appInfos)
-
-	// Set a Make variable for legacy apkcerts.txt creation
-	// p.apkCertsFile will become `LOCAL_APKCERTS_FILE`
+	// Create p.apkCertsFile with information about apk-in-apex
+	// p.apkCertsFile will become `LOCAL_APKCERTS_FILE` for Make packaging system
+	// p.apkCertsFile will be propagated to android_device for Soong packaging system
 	var lines []string
 	for _, appInfo := range appInfos {
 		lines = append(lines, formatLine(appInfo.Certificate, appInfo.InstallApkName+".apk", p.PartitionTag(ctx.DeviceConfig())))
 	}
-	if len(lines) > 0 {
-		p.apkCertsFile = android.PathForModuleOut(ctx, "apkcerts.txt")
-		android.WriteFileRule(ctx, p.apkCertsFile, strings.Join(lines, "\n"))
+	p.apkCertsFile = android.PathForModuleOut(ctx, "apkcerts.txt")
+	var validations android.Paths
+	if p.IsInstallable() {
+		// Skip the validation for non-installable prebuilt apexes (e.g. used in CTS tests).
+		validations = append(validations, p.validateApkInPrebuiltApex(ctx, appInfos))
 	}
+	android.WriteFileRule(ctx, p.apkCertsFile, strings.Join(lines, "\n"), validations...)
+	android.SetProvider(ctx, filesystem.ApkCertsInfoProvider, filesystem.ApkCertsInfo{p.apkCertsFile})
 }
 
 func (p *Prebuilt) ProvenanceMetaDataFile() android.Path {

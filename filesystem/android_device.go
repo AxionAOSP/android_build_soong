@@ -182,8 +182,6 @@ func (a *androidDevice) addDepsForTargetFilesMetadata(ctx android.BottomUpMutato
 }
 
 func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	a.validateNoCrossPartitionOverrides(ctx)
-
 	if proptools.Bool(a.deviceProps.Main_device) {
 		numMainAndroidDevices := ctx.Config().Once(numMainAndroidDevicesOnceKey, func() interface{} {
 			return &atomic.Int32{}
@@ -1172,6 +1170,8 @@ func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalle
 			}
 		} else if info, ok := android.OtherModuleProvider(ctx, installedModule, java.RuntimeResourceOverlayInfoProvider); ok {
 			apkCerts = append(apkCerts, formatLine(info.Certificate, info.OutputFile.Base(), partition))
+		} else if info, ok := android.OtherModuleProvider(ctx, installedModule, ApkCertsInfoProvider); ok {
+			apkCertsFiles = append(apkCertsFiles, info.ApkCertsFile)
 		}
 	}
 	slices.Sort(apkCerts) // sort by name
@@ -1196,31 +1196,8 @@ func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalle
 	return apkCertsInfo
 }
 
-// Validate that a soong module in one `android_filesystem` dep cannot override a soong module
-// in another `android_filesystem` dep of this device.
-func (a *androidDevice) validateNoCrossPartitionOverrides(ctx android.ModuleContext) {
-	// Collect packaging specs of all partitions, keyed on the owning module
-	ownerToPackagingSpec := map[string]android.PackagingSpec{}
-	for _, fsInfo := range a.getFsInfos(ctx) {
-		for _, spec := range fsInfo.Specs {
-			ownerToPackagingSpec[spec.Owner()] = spec
-		}
-	}
-
-	// Iterate over all packaging specs. For each spec,
-	// 1. If overrides is empty, no work to do.
-	// 2. If overrides is non-empty, and the partition of the overrides and overridden module are same, no error.
-	// 3. If overrides is non-empty, and the partition of the overrides and overridden module are different, error.
-	for owner, packagingSpec := range ownerToPackagingSpec {
-		for override := range packagingSpec.Overrides().Iter() {
-			overridePackagingSpec, ok := ownerToPackagingSpec[override]
-			if !ok {
-				// Ignore if the overridden module is not installed
-				continue
-			}
-			if packagingSpec.Partition() != overridePackagingSpec.Partition() {
-				ctx.ModuleErrorf("%s overrides %s, but they belong to separate android_filesystem. Please remove %s from %s", owner, override, override, overridePackagingSpec.Partition())
-			}
-		}
-	}
+type ApkCertsInfo struct {
+	ApkCertsFile android.Path
 }
+
+var ApkCertsInfoProvider = blueprint.NewProvider[ApkCertsInfo]()

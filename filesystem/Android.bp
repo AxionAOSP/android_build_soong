@@ -33,7 +33,6 @@ bootstrap_go_package {
         "testing.go",
     ],
     testSrcs: [
-        "android_device_test.go",
         "filesystem_test.go",
     ],
     pluginFor: ["soong_build"],

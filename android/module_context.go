@@ -275,10 +275,6 @@ type ModuleContext interface {
 	// directory on the build server with the given filename when any of the
 	// specified goals are built.
 	DistForGoalsWithFilename(goals []string, path Path, filename string)
-
-	// Defines this module as a compatibility suite test and gives all the information needed
-	// to build the suite.
-	SetTestSuiteInfo(info TestSuiteInfo)
 }
 
 type moduleContext struct {
@@ -338,9 +334,6 @@ type moduleContext struct {
 	complianceMetadataInfo *ComplianceMetadataInfo
 
 	dists []dist
-
-	testSuiteInfo    TestSuiteInfo
-	testSuiteInfoSet bool
 }
 
 var _ ModuleContext = &moduleContext{}
@@ -1047,12 +1040,4 @@ func (c *moduleContext) DistForGoalsWithFilename(goals []string, path Path, file
 		goals: slices.Clone(goals),
 		paths: distCopies{{from: path, dest: filename}},
 	})
-}
-
-func (c *moduleContext) SetTestSuiteInfo(info TestSuiteInfo) {
-	if c.testSuiteInfoSet {
-		panic("Cannot call SetTestSuiteInfo twice")
-	}
-	c.testSuiteInfo = info
-	c.testSuiteInfoSet = true
 }

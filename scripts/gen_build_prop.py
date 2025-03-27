@@ -428,9 +428,6 @@ def append_additional_vendor_props(args):
   if config["ShippingApiLevel"]:
     props.append(f"ro.product.first_api_level={config['ShippingApiLevel']}")
 
-  if config["ShippingVendorApiLevel"]:
-    props.append(f"ro.vendor.api_level={config['ShippingVendorApiLevel']}")
-
   if config["BuildVariant"] != "user" and config["BuildDebugfsRestrictionsEnabled"]:
     props.append(f"ro.product.debugfs_restrictions.enabled=true")
 
