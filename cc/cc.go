@@ -798,8 +798,6 @@ type linker interface {
 	defaultDistFiles() []android.Path
 
 	moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON)
-
-	testSuiteInfo(ctx ModuleContext)
 }
 
 // specifiedDeps is a tuple struct representing dependencies of a linked binary owned by the linker.
@@ -2524,8 +2522,6 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			name := v.ImplementationModuleName(ctx.OtherModuleName(c))
 			ccInfo.LinkerInfo.ImplementationModuleName = &name
 		}
-
-		c.linker.testSuiteInfo(ctx)
 	}
 	if c.library != nil {
 		ccInfo.LibraryInfo = &LibraryInfo{

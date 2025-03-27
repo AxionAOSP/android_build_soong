@@ -110,6 +110,10 @@ func (p *PackagingSpec) Prebuilt() bool {
 	return p.prebuilt
 }
 
+func (p *PackagingSpec) Overrides() uniquelist.UniqueList[string] {
+	return p.overrides
+}
+
 func (p *PackagingSpec) ToGob() *packagingSpecGob {
 	return &packagingSpecGob{
 		RelPathInPackage:      p.relPathInPackage,

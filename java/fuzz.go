@@ -131,7 +131,32 @@ func (j *JavaFuzzTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	}
 
-	j.Test.GenerateAndroidBuildActions(ctx)
+	checkMinSdkVersionMts(ctx, j.MinSdkVersion(ctx))
+	j.Test.generateAndroidBuildActionsWithConfig(ctx, nil)
+
+	var compatibilitySupportFiles android.Paths
+	compatibilitySupportFiles = append(compatibilitySupportFiles, j.implementationJarFile)
+	compatibilitySupportFiles = append(compatibilitySupportFiles, j.jniFilePaths...)
+	compatibilitySupportFiles = append(compatibilitySupportFiles, j.fuzzPackagedModule.Corpus...)
+	if j.fuzzPackagedModule.Dictionary != nil {
+		compatibilitySupportFiles = append(compatibilitySupportFiles, j.fuzzPackagedModule.Dictionary)
+	}
+
+	outputFile := j.installedOutputFile
+	if outputFile == nil {
+		outputFile = j.outputFile
+	}
+	ctx.SetTestSuiteInfo(android.TestSuiteInfo{
+		TestSuites:                j.testProperties.Test_suites,
+		MainFile:                  outputFile,
+		MainFileStem:              j.Stem(),
+		MainFileExt:               ".jar",
+		ConfigFile:                j.testConfig,
+		ExtraConfigs:              j.extraTestConfigs,
+		NeedsArchFolder:           ctx.Device(),
+		CompatibilitySupportFiles: compatibilitySupportFiles,
+		PerTestcaseDirectory:      proptools.Bool(j.testProperties.Per_testcase_directory),
+	})
 
 	fuzz.SetFuzzPackagedModuleInfo(ctx, &j.fuzzPackagedModule)
 }

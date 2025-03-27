@@ -248,7 +248,7 @@ func collectDepsMutator(mctx android.BottomUpMutatorContext) {
 	// store the map of module to (required,overrides) even if the module is not in PRODUCT_PACKAGES.
 	// the module might be installed transitively.
 	if m.Enabled(mctx) && m.ExportedToMake() {
-		fsGenState.moduleToInstallationProps[m.Name()] = installationProperties{
+		fsGenState.moduleToInstallationProps[mctx.ModuleName()] = installationProperties{
 			Required:  m.RequiredModuleNames(mctx),
 			Overrides: m.Overrides(),
 		}

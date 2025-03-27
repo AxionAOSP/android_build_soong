@@ -1809,6 +1809,7 @@ func (j *TestHost) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	j.Test.generateAndroidBuildActionsWithConfig(ctx, configs)
+	j.Test.javaTestSetTestsuiteInfo(ctx)
 	android.SetProvider(ctx, tradefed.BaseTestProviderKey, tradefed.BaseTestProviderData{
 		TestcaseRelDataFiles: testcaseRel(j.data),
 		OutputFile:           j.outputFile,
@@ -1831,6 +1832,7 @@ func (j *TestHost) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	checkMinSdkVersionMts(ctx, j.MinSdkVersion(ctx))
 	j.generateAndroidBuildActionsWithConfig(ctx, nil)
+	j.javaTestSetTestsuiteInfo(ctx)
 }
 
 func (j *Test) generateAndroidBuildActionsWithConfig(ctx android.ModuleContext, configs []tradefed.Config) {
@@ -1936,29 +1938,29 @@ func (j *Test) generateAndroidBuildActionsWithConfig(ctx android.ModuleContext, 
 		}
 	}
 	moduleInfoJSON.TestMainlineModules = append(moduleInfoJSON.TestMainlineModules, j.testProperties.Test_mainline_modules...)
+}
 
+func (j *Test) javaTestSetTestsuiteInfo(ctx android.ModuleContext) {
 	// Install test deps
-	if !ctx.Config().KatiEnabled() {
-		pathInTestCases := android.PathForModuleInstall(ctx, "testcases", ctx.ModuleName())
-		if j.testConfig != nil {
-			ctx.InstallFile(pathInTestCases, ctx.ModuleName()+".config", j.testConfig)
-		}
-		dynamicConfig := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "DynamicConfig.xml")
-		if dynamicConfig.Valid() {
-			ctx.InstallFile(pathInTestCases, ctx.ModuleName()+".dynamic", dynamicConfig.Path())
-		}
-		testDeps := append(j.data, j.extraTestConfigs...)
-		for _, data := range android.SortedUniquePaths(testDeps) {
-			dataPath := android.DataPath{SrcPath: data}
-			ctx.InstallTestData(pathInTestCases, []android.DataPath{dataPath})
-		}
-		if j.outputFile != nil {
-			ctx.InstallFile(pathInTestCases, ctx.ModuleName()+".jar", j.outputFile)
-		}
+	outputFile := j.installedOutputFile
+	if outputFile == nil {
+		outputFile = j.outputFile
 	}
-
-	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
-		TestSuites: j.testProperties.Test_suites,
+	var testData []android.DataPath
+	for _, data := range j.data {
+		dataPath := android.DataPath{SrcPath: data}
+		testData = append(testData, dataPath)
+	}
+	ctx.SetTestSuiteInfo(android.TestSuiteInfo{
+		TestSuites:           j.testProperties.Test_suites,
+		MainFile:             outputFile,
+		MainFileStem:         j.Stem(),
+		MainFileExt:          ".jar",
+		ConfigFile:           j.testConfig,
+		ExtraConfigs:         j.extraTestConfigs,
+		NeedsArchFolder:      ctx.Device(),
+		NonArchData:          testData,
+		PerTestcaseDirectory: proptools.Bool(j.testProperties.Per_testcase_directory),
 	})
 }
 
@@ -1973,12 +1975,24 @@ func (j *TestHelperLibrary) GenerateAndroidBuildActions(ctx android.ModuleContex
 		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "null-suite")
 	}
 	optionalConfig := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "AndroidTest.xml")
+	var config android.Path
 	if optionalConfig.Valid() {
+		config = optionalConfig.Path()
 		moduleInfoJSON.TestConfig = append(moduleInfoJSON.TestConfig, optionalConfig.String())
 	}
 
-	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
-		TestSuites: j.testHelperLibraryProperties.Test_suites,
+	outputFile := j.installedOutputFile
+	if outputFile == nil {
+		outputFile = j.outputFile
+	}
+	ctx.SetTestSuiteInfo(android.TestSuiteInfo{
+		TestSuites:           j.testHelperLibraryProperties.Test_suites,
+		MainFile:             outputFile,
+		MainFileStem:         j.Stem(),
+		MainFileExt:          ".jar",
+		ConfigFile:           config,
+		NeedsArchFolder:      ctx.Device(),
+		PerTestcaseDirectory: proptools.Bool(j.testHelperLibraryProperties.Per_testcase_directory),
 	})
 }
 

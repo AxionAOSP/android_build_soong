@@ -204,29 +204,17 @@ func (test *testDecorator) install(ctx ModuleContext) {
 		test.Properties.Test_options.Unit_test = proptools.BoolPtr(true)
 	}
 
-	if !ctx.Config().KatiEnabled() { // TODO(spandandas): Remove the special case for kati
-		// Install the test config in testcases/ directory for atest.
-		r, ok := ctx.Module().(*Module)
-		if !ok {
-			ctx.ModuleErrorf("Not a rust test module")
-		}
-		// Install configs in the root of $PRODUCT_OUT/testcases/$module
-		testCases := android.PathForModuleInPartitionInstall(ctx, "testcases", ctx.ModuleName()+r.SubName())
-		if ctx.PrimaryArch() {
-			if test.testConfig != nil {
-				ctx.InstallFile(testCases, ctx.ModuleName()+".config", test.testConfig)
-			}
-			dynamicConfig := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "DynamicConfig.xml")
-			if dynamicConfig.Valid() {
-				ctx.InstallFile(testCases, ctx.ModuleName()+".dynamic", dynamicConfig.Path())
-			}
-		}
-		// Install tests and data in arch specific subdir $PRODUCT_OUT/testcases/$module/$arch
-		testCases = testCases.Join(ctx, ctx.Target().Arch.ArchType.String())
-		ctx.InstallTestData(testCases, test.data)
-		testPath := ctx.RustModule().OutputFile().Path()
-		ctx.InstallFile(testCases, testPath.Base(), testPath)
-	}
+	// Install the test config in testcases/ directory for atest.
+	mainFile := ctx.RustModule().OutputFile().Path()
+	ctx.SetTestSuiteInfo(android.TestSuiteInfo{
+		NameSuffix:      ctx.RustModule().SubName(),
+		TestSuites:      test.Properties.Test_suites,
+		MainFile:        mainFile,
+		MainFileStem:    mainFile.Base(),
+		ConfigFile:      test.testConfig,
+		Data:            test.data,
+		NeedsArchFolder: true,
+	})
 
 	test.binaryDecorator.installTestData(ctx, test.data)
 	test.binaryDecorator.install(ctx)
@@ -320,10 +308,6 @@ func (test *testDecorator) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *and
 	} else {
 		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "null-suite")
 	}
-
-	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
-		TestSuites: test.Properties.Test_suites,
-	})
 }
 
 func rustTestHostMultilib(ctx android.LoadHookContext) {

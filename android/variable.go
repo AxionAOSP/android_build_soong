@@ -550,6 +550,13 @@ type ProductVariables struct {
 	UseSoongNoticeXML *bool `json:",omitempty"`
 
 	StripByDefault *bool `json:",omitempty"`
+
+	CompatibilityTestcases map[string]CompatibilityTestcaseJSON
+}
+
+type CompatibilityTestcaseJSON struct {
+	OutDir              string `json:",omitempty"`
+	IncludeModuleFolder bool   `json:",omitempty"`
 }
 
 type PartitionQualifiedVariablesType struct {

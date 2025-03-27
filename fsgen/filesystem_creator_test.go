@@ -252,7 +252,7 @@ func TestRemoveOverriddenModulesFromDeps(t *testing.T) {
 			`),
 		}),
 		android.FixtureModifyConfig(func(config android.Config) {
-			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackages = []string{"libfoo", "libbar"}
+			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackages = []string{"libfoo", "libbar", "prebuiltA", "prebuiltB"}
 		}),
 	).RunTestWithBp(t, `
 java_library {
@@ -266,10 +266,19 @@ java_library {
 	name: "libbaz",
 	overrides: ["libfoo"], // overrides libfoo
 }
+java_import {
+	name: "prebuiltA",
+}
+java_import {
+	name: "prebuiltB",
+	overrides: ["prebuiltA"], // overrides prebuiltA
+}
 	`)
 	resolvedSystemDeps := result.TestContext.Config().Get(fsGenStateOnceKey).(*FsGenState).fsDeps["system"]
 	_, libFooInDeps := (*resolvedSystemDeps)["libfoo"]
 	android.AssertBoolEquals(t, "libfoo should not appear in deps because it has been overridden by libbaz. The latter is a required dep of libbar, which is listed in PRODUCT_PACKAGES", false, libFooInDeps)
+	_, prebuiltAInDeps := (*resolvedSystemDeps)["prebuiltA"]
+	android.AssertBoolEquals(t, "prebuiltA should not appear in deps because it has been overridden by prebuiltB. The latter is listed in PRODUCT_PACKAGES", false, prebuiltAInDeps)
 }
 
 func TestPrebuiltEtcModuleGen(t *testing.T) {

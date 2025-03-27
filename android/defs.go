@@ -126,6 +126,12 @@ var (
 			Description: "concatenate files to $out",
 		})
 
+	CatAndSort = pctx.AndroidStaticRule("CatAndSort",
+		blueprint.RuleParams{
+			Command:     "rm -f $out && cat $in > $out && sort -o $out $out",
+			Description: "concatenate sorted file contents to $out",
+		})
+
 	// Used only when USE_GOMA=true is set, to restrict non-goma jobs to the local parallelism value
 	localPool = blueprint.NewBuiltinPool("local_pool")
 

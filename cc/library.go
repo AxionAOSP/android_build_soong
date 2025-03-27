@@ -1078,10 +1078,6 @@ func (library *libraryDecorator) moduleInfoJSON(ctx ModuleContext, moduleInfoJSO
 	library.baseLinker.moduleInfoJSON(ctx, moduleInfoJSON)
 }
 
-func (library *libraryDecorator) testSuiteInfo(ctx ModuleContext) {
-	// not a test
-}
-
 func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 
