@@ -28,38 +28,21 @@ var (
 	}
 
 	arm64ArchVariantCflags = map[string][]string{
-		"armv8-a": []string{
-			"-march=armv8-a",
-		},
-		"armv8-a-branchprot": []string{
-			"-march=armv8-a",
-			"-mbranch-protection=standard",
-		},
-		"armv8-2a": []string{
-			"-march=armv8.2-a",
-		},
-		"armv8-2a-dotprod": []string{
-			"-march=armv8.2-a+dotprod",
-		},
-		// On ARMv9 and later, Pointer Authentication Codes (PAC) are mandatory,
-		// so -fstack-protector is unnecessary.
-		"armv9-a": []string{
-			"-march=armv9-a",
-			"-mbranch-protection=standard",
-			"-fno-stack-protector",
-		},
-		"armv9-2a": []string{
-			"-march=armv9.2-a",
-			"-mbranch-protection=standard",
-			"-fno-stack-protector",
-		},
-		"armv9-3a": []string{
-			"-march=armv9.3-a",
-			"-mbranch-protection=standard",
-			"-fno-stack-protector",
-		},
-		"armv9-4a": []string{
-			"-march=armv9.4-a",
+		"armv8-a":            {"-march=armv8-a"},
+		"armv8-a-branchprot": {"-march=armv8-a"},
+		"armv8-2a":           {"-march=armv8.2-a"},
+		"armv8-2a-dotprod":   {"-march=armv8.2-a+dotprod"},
+		"armv8-5a":           {"-march=armv8.5-a"},
+		"armv8-7a":           {"-march=armv8.7-a"},
+		"armv9-a":            {"-march=armv9-a"},
+		"armv9-2a":           {"-march=armv9.2-a"},
+		"armv9-3a":           {"-march=armv9.3-a"},
+		"armv9-4a":           {"-march=armv9.4-a"},
+	}
+
+	arm64ArchFeatureCflags = map[string][]string{
+		// When Pointer Authentication Codes (PAC) are available, -fstack-protector is unnecessary.
+		"branchprot": {
 			"-mbranch-protection=standard",
 			"-fno-stack-protector",
 		},
@@ -219,6 +202,9 @@ func arm64ToolchainFactory(arch android.Arch) Toolchain {
 	toolchainCflags := []string{"${config.Arm64" + arch.ArchVariant + "VariantCflags}"}
 	toolchainCflags = append(toolchainCflags,
 		variantOrDefault(arm64CpuVariantCflagsVar, arch.CpuVariant))
+	for _, feature := range arch.ArchFeatures {
+		toolchainCflags = append(toolchainCflags, arm64ArchFeatureCflags[feature]...)
+	}
 
 	extraLdflags := variantOrDefault(arm64CpuVariantLdflags, arch.CpuVariant)
 	return &toolchainArm64{

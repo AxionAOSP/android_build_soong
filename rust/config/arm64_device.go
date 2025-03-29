@@ -24,35 +24,26 @@ var (
 	Arm64RustFlags = []string{
 		"-C force-frame-pointers=y",
 	}
-	Arm64ArchFeatureRustFlags = map[string][]string{}
-	Arm64LinkFlags            = []string{}
+	Arm64ArchFeatureRustFlags = map[string][]string{
+		// branch-protection=bti,pac-ret is equivalent to Clang's mbranch-protection=standard
+		"branchprot": {
+			"-Z branch-protection=bti,pac-ret",
+			"-Z stack-protector=none",
+		},
+	}
+	Arm64LinkFlags = []string{}
 
 	Arm64ArchVariantRustFlags = map[string][]string{
-		"armv8-a": []string{},
-		"armv8-a-branchprot": []string{
-			// branch-protection=bti,pac-ret is equivalent to Clang's mbranch-protection=standard
-			"-Z branch-protection=bti,pac-ret",
-		},
-		"armv8-2a":         []string{},
-		"armv8-2a-dotprod": []string{},
-
-		// branch-protection=bti,pac-ret is equivalent to Clang's mbranch-protection=standard
-		"armv9-a": []string{
-			"-Z branch-protection=bti,pac-ret",
-			"-Z stack-protector=none",
-		},
-		"armv9-2a": []string{
-			"-Z branch-protection=bti,pac-ret",
-			"-Z stack-protector=none",
-		},
-		"armv9-3a": []string{
-			"-Z branch-protection=bti,pac-ret",
-			"-Z stack-protector=none",
-		},
-		"armv9-4a": []string{
-			"-Z branch-protection=bti,pac-ret",
-			"-Z stack-protector=none",
-		},
+		"armv8-a":            {},
+		"armv8-a-branchprot": {},
+		"armv8-2a":           {},
+		"armv8-2a-dotprod":   {},
+		"armv8-5a":           {},
+		"armv8-7a":           {},
+		"armv9-a":            {},
+		"armv9-2a":           {},
+		"armv9-3a":           {},
+		"armv9-4a":           {},
 	}
 )
 

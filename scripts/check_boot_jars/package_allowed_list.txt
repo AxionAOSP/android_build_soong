@@ -260,3 +260,8 @@ com\.google\.i18n\.phonenumbers
 # Packages used for Android in Chrome OS
 org\.chromium\.arc
 org\.chromium\.arc\..*
+
+###################################################
+# Packages used for wear-sdk in Wear OS
+com\.google\.wear
+com\.google\.wear\..*

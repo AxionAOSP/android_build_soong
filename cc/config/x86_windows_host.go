@@ -33,7 +33,8 @@ var (
 
 		// Use C99-compliant printf functions (%zd).
 		"-D__USE_MINGW_ANSI_STDIO=1",
-		// Admit to using >= Windows 7. Both are needed because of <_mingw.h>.
+		// Admit to using >= Windows 7.
+		// Both #defines are needed: https://learn.microsoft.com/en-us/cpp/porting/modifying-winver-and-win32-winnt
 		"-D_WIN32_WINNT=0x0601",
 		"-DWINVER=0x0601",
 		// Get 64-bit off_t and related functions.
