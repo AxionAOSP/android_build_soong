@@ -33,17 +33,64 @@ var (
 	}
 	Arm64LinkFlags = []string{}
 
+	// We could simply pass "-C target-feature=+v8.2a" and similar, but "v8.2a" and the other
+	// architecture version target-features are marked unstable and spam warnings in the build log,
+	// even though they're just aliases for groups of other features, most of which are stable.
+	// As a workaround, we'll simply look at this file and enable the constituent features:
+	// https://doc.rust-lang.org/nightly/nightly-rustc/src/rustc_target/target_features.rs.html
+
+	// Mandatory extensions from ARMv8.1-A and ARMv8.2-A
+	armv82aFeatures = "-C target-feature=+crc,+lse,+rdm,+pan,+lor,+vh,+ras,+dpb"
+	// Mandatory extensions from ARMv8.3-A, ARMv8.4-A and ARMv8.5-A
+	armv85aFeatures = "-C target-feature=+rcpc,+paca,+pacg,+jsconv,+dotprod,+dit,+flagm,+ssbs,+sb,+dpb2,+bti"
+	// Mandatory extensions from ARMv8.6-A and ARMv8.7-A
+	// "wfxt" is marked unstable, so we don't include it yet.
+	armv87aFeatures = "-C target-feature=+bf16,+i8mm"
+
 	Arm64ArchVariantRustFlags = map[string][]string{
 		"armv8-a":            {},
 		"armv8-a-branchprot": {},
-		"armv8-2a":           {},
-		"armv8-2a-dotprod":   {},
-		"armv8-5a":           {},
-		"armv8-7a":           {},
-		"armv9-a":            {},
-		"armv9-2a":           {},
-		"armv9-3a":           {},
-		"armv9-4a":           {},
+		"armv8-2a": {
+			armv82aFeatures,
+		},
+		"armv8-2a-dotprod": {
+			armv82aFeatures,
+			"-C target-feature=+dotprod",
+		},
+		"armv8-5a": {
+			armv82aFeatures,
+			armv85aFeatures,
+		},
+		"armv8-7a": {
+			armv82aFeatures,
+			armv85aFeatures,
+			armv87aFeatures,
+		},
+		"armv9-a": {
+			armv82aFeatures,
+			armv85aFeatures,
+			"-C target-feature=+sve2",
+		},
+		"armv9-2a": {
+			armv82aFeatures,
+			armv85aFeatures,
+			armv87aFeatures,
+			"-C target-feature=+sve2",
+		},
+		// ARMv9.3-A adds +hbc,+mops but they're both unstable
+		"armv9-3a": {
+			armv82aFeatures,
+			armv85aFeatures,
+			armv87aFeatures,
+			"-C target-feature=+sve2",
+		},
+		// ARMv9.4-A adds +cssc but it's unstable
+		"armv9-4a": {
+			armv82aFeatures,
+			armv85aFeatures,
+			armv87aFeatures,
+			"-C target-feature=+sve2",
+		},
 	}
 )
 
@@ -54,8 +101,12 @@ func init() {
 	pctx.StaticVariable("Arm64ToolchainLinkFlags", strings.Join(Arm64LinkFlags, " "))
 
 	for variant, rustFlags := range Arm64ArchVariantRustFlags {
-		pctx.StaticVariable("Arm64"+variant+"VariantRustFlags",
-			strings.Join(rustFlags, " "))
+		pctx.VariableFunc("Arm64"+variant+"VariantRustFlags", func(ctx android.PackageVarContext) string {
+			if ctx.Config().ReleaseRustUseArmTargetArchVariant() {
+				return strings.Join(rustFlags, " ")
+			}
+			return ""
+		})
 	}
 
 	pctx.StaticVariable("DEVICE_ARM64_RUSTC_FLAGS", strings.Join(Arm64RustFlags, " "))

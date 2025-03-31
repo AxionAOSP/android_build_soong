@@ -129,6 +129,15 @@ func (benchmark *benchmarkDecorator) install(ctx ModuleContext) {
 	}
 
 	benchmark.binaryDecorator.install(ctx)
+
+	mainFile := ctx.RustModule().OutputFile().Path()
+	ctx.SetTestSuiteInfo(android.TestSuiteInfo{
+		TestSuites:      benchmark.Properties.Test_suites,
+		MainFile:        mainFile,
+		MainFileExt:     mainFile.Ext(),
+		ConfigFile:      benchmark.testConfig,
+		NeedsArchFolder: true,
+	})
 }
 
 func (benchmark *benchmarkDecorator) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON) {
@@ -146,8 +155,4 @@ func (benchmark *benchmarkDecorator) moduleInfoJSON(ctx ModuleContext, moduleInf
 	} else {
 		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "null-suite")
 	}
-
-	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
-		TestSuites: benchmark.Properties.Test_suites,
-	})
 }

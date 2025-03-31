@@ -345,6 +345,13 @@ var (
 		},
 		"cFlags")
 
+	// Rule to generate the elf mapping textproto file from the symbols file.
+	elfSymbolsToProto = pctx.AndroidStaticRule("elf_symbols_to_proto", blueprint.RuleParams{
+		Command:     `${symbols_map} -elf $in -write_if_changed $out`,
+		Restat:      true,
+		CommandDeps: []string{"${symbols_map}"},
+	})
+
 	// Function pointer for producting staticlibs from rlibs. Corresponds to
 	// rust.TransformRlibstoStaticlib(), initialized in soong-rust (rust/builder.go init())
 	//
@@ -370,6 +377,8 @@ func init() {
 	pctx.StaticVariable("relPwd", PwdPrefix())
 
 	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
+
+	pctx.HostBinToolVariable("symbols_map", "symbols_map")
 }
 
 // builderFlags contains various types of command line flags (and settings) for use in building

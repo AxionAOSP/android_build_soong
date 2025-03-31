@@ -303,6 +303,10 @@ func (c Config) ReleaseAconfigCheckApiLevel() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_ACONFIG_CHECK_API_LEVEL")
 }
 
+func (c Config) ReleaseRustUseArmTargetArchVariant() bool {
+	return c.config.productVariables.GetBuildFlagBool("RELEASE_RUST_USE_ARM_TARGET_ARCH_VARIANT")
+}
+
 // A DeviceConfig object represents the configuration for a particular device
 // being built. For now there will only be one of these, but in the future there
 // may be multiple devices being built.

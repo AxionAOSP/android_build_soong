@@ -1295,6 +1295,8 @@ func (mod *Module) setSymbolsInfoProvider(ctx android.ModuleContext) {
 		if mod.sanitize != nil {
 			infos.AppendSymbols(mod.getSymbolInfo(ctx, mod.sanitize, mod.baseSymbolInfo(ctx)))
 		}
+
+		cc.CopySymbolsAndSetSymbolsInfoProvider(ctx, infos)
 	}
 }
 

@@ -113,6 +113,7 @@ bootstrap_go_package {
         "singleton.go",
         "singleton_module.go",
         "soong_config_modules.go",
+        "symbols.go",
         "team.go",
         "test_asserts.go",
         "test_mapping_zip.go",

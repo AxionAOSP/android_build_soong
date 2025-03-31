@@ -788,8 +788,18 @@ func (a *AndroidTestImport) GenerateAndroidBuildActions(ctx android.ModuleContex
 
 	a.data = android.PathsForModuleSrc(ctx, a.testProperties.Data)
 
-	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
-		TestSuites: a.testProperties.Test_suites,
+	var data []android.DataPath
+	for _, d := range a.data {
+		data = append(data, android.DataPath{SrcPath: d})
+	}
+
+	ctx.SetTestSuiteInfo(android.TestSuiteInfo{
+		TestSuites:                a.testProperties.Test_suites,
+		MainFile:                  a.outputFile,
+		MainFileStem:              a.outputFile.Base(),
+		NeedsArchFolder:           true,
+		Data:                      data,
+		CompatibilitySupportFiles: a.data,
 	})
 }
 

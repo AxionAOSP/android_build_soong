@@ -798,8 +798,6 @@ type linker interface {
 	defaultDistFiles() []android.Path
 
 	moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON)
-
-	testSuiteInfo(ctx ModuleContext)
 }
 
 // specifiedDeps is a tuple struct representing dependencies of a linked binary owned by the linker.
@@ -2182,6 +2180,89 @@ func (c *Module) baseSymbolInfo(ctx android.ModuleContext) *SymbolInfo {
 	}
 }
 
+func targetOutUnstripped(ctx android.ModuleContext) android.InstallPath {
+	return android.PathForModuleInPartitionInstall(ctx, "symbols")
+}
+
+func elfSymbolMappingDir(ctx android.ModuleContext) android.InstallPath {
+	return android.PathForModuleInPartitionInstall(ctx, "obj", "PACKAGING", "elf_symbol_mapping_intermediates")
+}
+
+// Generates the information to copy the symbols file to $PRODUCT_OUT/symbols directory based on
+// the symbols info. The actual copying is done in [CopySymbolsAndSetSymbolsInfoProvider].
+func getSymbolicOutputInfos(ctx android.ModuleContext, info *SymbolInfo) *android.SymbolicOutputInfo {
+
+	if info.Uninstallable || info.UnstrippedBinaryPath == nil {
+		return nil
+	}
+
+	mySymbolPath := info.ModuleDir
+
+	myUnstrippedPath := targetOutUnstripped(ctx).Join(ctx, strings.TrimPrefix(mySymbolPath, android.PathForModuleInPartitionInstall(ctx, "").String()+"/"))
+
+	myInstalledModuleStem := info.InstalledStem
+	if len(myInstalledModuleStem) == 0 {
+		myModuleStem := info.Stem
+		if len(myModuleStem) == 0 {
+			myModuleStem = info.Name
+		}
+		myInstalledModuleStem = myModuleStem + info.Suffix
+	}
+
+	symbolicOutput := myUnstrippedPath.Join(ctx, myInstalledModuleStem)
+
+	return &android.SymbolicOutputInfo{
+		UnstrippedOutputFile: info.UnstrippedBinaryPath,
+		SymbolicOutputPath:   symbolicOutput,
+	}
+}
+
+func CopySymbolsAndSetSymbolsInfoProvider(ctx android.ModuleContext, symbolInfos *SymbolInfos) {
+	if android.ShouldSkipAndroidMkProcessing(ctx, ctx.Module()) {
+		return
+	}
+	var symbolicOutputInfos android.SymbolicOutputInfos
+	for _, info := range symbolInfos.Symbols {
+		if so := getSymbolicOutputInfos(ctx, info); so != nil {
+			symbolicOutputInfos = append(symbolicOutputInfos, so)
+		}
+	}
+
+	// Remove duplicates
+	symbolicOutputInfos = android.FirstUniqueFunc(symbolicOutputInfos, func(a, b *android.SymbolicOutputInfo) bool {
+		return a.UnstrippedOutputFile.String() == b.UnstrippedOutputFile.String() &&
+			a.SymbolicOutputPath.String() == b.SymbolicOutputPath.String()
+	})
+
+	// Copy the symbols files to $PRODUCT_OUT/symbols directory
+	for _, info := range symbolicOutputInfos {
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.CpNoPreserveSymlink,
+			Input:  info.UnstrippedOutputFile,
+			Output: info.SymbolicOutputPath,
+		})
+	}
+
+	// Generate the elf mapping textproto file from the copied symbols file
+	for _, info := range symbolicOutputInfos {
+		symbolPath := info.SymbolicOutputPath
+		symbolSubDir := strings.TrimPrefix(filepath.Dir(symbolPath.String()), targetOutUnstripped(ctx).String()+"/")
+		protoBase := filepath.Base(symbolPath.String()) + ".textproto"
+		info.ElfMappingProtoPath = elfSymbolMappingDir(ctx).Join(ctx, symbolSubDir, protoBase)
+
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   elfSymbolsToProto,
+			Input:  symbolPath,
+			Output: info.ElfMappingProtoPath,
+		})
+	}
+
+	android.SetProvider(ctx, android.SymbolInfosProvider, symbolicOutputInfos)
+
+	ctx.CheckbuildFile(symbolicOutputInfos.SortedUniqueSymbolicOutputPaths()...)
+	ctx.CheckbuildFile(symbolicOutputInfos.SortedUniqueElfMappingProtoPaths()...)
+}
+
 func (c *Module) collectSymbolsInfo(ctx android.ModuleContext) {
 	if !c.hideApexVariantFromMake && !c.Properties.HideFromMake {
 		infos := &SymbolInfos{}
@@ -2194,6 +2275,8 @@ func (c *Module) collectSymbolsInfo(ctx android.ModuleContext) {
 			infos.AppendSymbols(c.getSymbolInfo(ctx, c.sanitize, c.baseSymbolInfo(ctx)))
 		}
 		infos.AppendSymbols(c.getSymbolInfo(ctx, c.installer, c.baseSymbolInfo(ctx)))
+
+		CopySymbolsAndSetSymbolsInfoProvider(ctx, infos)
 	}
 }
 
@@ -2524,8 +2607,6 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			name := v.ImplementationModuleName(ctx.OtherModuleName(c))
 			ccInfo.LinkerInfo.ImplementationModuleName = &name
 		}
-
-		c.linker.testSuiteInfo(ctx)
 	}
 	if c.library != nil {
 		ccInfo.LibraryInfo = &LibraryInfo{

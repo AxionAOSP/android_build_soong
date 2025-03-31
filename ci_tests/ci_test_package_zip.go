@@ -56,6 +56,8 @@ type CITestPackageProperties struct {
 	Tests_if_exist_common proptools.Configurable[[]string] `android:"arch_variant"`
 	// git-main only test modules. Will only be added as dependencies based on both 32bit and 64bit arch variant and the device os variant if exists.
 	Tests_if_exist_device_both proptools.Configurable[[]string] `android:"arch_variant"`
+	// git-main only test modules. Will only be added as dependencies based on the first supported arch variant and the device os variant if exists.
+	Tests_if_exist_device_first proptools.Configurable[[]string] `android:"arch_variant"`
 }
 
 type testPackageZipDepTagType struct {
@@ -94,6 +96,11 @@ func (p *testPackageZip) DepsMutator(ctx android.BottomUpMutatorContext) {
 	for _, t := range p.properties.Tests_if_exist_common.GetOrDefault(ctx, nil) {
 		if ctx.OtherModuleExists(t) {
 			ctx.AddVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(), testPackageZipDepTag, t)
+		}
+	}
+	for _, t := range p.properties.Tests_if_exist_device_first.GetOrDefault(ctx, nil) {
+		if ctx.OtherModuleExists(t) {
+			ctx.AddVariationDependencies(ctx.Config().AndroidFirstDeviceTarget.Variations(), testPackageZipDepTag, t)
 		}
 	}
 	p.addDeviceBothDeps(ctx, true)
@@ -234,8 +241,11 @@ func extendBuilderCommand(ctx android.ModuleContext, m android.Module, builder *
 		}
 		name := removeFileExtension(installedFile.Base())
 		// some apks have other apk as installed files, these additional files shouldn't be included
+		// But due to for override_android_test or override_android_app it will have OtherModuleName deps for the module
+		// it wants to override, to prevent it being ignored only skip this deps if it not the direct dependency of the
+		// test_packages.
 		isAppOrFramework := class == "app" || class == "framework"
-		if isAppOrFramework && name != ctx.OtherModuleName(m) {
+		if ctx.OtherModuleDependencyTag(m) != testPackageZipDepTag && isAppOrFramework && name != ctx.OtherModuleName(m) {
 			continue
 		}
 
