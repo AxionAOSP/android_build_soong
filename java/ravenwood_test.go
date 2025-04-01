@@ -15,6 +15,7 @@
 package java
 
 import (
+	"android/soong/aconfig"
 	"runtime"
 	"testing"
 
@@ -27,6 +28,9 @@ var prepareRavenwoodRuntime = android.GroupFixturePreparers(
 		RegisterRavenwoodBuildComponents(ctx)
 	}),
 	android.FixtureAddTextFile("ravenwood/Android.bp", `
+		all_aconfig_declarations {
+			name: "all_aconfig_declarations",
+		}
 		cc_library_shared {
 			name: "ravenwood-runtime-jni1",
 			host_supported: true,
@@ -111,6 +115,7 @@ func TestRavenwoodRuntime(t *testing.T) {
 	ctx := android.GroupFixturePreparers(
 		PrepareForIntegrationTestWithJava,
 		etc.PrepareForTestWithPrebuiltEtc,
+		aconfig.PrepareForTestWithAconfigBuildComponents,
 		prepareRavenwoodRuntime,
 	).RunTest(t)
 
@@ -129,6 +134,14 @@ func TestRavenwoodRuntime(t *testing.T) {
 	runtime.Output(installPathPrefix + "/ravenwood-runtime/lib64/ravenwood-runtime-jni3.so")
 	runtime.Output(installPathPrefix + "/ravenwood-runtime/ravenwood-data/app1.apk")
 	runtime.Output(installPathPrefix + "/ravenwood-runtime/fonts/Font.ttf")
+
+	runtime.Output(installPathPrefix + "/ravenwood-runtime/aconfig/metadata/aconfig/etc/all_aconfig_declarations.pb")
+	runtime.Output(installPathPrefix + "/ravenwood-runtime/aconfig/metadata/aconfig/etc/all_aconfig_declarations.textproto")
+	runtime.Output(installPathPrefix + "/ravenwood-runtime/aconfig/metadata/aconfig/maps/all_aconfig_declarations.package.map")
+	runtime.Output(installPathPrefix + "/ravenwood-runtime/aconfig/metadata/aconfig/maps/all_aconfig_declarations.flag.map")
+	runtime.Output(installPathPrefix + "/ravenwood-runtime/aconfig/metadata/aconfig/boot/all_aconfig_declarations.flag.info")
+	runtime.Output(installPathPrefix + "/ravenwood-runtime/aconfig/metadata/aconfig/boot/all_aconfig_declarations.val")
+
 	utils := ctx.ModuleForTests(t, "ravenwood-utils", "android_common")
 	utils.Output(installPathPrefix + "/ravenwood-utils/framework-rules.ravenwood.jar")
 }
@@ -142,6 +155,7 @@ func TestRavenwoodTest(t *testing.T) {
 	ctx := android.GroupFixturePreparers(
 		PrepareForIntegrationTestWithJava,
 		etc.PrepareForTestWithPrebuiltEtc,
+		aconfig.PrepareForTestWithAconfigBuildComponents,
 		prepareRavenwoodRuntime,
 	).RunTestWithBp(t, `
 		cc_library_shared {

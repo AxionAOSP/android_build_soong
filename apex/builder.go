@@ -78,7 +78,7 @@ func init() {
 	pctx.HostBinToolVariable("apex_ls", "apex-ls")
 	pctx.HostBinToolVariable("apex_sepolicy_tests", "apex_sepolicy_tests")
 	pctx.HostBinToolVariable("deapexer", "deapexer")
-	pctx.HostBinToolVariable("debugfs_static", "debugfs_static")
+	pctx.HostBinToolVariable("debugfs", "debugfs")
 	pctx.HostBinToolVariable("fsck_erofs", "fsck.erofs")
 	pctx.SourcePathVariable("genNdkUsedbyApexPath", "build/soong/scripts/gen_ndk_usedby_apex.sh")
 	pctx.HostBinToolVariable("conv_linker_config", "conv_linker_config")
@@ -226,9 +226,9 @@ var (
 	}, "image_dir")
 
 	apexHostVerifierRule = pctx.StaticRule("apexHostVerifierRule", blueprint.RuleParams{
-		Command: `${host_apex_verifier} --deapexer=${deapexer} --debugfs=${debugfs_static} ` +
+		Command: `${host_apex_verifier} --deapexer=${deapexer} --debugfs=${debugfs} ` +
 			`--fsckerofs=${fsck_erofs} --apex=${in} --partition_tag=${partition_tag} && touch ${out}`,
-		CommandDeps: []string{"${host_apex_verifier}", "${deapexer}", "${debugfs_static}", "${fsck_erofs}"},
+		CommandDeps: []string{"${host_apex_verifier}", "${deapexer}", "${debugfs}", "${fsck_erofs}"},
 		Description: "run host_apex_verifier",
 	}, "partition_tag")
 
@@ -240,7 +240,7 @@ var (
 
 	apexElfCheckerUnwantedRule = pctx.StaticRule("apexElfCheckerUnwantedRule", blueprint.RuleParams{
 		Command:     `${apex_elf_checker} --tool_path ${tool_path} --unwanted ${unwanted} ${in} && touch ${out}`,
-		CommandDeps: []string{"${apex_elf_checker}", "${deapexer}", "${debugfs_static}", "${fsck_erofs}", "${config.ClangBin}/llvm-readelf"},
+		CommandDeps: []string{"${apex_elf_checker}", "${deapexer}", "${debugfs}", "${fsck_erofs}", "${config.ClangBin}/llvm-readelf"},
 		Description: "run apex_elf_checker --unwanted",
 	}, "tool_path", "unwanted")
 )

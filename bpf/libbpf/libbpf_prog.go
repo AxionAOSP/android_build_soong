@@ -17,6 +17,7 @@ package libbpf_prog
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -100,6 +101,7 @@ type libbpfProg struct {
 	android.DefaultableModuleBase
 	properties LibbpfProgProperties
 	objs       android.Paths
+	installDir android.InstallPath
 }
 
 var _ android.ImageInterface = (*libbpfProg)(nil)
@@ -231,12 +233,12 @@ func (libbpf *libbpfProg) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		libbpf.objs = append(libbpf.objs, objStripped.WithoutRel())
 	}
 
-	installDir := android.PathForModuleInstall(ctx, "etc", "bpf")
+	libbpf.installDir = android.PathForModuleInstall(ctx, "etc", "bpf")
 	if len(libbpf.properties.Relative_install_path) > 0 {
-		installDir = installDir.Join(ctx, libbpf.properties.Relative_install_path)
+		libbpf.installDir = libbpf.installDir.Join(ctx, libbpf.properties.Relative_install_path)
 	}
 	for _, obj := range libbpf.objs {
-		ctx.PackageFile(installDir, obj.Base(), obj)
+		ctx.InstallFile(libbpf.installDir, obj.Base(), obj)
 	}
 
 	ctx.SetOutputFiles(libbpf.objs, "")
@@ -262,6 +264,7 @@ func (libbpf *libbpfProg) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", obj.String())
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", obj.Base())
 				fmt.Fprintln(w, "LOCAL_MODULE_CLASS := ETC")
+				fmt.Fprintln(w, "LOCAL_SOONG_INSTALLED_MODULE := ", filepath.Join(libbpf.installDir.String(), obj.Base()))
 				fmt.Fprintln(w, localModulePath)
 				// AconfigUpdateAndroidMkData may have added elements to Extra.  Process them here.
 				for _, extra := range data.Extra {

@@ -138,7 +138,8 @@ type configImpl struct {
 	// This file is a detailed dump of all soong-defined modules for debugging purposes.
 	// There's quite a bit of overlap with module-info.json and soong module graph. We
 	// could consider merging them.
-	moduleDebugFile string
+	moduleDebugFile      string
+	incrementalDebugFile string
 
 	// Which builder are we using
 	ninjaCommand ninjaCommandType
@@ -325,6 +326,10 @@ func NewConfig(ctx Context, args ...string) Config {
 		ret.moduleDebugFile, _ = filepath.Abs(shared.JoinPath(ret.SoongOutDir(), "soong-debug-info.json"))
 	}
 
+	if os.Getenv("GENERATE_INCREMENTAL_DEBUG") == "true" {
+		ret.incrementalDebugFile, _ = filepath.Abs(shared.JoinPath(ret.SoongOutDir(), "incremental-debug-info.json"))
+	}
+
 	// If SOONG_USE_PARTIAL_COMPILE is set, make it one of "true" or the empty string.
 	// This simplifies the generated Ninja rules, so that they only need to check for the empty string.
 	if value, ok := ret.environ.Get("SOONG_USE_PARTIAL_COMPILE"); ok {
@@ -406,6 +411,7 @@ func NewConfig(ctx Context, args ...string) Config {
 
 		// We read it here already, don't let others share in the fun
 		"GENERATE_SOONG_DEBUG",
+		"INCREMENTAL_SOONG_DEBUG",
 
 		// Use config.ninjaCommand instead.
 		"SOONG_NINJA",

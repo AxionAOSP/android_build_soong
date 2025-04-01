@@ -70,6 +70,36 @@ var (
 				"${aconfig}",
 			},
 		}, "cache_files")
+
+	allDeclarationsRuleStoragePackageMap = pctx.AndroidStaticRule("all_aconfig_declarations_storage_package_map",
+		blueprint.RuleParams{
+			Command: `${aconfig} create-storage --container ${container} --file package_map --out ${out} ${cache_files} --version ${version}`,
+			CommandDeps: []string{
+				"${aconfig}",
+			},
+		}, "container", "cache_files", "version")
+	allDeclarationsRuleStorageFlagMap = pctx.AndroidStaticRule("all_aconfig_declarations_storage_flag_map",
+		blueprint.RuleParams{
+			Command: `${aconfig} create-storage --container ${container} --file flag_map --out ${out} ${cache_files} --version ${version}`,
+			CommandDeps: []string{
+				"${aconfig}",
+			},
+		}, "container", "cache_files", "version")
+	allDeclarationsRuleStorageFlagInfo = pctx.AndroidStaticRule("all_aconfig_declarations_storage_flag_info",
+		blueprint.RuleParams{
+			Command: `${aconfig} create-storage --container ${container} --file flag_info --out ${out} ${cache_files} --version ${version}`,
+			CommandDeps: []string{
+				"${aconfig}",
+			},
+		}, "container", "cache_files", "version")
+	allDeclarationsRuleStorageFlagVal = pctx.AndroidStaticRule("all_aconfig_declarations_storage_flag_val",
+		blueprint.RuleParams{
+			Command: `${aconfig} create-storage --container ${container} --file flag_val --out ${out} ${cache_files} --version ${version}`,
+			CommandDeps: []string{
+				"${aconfig}",
+			},
+		}, "container", "cache_files", "version")
+
 	RecordFinalizedFlagsRule = pctx.AndroidStaticRule("RecordFinalizedFlagsRule",
 		blueprint.RuleParams{
 			Command: `${record-finalized-flags} ${parsed_flags_file} ${finalized_flags_file} ${api_signature_files} > ${out}`,
@@ -79,7 +109,10 @@ var (
 		}, "api_signature_files", "finalized_flags_file", "parsed_flags_file")
 	ExportedFlagCheckRule = pctx.AndroidStaticRule("ExportedFlagCheckRule",
 		blueprint.RuleParams{
-			Command: `${exported-flag-check} ${parsed_flags_file} ${finalized_flags_file} ${api_signature_files} > ${out}`,
+			Command: `${exported-flag-check} validate-exported-flags ` +
+				`  ${parsed_flags_file} ` +
+				`  ${finalized_flags_file} ` +
+				`  ${api_signature_files} > ${out}`,
 			CommandDeps: []string{
 				"${exported-flag-check}",
 			},

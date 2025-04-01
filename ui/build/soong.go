@@ -212,6 +212,11 @@ func (pb PrimaryBuilderFactory) primaryBuilderInvocation(config Config) bootstra
 		commonArgs = append(commonArgs, pb.config.moduleDebugFile)
 	}
 
+	if pb.config.incrementalDebugFile != "" {
+		commonArgs = append(commonArgs, "--incremental-debug-file")
+		commonArgs = append(commonArgs, pb.config.incrementalDebugFile)
+	}
+
 	commonArgs = append(commonArgs, "-l", filepath.Join(pb.config.FileListDir(), "Android.bp.list"))
 	invocationEnv := make(map[string]string)
 	if pb.debugPort != "" {

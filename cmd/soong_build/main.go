@@ -88,6 +88,7 @@ func init() {
 	// the time to remove them yet
 	flag.BoolVar(&cmdlineArgs.RunGoTests, "t", false, "build and run go tests during bootstrap")
 	flag.BoolVar(&cmdlineArgs.IncrementalBuildActions, "incremental-build-actions", false, "generate build actions incrementally")
+	flag.StringVar(&cmdlineArgs.IncrementalDebugFile, "incremental-debug-file", "", "incremental debug file")
 
 	// Disable deterministic randomization in the protobuf package, so incremental
 	// builds with unrelated Soong changes don't trigger large rebuilds (since we
@@ -356,6 +357,7 @@ func main() {
 		configCache, incremental = incrementalValid(ctx.Config(), configFile)
 	}
 	ctx.SetIncrementalAnalysis(incremental)
+	ctx.SetIncrementalDebugFile(cmdlineArgs.IncrementalDebugFile)
 
 	ctx.Register()
 	finalOutputFile, ninjaDeps := runSoongOnlyBuild(ctx)

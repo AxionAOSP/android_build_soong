@@ -14,6 +14,7 @@
 package java
 
 import (
+	"android/soong/aconfig"
 	"strconv"
 
 	"android/soong/android"
@@ -37,6 +38,7 @@ var ravenwoodUtilsTag = dependencyTag{name: "ravenwoodutils"}
 var ravenwoodRuntimeTag = dependencyTag{name: "ravenwoodruntime"}
 var ravenwoodTestResourceApkTag = dependencyTag{name: "ravenwoodtestresapk"}
 var ravenwoodTestInstResourceApkTag = dependencyTag{name: "ravenwoodtest-inst-res-apk"}
+var allAconfigModuleTag = dependencyTag{name: "all_aconfig"}
 
 var genManifestProperties = pctx.AndroidStaticRule("genManifestProperties",
 	blueprint.RuleParams{
@@ -338,6 +340,10 @@ func (r *ravenwoodLibgroup) DepsMutator(ctx android.BottomUpMutatorContext) {
 	for _, lib := range r.ravenwoodLibgroupProperties.Jni_libs.GetOrDefault(ctx, nil) {
 		ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), jniLibTag, lib)
 	}
+
+	if r.Name() == ravenwoodRuntimeName {
+		ctx.AddVariationDependencies(nil, allAconfigModuleTag, aconfig.AllAconfigModule)
+	}
 }
 
 func (r *ravenwoodLibgroup) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -354,6 +360,12 @@ func (r *ravenwoodLibgroup) GenerateAndroidBuildActions(ctx android.ModuleContex
 	android.SetProvider(ctx, ravenwoodLibgroupJniDepProvider, ravenwoodLibgroupJniDepProviderInfo{
 		names: jniDepNames,
 	})
+
+	install := func(to android.InstallPath, srcs ...android.Path) {
+		for _, s := range srcs {
+			ctx.InstallFile(to, s.Base(), s)
+		}
+	}
 
 	// Install our runtime into expected location for packaging
 	installPath := android.PathForModuleInstall(ctx, r.BaseModuleName())
@@ -373,19 +385,45 @@ func (r *ravenwoodLibgroup) GenerateAndroidBuildActions(ctx android.ModuleContex
 	soInstallPath := android.PathForModuleInstall(ctx, r.BaseModuleName()).Join(ctx, getLibPath(r.forceArchType))
 
 	for _, jniLib := range jniLibs {
-		ctx.InstallFile(soInstallPath, jniLib.path.Base(), jniLib.path)
+		install(soInstallPath, jniLib.path)
 	}
 
 	dataInstallPath := installPath.Join(ctx, "ravenwood-data")
 	data := android.PathsForModuleSrc(ctx, r.ravenwoodLibgroupProperties.Data)
 	for _, file := range data {
-		ctx.InstallFile(dataInstallPath, file.Base(), file)
+		install(dataInstallPath, file)
 	}
 
 	fontsInstallPath := installPath.Join(ctx, "fonts")
 	fonts := android.PathsForModuleSrc(ctx, r.ravenwoodLibgroupProperties.Fonts)
 	for _, file := range fonts {
-		ctx.InstallFile(fontsInstallPath, file.Base(), file)
+		install(fontsInstallPath, file)
+	}
+
+	// Copy aconfig flag storage files.
+	if r.Name() == ravenwoodRuntimeName {
+		allAconfigFound := false
+		if allAconfig := ctx.GetDirectDepProxyWithTag(aconfig.AllAconfigModule, allAconfigModuleTag); allAconfig != nil {
+			aadi, ok := android.OtherModuleProvider(ctx, allAconfig, aconfig.AllAconfigDeclarationsInfoProvider)
+			if ok {
+				// Binary proto file and the text proto.
+				// We don't really use the text proto file, but having this would make debugging easier.
+				install(installPath.Join(ctx, "aconfig/metadata/aconfig/etc"), aadi.ParsedFlagsFile, aadi.TextProtoFlagsFile)
+
+				// The "new" storage files.
+				install(installPath.Join(ctx, "aconfig/metadata/aconfig/maps"), aadi.StoragePackageMap, aadi.StorageFlagMap)
+				install(installPath.Join(ctx, "aconfig/metadata/aconfig/boot"), aadi.StorageFlagVal, aadi.StorageFlagInfo)
+
+				allAconfigFound = true
+			}
+		}
+		if !allAconfigFound {
+			if ctx.Config().AllowMissingDependencies() {
+				ctx.AddMissingDependencies([]string{aconfig.AllAconfigModule})
+			} else {
+				ctx.ModuleErrorf("missing dependency %q", aconfig.AllAconfigModule)
+			}
+		}
 	}
 
 	// Normal build should perform install steps
