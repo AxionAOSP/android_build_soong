@@ -41,7 +41,13 @@ func registerBootclasspathFragmentBuildComponents(ctx android.RegistrationContex
 	ctx.RegisterModuleType("prebuilt_bootclasspath_fragment", prebuiltBootclasspathFragmentFactory)
 }
 
-type BootclasspathFragmentInfo struct{}
+type BootclasspathFragmentInfo struct {
+	ImageName               *string
+	Contents                []string
+	ApiStubLibs             []string
+	CorePlatformApiStubLibs []string
+	Fragments               []ApexVariantReference
+}
 
 var BootclasspathFragmentInfoProvider = blueprint.NewProvider[BootclasspathFragmentInfo]()
 
@@ -73,10 +79,10 @@ func (b bootclasspathFragmentContentDependencyTag) ReplaceSourceWithPrebuilt() b
 
 // SdkMemberType causes dependencies added with this tag to be automatically added to the sdk as if
 // they were specified using java_boot_libs or java_sdk_libs.
-func (b bootclasspathFragmentContentDependencyTag) SdkMemberType(child android.Module) android.SdkMemberType {
+func (b bootclasspathFragmentContentDependencyTag) SdkMemberType(ctx android.ModuleContext, child android.ModuleProxy) android.SdkMemberType {
 	// If the module is a java_sdk_library then treat it as if it was specified in the java_sdk_libs
 	// property, otherwise treat if it was specified in the java_boot_libs property.
-	if javaSdkLibrarySdkMemberType.IsInstance(child) {
+	if javaSdkLibrarySdkMemberType.IsInstance(ctx, child) {
 		return javaSdkLibrarySdkMemberType
 	}
 
@@ -562,7 +568,13 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 		b.HideFromMake()
 	}
 
-	android.SetProvider(ctx, BootclasspathFragmentInfoProvider, BootclasspathFragmentInfo{})
+	android.SetProvider(ctx, BootclasspathFragmentInfoProvider, BootclasspathFragmentInfo{
+		ImageName:               b.properties.Image_name,
+		Contents:                b.properties.Contents.GetOrDefault(ctx, nil),
+		ApiStubLibs:             b.properties.Api.Stub_libs.GetOrDefault(ctx, nil),
+		CorePlatformApiStubLibs: b.properties.Core_platform_api.Stub_libs.GetOrDefault(ctx, nil),
+		Fragments:               b.properties.Fragments,
+	})
 }
 
 // getProfileProviderApex returns the name of the apex that provides a boot image profile, or an
@@ -809,7 +821,8 @@ func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleC
 	for _, module := range contents {
 		// If the module has a min_sdk_version that is higher than the target build release then it will
 		// not work on the target build release and so must not be included in the sdk snapshot.
-		minApiLevel := android.MinApiLevelForSdkSnapshot(ctx, module)
+		commonInfo := android.OtherModulePointerProviderOrDefault(ctx, module, android.CommonModuleInfoProvider)
+		minApiLevel := android.MinApiLevelForSdkSnapshot(commonInfo)
 		if minApiLevel.GreaterThan(targetApiLevel) {
 			continue
 		}
@@ -897,8 +910,8 @@ func (b *bootclasspathFragmentMemberType) AddDependencies(ctx android.SdkDepende
 	ctx.AddVariationDependencies(nil, dependencyTag, names...)
 }
 
-func (b *bootclasspathFragmentMemberType) IsInstance(module android.Module) bool {
-	_, ok := module.(*BootclasspathFragmentModule)
+func (b *bootclasspathFragmentMemberType) IsInstance(ctx android.ModuleContext, module android.ModuleProxy) bool {
+	_, ok := android.OtherModuleProvider(ctx, module, BootclasspathFragmentInfoProvider)
 	return ok
 }
 
@@ -958,15 +971,15 @@ type bootclasspathFragmentSdkMemberProperties struct {
 	Filtered_flags_path android.OptionalPath `supported_build_releases:"Tiramisu+"`
 }
 
-func (b *bootclasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
-	module := variant.(*BootclasspathFragmentModule)
+func (b *bootclasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.ModuleProxy) {
+	mctx := ctx.SdkModuleContext()
+	module, _ := android.OtherModuleProvider(mctx, variant, BootclasspathFragmentInfoProvider)
 
-	b.Image_name = module.properties.Image_name
-	b.Contents = module.properties.Contents.GetOrDefault(ctx.SdkModuleContext(), nil)
+	b.Image_name = module.ImageName
+	b.Contents = module.Contents
 
 	// Get the hidden API information from the module.
-	mctx := ctx.SdkModuleContext()
-	hiddenAPIInfo, _ := android.OtherModuleProvider(mctx, module, HiddenAPIInfoForSdkProvider)
+	hiddenAPIInfo, _ := android.OtherModuleProvider(mctx, variant, HiddenAPIInfoForSdkProvider)
 	b.Flag_files_by_category = hiddenAPIInfo.FlagFilesByCategory
 
 	// Copy all the generated file paths.
@@ -982,11 +995,11 @@ func (b *bootclasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx andro
 	b.Filtered_flags_path = android.OptionalPathForPath(hiddenAPIInfo.FilteredFlagsPath)
 
 	// Copy stub_libs properties.
-	b.Stub_libs = module.properties.Api.Stub_libs.GetOrDefault(mctx, nil)
-	b.Core_platform_stub_libs = module.properties.Core_platform_api.Stub_libs.GetOrDefault(mctx, nil)
+	b.Stub_libs = module.ApiStubLibs
+	b.Core_platform_stub_libs = module.CorePlatformApiStubLibs
 
 	// Copy fragment properties.
-	b.Fragments = module.properties.Fragments
+	b.Fragments = module.Fragments
 }
 
 func (b *bootclasspathFragmentSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {

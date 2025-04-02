@@ -1022,6 +1022,12 @@ func (c *commonToSdkLibraryAndImport) generateCommonBuildActions(ctx android.Mod
 		ExportableStubDexJarPaths: exportableStubPaths,
 		RemovedTxtFiles:           removedApiFilePaths,
 		SharedLibrary:             c.sharedLibrary(),
+		DoctagPaths:               c.doctagPaths,
+		OnBootclasspathSince:      c.commonSdkLibraryProperties.On_bootclasspath_since,
+		OnBootclasspathBefore:     c.commonSdkLibraryProperties.On_bootclasspath_before,
+		MinDeviceSdk:              c.commonSdkLibraryProperties.Min_device_sdk,
+		MaxDeviceSdk:              c.commonSdkLibraryProperties.Max_device_sdk,
+		ImplLibProfileGuided:      c.implLibraryInfo != nil && c.implLibraryInfo.ProfileGuided,
 	}
 }
 
@@ -1204,6 +1210,18 @@ var _ SdkLibraryComponentDependency = (*Import)(nil)
 var _ SdkLibraryComponentDependency = (*SdkLibrary)(nil)
 var _ SdkLibraryComponentDependency = (*SdkLibraryImport)(nil)
 
+type ApiScopePathsInfo struct {
+	StubsImplPath      android.Paths
+	CurrentApiFilePath android.OptionalPath
+	RemovedApiFilePath android.OptionalPath
+	StubsSrcJar        android.OptionalPath
+	AnnotationsZip     android.OptionalPath
+}
+
+type ApiScopePropsInfo struct {
+	SdkVersion *string
+}
+
 type SdkLibraryInfo struct {
 	// GeneratingLibs is the names of the library modules that this sdk library
 	// generates. Note that this only includes the name of the modules that other modules can
@@ -1224,7 +1242,16 @@ type SdkLibraryInfo struct {
 	// Whether if this can be used as a shared library.
 	SharedLibrary bool
 
-	Prebuilt bool
+	Prebuilt              bool
+	DistStem              string
+	DoctagPaths           android.Paths
+	OnBootclasspathSince  *string
+	OnBootclasspathBefore *string
+	MinDeviceSdk          *string
+	MaxDeviceSdk          *string
+	ImplLibProfileGuided  bool
+	ApiScopePaths         map[string]ApiScopePathsInfo
+	ApiScopeProps         map[string]ApiScopePropsInfo
 }
 
 var SdkLibraryInfoProvider = blueprint.NewProvider[SdkLibraryInfo]()
@@ -1582,13 +1609,39 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 
 	javaInfo := &JavaInfo{
 		JacocoReportClassesFile: module.jacocoReportClassesFile,
+		CompileDex:              module.dexProperties.Compile_dex,
 	}
 	setExtraJavaInfo(ctx, ctx.Module(), javaInfo)
 	android.SetProvider(ctx, JavaInfoProvider, javaInfo)
 
 	sdkLibInfo.GeneratingLibs = generatingLibs
 	sdkLibInfo.Prebuilt = false
+	sdkLibInfo.DistStem = module.distStem()
+	if module.scopePaths != nil {
+		sdkLibInfo.ApiScopePaths = make(map[string]ApiScopePathsInfo)
+		for k, v := range module.scopePaths {
+			sdkLibInfo.ApiScopePaths[k.name] = ApiScopePathsInfo{
+				StubsImplPath:      v.stubsImplPath,
+				CurrentApiFilePath: v.currentApiFilePath,
+				RemovedApiFilePath: v.removedApiFilePath,
+				StubsSrcJar:        v.stubsSrcJar,
+				AnnotationsZip:     v.annotationsZip,
+			}
+		}
+	}
+	if module.scopeToProperties != nil {
+		sdkLibInfo.ApiScopeProps = make(map[string]ApiScopePropsInfo)
+		for k, v := range module.scopeToProperties {
+			sdkLibInfo.ApiScopeProps[k.name] = ApiScopePropsInfo{
+				SdkVersion: v.Sdk_version,
+			}
+		}
+	}
 	android.SetProvider(ctx, SdkLibraryInfoProvider, sdkLibInfo)
+
+	android.SetProvider(ctx, JavaLibraryInfoProvider, JavaLibraryInfo{
+		PermittedPackages: module.PermittedPackagesForUpdatableBootJars(),
+	})
 }
 
 func setOutputFilesFromJavaInfo(ctx android.ModuleContext, info *JavaInfo) {
@@ -1630,12 +1683,17 @@ func (module *SdkLibrary) apiDistPath(apiScope *apiScope) string {
 
 // Get the sdk version for use when compiling the stubs library.
 func (module *SdkLibrary) sdkVersionForStubsLibrary(mctx android.EarlyModuleContext, apiScope *apiScope) string {
-	scopeProperties := module.scopeToProperties[apiScope]
-	if scopeProperties.Sdk_version != nil {
-		return proptools.String(scopeProperties.Sdk_version)
+	return getSdkVersionForStubsLibrary(mctx, apiScope, module.scopeToProperties[apiScope].Sdk_version,
+		android.SdkContext(&module.Library))
+}
+
+func getSdkVersionForStubsLibrary(mctx android.EarlyModuleContext, apiScope *apiScope,
+	sdkVersion *string, sdkContext SdkVersionContext) string {
+	if sdkVersion != nil {
+		return proptools.String(sdkVersion)
 	}
 
-	sdkDep := decodeSdkDep(mctx, android.SdkContext(&module.Library))
+	sdkDep := decodeSdkDep(mctx, sdkContext)
 	if sdkDep.hasStandardLibs() {
 		// If building against a standard sdk then use the sdk version appropriate for the scope.
 		return apiScope.sdkVersion
@@ -2341,9 +2399,9 @@ func (s *sdkLibrarySdkMemberType) AddDependencies(ctx android.SdkDependencyConte
 	ctx.AddVariationDependencies(nil, dependencyTag, names...)
 }
 
-func (s *sdkLibrarySdkMemberType) IsInstance(module android.Module) bool {
-	_, ok := module.(*SdkLibrary)
-	return ok
+func (s *sdkLibrarySdkMemberType) IsInstance(ctx android.ModuleContext, module android.ModuleProxy) bool {
+	info, ok := android.OtherModuleProvider(ctx, module, SdkLibraryInfoProvider)
+	return ok && !info.Prebuilt
 }
 
 func (s *sdkLibrarySdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
@@ -2436,49 +2494,70 @@ type scopeProperties struct {
 	SdkVersion     string
 }
 
-func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
-	sdk := variant.(*SdkLibrary)
+type SdkVersionContext interface {
+	SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec
+	SystemModules() string
+}
+
+type SdkVersionContextProviderImpl struct {
+	javaInfo *JavaInfo
+}
+
+func (s *SdkVersionContextProviderImpl) SdkVersion(_ android.EarlyModuleContext) android.SdkSpec {
+	return s.javaInfo.SdkVersion
+}
+func (s *SdkVersionContextProviderImpl) SystemModules() string {
+	return s.javaInfo.SystemModules
+}
+
+func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.ModuleProxy) {
+	mctx := ctx.SdkModuleContext()
+	javaInfo := android.OtherModulePointerProviderOrDefault(mctx, variant, JavaInfoProvider)
+	libraryInfo := android.OtherModuleProviderOrDefault(mctx, variant, JavaLibraryInfoProvider)
+	sdkInfo := android.OtherModuleProviderOrDefault(mctx, variant, SdkLibraryInfoProvider)
 
 	// Copy the stem name for files in the sdk snapshot.
-	s.Stem = sdk.distStem()
+	s.Stem = sdkInfo.DistStem
 
 	s.Scopes = make(map[*apiScope]*scopeProperties)
 	for _, apiScope := range AllApiScopes {
-		paths := sdk.findScopePaths(apiScope)
-		if paths == nil {
+		paths, ok := sdkInfo.ApiScopePaths[apiScope.name]
+		if !ok {
 			continue
 		}
 
-		jars := paths.stubsImplPath
+		jars := paths.StubsImplPath
 		if len(jars) > 0 {
 			properties := scopeProperties{}
 			properties.Jars = jars
-			properties.SdkVersion = sdk.sdkVersionForStubsLibrary(ctx.SdkModuleContext(), apiScope)
-			properties.StubsSrcJar = paths.stubsSrcJar.Path()
-			if paths.currentApiFilePath.Valid() {
-				properties.CurrentApiFile = paths.currentApiFilePath.Path()
+			properties.SdkVersion = getSdkVersionForStubsLibrary(mctx, apiScope, sdkInfo.ApiScopeProps[apiScope.name].SdkVersion,
+				&SdkVersionContextProviderImpl{javaInfo})
+
+			properties.StubsSrcJar = paths.StubsSrcJar.Path()
+			if paths.CurrentApiFilePath.Valid() {
+				properties.CurrentApiFile = paths.CurrentApiFilePath.Path()
 			}
-			if paths.removedApiFilePath.Valid() {
-				properties.RemovedApiFile = paths.removedApiFilePath.Path()
+			if paths.RemovedApiFilePath.Valid() {
+				properties.RemovedApiFile = paths.RemovedApiFilePath.Path()
 			}
 			// The annotations zip is only available for modules that set annotations_enabled: true.
-			if paths.annotationsZip.Valid() {
-				properties.AnnotationsZip = paths.annotationsZip.Path()
+			if paths.AnnotationsZip.Valid() {
+				properties.AnnotationsZip = paths.AnnotationsZip.Path()
 			}
 			s.Scopes[apiScope] = &properties
 		}
 	}
 
-	s.Shared_library = proptools.BoolPtr(sdk.sharedLibrary())
-	s.Compile_dex = sdk.dexProperties.Compile_dex
-	s.Doctag_paths = sdk.doctagPaths
-	s.Permitted_packages = sdk.PermittedPackagesForUpdatableBootJars()
-	s.On_bootclasspath_since = sdk.commonSdkLibraryProperties.On_bootclasspath_since
-	s.On_bootclasspath_before = sdk.commonSdkLibraryProperties.On_bootclasspath_before
-	s.Min_device_sdk = sdk.commonSdkLibraryProperties.Min_device_sdk
-	s.Max_device_sdk = sdk.commonSdkLibraryProperties.Max_device_sdk
+	s.Shared_library = proptools.BoolPtr(sdkInfo.SharedLibrary)
+	s.Compile_dex = javaInfo.CompileDex
+	s.Doctag_paths = sdkInfo.DoctagPaths
+	s.Permitted_packages = libraryInfo.PermittedPackages
+	s.On_bootclasspath_since = sdkInfo.OnBootclasspathSince
+	s.On_bootclasspath_before = sdkInfo.OnBootclasspathBefore
+	s.Min_device_sdk = sdkInfo.MinDeviceSdk
+	s.Max_device_sdk = sdkInfo.MaxDeviceSdk
 
-	if sdk.implLibraryInfo != nil && sdk.implLibraryInfo.ProfileGuided {
+	if sdkInfo.ImplLibProfileGuided {
 		s.DexPreoptProfileGuided = proptools.BoolPtr(true)
 	}
 }

@@ -653,6 +653,11 @@ type ApexBundleDepsData struct {
 
 var ApexBundleDepsDataProvider = blueprint.NewProvider[ApexBundleDepsData]()
 
+// ApexBundleTypeInfo is used to identify the module is a apexBundle module.
+type ApexBundleTypeInfo struct{}
+
+var ApexBundleTypeInfoProvider = blueprint.NewProvider[ApexBundleTypeInfo]()
+
 func (d *ApexBundleDepsInfo) FlatListPath() Path {
 	return d.flatListPath
 }

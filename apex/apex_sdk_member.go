@@ -44,8 +44,8 @@ func (mt *apexSdkMemberType) AddDependencies(ctx android.SdkDependencyContext, d
 	ctx.AddVariationDependencies(nil, dependencyTag, names...)
 }
 
-func (mt *apexSdkMemberType) IsInstance(module android.Module) bool {
-	_, ok := module.(*apexBundle)
+func (mt *apexSdkMemberType) IsInstance(ctx android.ModuleContext, module android.ModuleProxy) bool {
+	_, ok := android.OtherModuleProvider(ctx, module, android.ApexBundleTypeInfoProvider)
 	return ok
 }
 

@@ -131,6 +131,8 @@ type SystemModulesProviderInfo struct {
 
 	// depset of header jars for this module and all transitive static dependencies
 	TransitiveStaticLibsHeaderJars depset.DepSet[android.Path]
+	Prebuilt                       bool
+	Libs                           []string
 }
 
 var SystemModulesProvider = blueprint.NewProvider[*SystemModulesProviderInfo]()
@@ -150,7 +152,17 @@ type SystemModulesProperties struct {
 	Libs []string
 }
 
+func (system *systemModulesImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	info := system.commonBuildActions(ctx)
+	info.Prebuilt = true
+	android.SetProvider(ctx, SystemModulesProvider, info)
+}
+
 func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	android.SetProvider(ctx, SystemModulesProvider, system.commonBuildActions(ctx))
+}
+
+func (system *SystemModules) commonBuildActions(ctx android.ModuleContext) *SystemModulesProviderInfo {
 	var jars android.Paths
 
 	var transitiveStaticLibsHeaderJars []depset.DepSet[android.Path]
@@ -163,12 +175,13 @@ func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleConte
 
 	system.outputDir, system.outputDeps = TransformJarsToSystemModules(ctx, jars)
 
-	android.SetProvider(ctx, SystemModulesProvider, &SystemModulesProviderInfo{
+	return &SystemModulesProviderInfo{
 		HeaderJars:                     jars,
 		OutputDir:                      system.outputDir,
 		OutputDirDeps:                  system.outputDeps,
 		TransitiveStaticLibsHeaderJars: depset.New(depset.PREORDER, nil, transitiveStaticLibsHeaderJars),
-	})
+		Libs:                           system.properties.Libs,
+	}
 }
 
 // ComponentDepsMutator is called before prebuilt modules without a corresponding source module are
@@ -275,12 +288,11 @@ func (mt *systemModulesSdkMemberType) AddDependencies(ctx android.SdkDependencyC
 	ctx.AddVariationDependencies(nil, dependencyTag, names...)
 }
 
-func (mt *systemModulesSdkMemberType) IsInstance(module android.Module) bool {
-	if _, ok := module.(*SystemModules); ok {
+func (mt *systemModulesSdkMemberType) IsInstance(ctx android.ModuleContext, module android.ModuleProxy) bool {
+	if info, ok := android.OtherModuleProvider(ctx, module, SystemModulesProvider); ok {
 		// A prebuilt system module cannot be added as a member of an sdk because the source and
 		// snapshot instances would conflict.
-		_, ok := module.(*systemModulesImport)
-		return !ok
+		return !info.Prebuilt
 	}
 	return false
 }
@@ -299,9 +311,8 @@ func (mt *systemModulesSdkMemberType) CreateVariantPropertiesStruct() android.Sd
 	return &systemModulesInfoProperties{}
 }
 
-func (p *systemModulesInfoProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
-	systemModule := variant.(*SystemModules)
-	p.Libs = systemModule.properties.Libs
+func (p *systemModulesInfoProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.ModuleProxy) {
+	p.Libs = android.OtherModulePointerProviderOrDefault(ctx.SdkModuleContext(), variant, SystemModulesProvider).Libs
 }
 
 func (p *systemModulesInfoProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {

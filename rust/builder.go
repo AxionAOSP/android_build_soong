@@ -559,12 +559,18 @@ func Rustdoc(ctx ModuleContext, main android.Path, deps PathDeps,
 	// https://github.com/rust-lang/rust/blob/master/src/librustdoc/html/render/write_shared.rs#L144-L146
 	docDir := android.PathForOutput(ctx, "rustdoc")
 
+	var implicits android.Paths
+	implicits = append(implicits, rustLibsToPaths(deps.RLibs)...)
+	implicits = append(implicits, rustLibsToPaths(deps.DyLibs)...)
+	implicits = append(implicits, rustLibsToPaths(deps.ProcMacros)...)
+
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        rustdoc,
 		Description: "rustdoc " + main.Rel(),
 		Output:      docTimestampFile,
 		Input:       main,
 		Implicit:    ctx.RustModule().UnstrippedOutputFile(),
+		Implicits:   implicits,
 		Args: map[string]string{
 			"rustdocFlags": strings.Join(rustdocFlags, " "),
 			"outDir":       docDir.String(),

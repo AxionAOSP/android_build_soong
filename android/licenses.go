@@ -36,7 +36,7 @@ type licensesDependencyTag struct {
 	blueprint.BaseDependencyTag
 }
 
-func (l licensesDependencyTag) SdkMemberType(Module) SdkMemberType {
+func (l licensesDependencyTag) SdkMemberType(_ ModuleContext, _ ModuleProxy) SdkMemberType {
 	// Add the supplied module to the sdk as a license module.
 	return LicenseModuleSdkMemberType
 }

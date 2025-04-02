@@ -47,19 +47,21 @@ type FlagArtifact struct {
 // Key is flag name.
 type FlagArtifacts map[string]*FlagArtifact
 
-func FlagArtifactFactory(declPath string) *FlagArtifact {
-	fd := &rc_proto.FlagDeclaration{}
-	fa := &FlagArtifact{
+func FlagArtifactFactory(declPath string) (fa *FlagArtifact, err error) {
+	fd, err := FlagDeclarationFactory(declPath)
+	if err != nil {
+		return nil, err
+	}
+	fa = &FlagArtifact{
 		FlagDeclaration:  fd,
 		DeclarationIndex: -1,
 		Traces:           []*rc_proto.Tracepoint{},
 	}
 	if declPath != "" {
-		LoadMessage(declPath, fd)
 		fa.Value = fd.GetValue()
 		fa.Traces = append(fa.Traces, &rc_proto.Tracepoint{Source: proto.String(declPath), Value: fa.Value})
 	}
-	return fa
+	return fa, nil
 }
 
 func FlagArtifactsFactory(artifactsPath string) *FlagArtifacts {

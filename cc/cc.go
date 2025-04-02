@@ -80,6 +80,7 @@ type LinkerInfo struct {
 	SharedLibs []string
 	// list of modules that should only provide headers for this module.
 	HeaderLibs               []string
+	SystemSharedLibs         []string
 	ImplementationModuleName *string
 
 	BinaryDecoratorInfo       *BinaryDecoratorInfo
@@ -91,7 +92,11 @@ type LinkerInfo struct {
 	PrebuiltLibraryLinkerInfo *PrebuiltLibraryLinkerInfo
 }
 
-type BinaryDecoratorInfo struct{}
+type BinaryDecoratorInfo struct {
+	StaticExecutable bool
+	Nocrt            bool
+}
+
 type LibraryDecoratorInfo struct {
 	ExportIncludeDirs []string
 	InjectBsslHash    bool
@@ -99,6 +104,11 @@ type LibraryDecoratorInfo struct {
 	// not included in the NDK.
 	NdkSysrootPath android.Path
 	VndkFileName   string
+	// rename host libraries to prevent overlap with system installed libraries
+	UniqueHostSoname    *bool
+	SharedLibs          []string
+	SystemSharedLibs    []string
+	StubsSymbolFilePath android.Path
 }
 
 type SnapshotInfo struct {
@@ -120,7 +130,9 @@ type StubDecoratorInfo struct {
 type ObjectLinkerInfo struct {
 	// Location of the object in the sysroot. Empty if the object is not
 	// included in the NDK.
-	NdkSysrootPath android.Path
+	NdkSysrootPath   android.Path
+	SharedLibs       []string
+	SystemSharedLibs []string
 }
 
 type PrebuiltLibraryLinkerInfo struct {
@@ -128,7 +140,8 @@ type PrebuiltLibraryLinkerInfo struct {
 }
 
 type LibraryInfo struct {
-	BuildStubs bool
+	BuildStubs       bool
+	AllStubsVersions []string
 }
 
 type InstallerInfo struct {
@@ -142,17 +155,33 @@ type LocalOrGlobalFlagsInfo struct {
 	CppFlags    []string // Flags that apply to C++ source files
 }
 
+type SanitizeInfo struct {
+	IsUnsanitizedVariant bool
+	Sanitize             SanitizeUserProps
+}
+
+type StlInfo struct {
+	Stl *string
+}
+
 // Common info about the cc module.
 type CcInfo struct {
 	IsPrebuilt             bool
 	CmakeSnapshotSupported bool
 	HasLlndkStubs          bool
 	DataPaths              []android.DataPath
-	CompilerInfo           *CompilerInfo
-	LinkerInfo             *LinkerInfo
-	SnapshotInfo           *SnapshotInfo
-	LibraryInfo            *LibraryInfo
-	InstallerInfo          *InstallerInfo
+	VendorAvailable        bool
+	OdmAvailable           bool
+	ProductAvailable       bool
+	// Allowable SdkMemberTypes of this module type.
+	SdkMemberTypes []android.SdkMemberType
+	CompilerInfo   *CompilerInfo
+	LinkerInfo     *LinkerInfo
+	SnapshotInfo   *SnapshotInfo
+	LibraryInfo    *LibraryInfo
+	InstallerInfo  *InstallerInfo
+	StlInfo        *StlInfo
+	SanitizeInfo   *SanitizeInfo
 }
 
 var CcInfoProvider = blueprint.NewProvider[*CcInfo]()
@@ -2541,6 +2570,10 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		CmakeSnapshotSupported: proptools.Bool(c.Properties.Cmake_snapshot_supported),
 		HasLlndkStubs:          c.HasLlndkStubs(),
 		DataPaths:              c.DataPaths(),
+		VendorAvailable:        c.VendorAvailable(),
+		OdmAvailable:           c.OdmAvailable(),
+		ProductAvailable:       c.ProductAvailable(),
+		SdkMemberTypes:         c.sdkMemberTypes,
 	}
 	if c.compiler != nil {
 		cflags := c.compiler.baseCompilerProps().Cflags
@@ -2564,21 +2597,34 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if c.linker != nil {
 		baseLinkerProps := c.linker.baseLinkerProps()
 		ccInfo.LinkerInfo = &LinkerInfo{
-			WholeStaticLibs: baseLinkerProps.Whole_static_libs.GetOrDefault(ctx, nil),
-			StaticLibs:      baseLinkerProps.Static_libs.GetOrDefault(ctx, nil),
-			SharedLibs:      baseLinkerProps.Shared_libs.GetOrDefault(ctx, nil),
-			HeaderLibs:      baseLinkerProps.Header_libs.GetOrDefault(ctx, nil),
+			WholeStaticLibs:  baseLinkerProps.Whole_static_libs.GetOrDefault(ctx, nil),
+			StaticLibs:       baseLinkerProps.Static_libs.GetOrDefault(ctx, nil),
+			SharedLibs:       baseLinkerProps.Shared_libs.GetOrDefault(ctx, nil),
+			HeaderLibs:       baseLinkerProps.Header_libs.GetOrDefault(ctx, nil),
+			SystemSharedLibs: baseLinkerProps.System_shared_libs,
 		}
 		switch decorator := c.linker.(type) {
 		case *binaryDecorator:
-			ccInfo.LinkerInfo.BinaryDecoratorInfo = &BinaryDecoratorInfo{}
-		case *libraryDecorator:
-			lk := c.linker.(*libraryDecorator)
-			ccInfo.LinkerInfo.LibraryDecoratorInfo = &LibraryDecoratorInfo{
-				InjectBsslHash: Bool(lk.Properties.Inject_bssl_hash),
-				NdkSysrootPath: lk.ndkSysrootPath,
-				VndkFileName:   lk.getLibNameHelper(c.BaseModuleName(), true, false) + ".so",
+			ccInfo.LinkerInfo.BinaryDecoratorInfo = &BinaryDecoratorInfo{
+				StaticExecutable: decorator.static(),
+				Nocrt:            Bool(decorator.baseLinker.Properties.Nocrt),
 			}
+		case *libraryDecorator:
+			ccInfo.LinkerInfo.LibraryDecoratorInfo = &LibraryDecoratorInfo{
+				InjectBsslHash:      Bool(decorator.Properties.Inject_bssl_hash),
+				NdkSysrootPath:      decorator.ndkSysrootPath,
+				VndkFileName:        decorator.getLibNameHelper(c.BaseModuleName(), true, false) + ".so",
+				UniqueHostSoname:    decorator.Properties.Unique_host_soname,
+				StubsSymbolFilePath: decorator.stubsSymbolFilePath,
+			}
+			var properties StaticOrSharedProperties
+			if decorator.static() {
+				properties = decorator.StaticProperties.Static
+			} else if decorator.shared() {
+				properties = decorator.SharedProperties.Shared
+			}
+			ccInfo.LinkerInfo.LibraryDecoratorInfo.SharedLibs = properties.Shared_libs.GetOrDefault(ctx, nil)
+			ccInfo.LinkerInfo.LibraryDecoratorInfo.SystemSharedLibs = properties.System_shared_libs
 		case *testBinary:
 			ccInfo.LinkerInfo.TestBinaryInfo = &TestBinaryInfo{
 				Gtest: decorator.testDecorator.gtest(),
@@ -2587,7 +2633,9 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			ccInfo.LinkerInfo.BenchmarkDecoratorInfo = &BenchmarkDecoratorInfo{}
 		case *objectLinker:
 			ccInfo.LinkerInfo.ObjectLinkerInfo = &ObjectLinkerInfo{
-				NdkSysrootPath: c.linker.(*objectLinker).ndkSysrootPath,
+				NdkSysrootPath:   c.linker.(*objectLinker).ndkSysrootPath,
+				SharedLibs:       decorator.Properties.Shared_libs.GetOrDefault(ctx, nil),
+				SystemSharedLibs: decorator.Properties.System_shared_libs,
 			}
 		case *stubDecorator:
 			ccInfo.LinkerInfo.StubDecoratorInfo = &StubDecoratorInfo{}
@@ -2610,7 +2658,8 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 	if c.library != nil {
 		ccInfo.LibraryInfo = &LibraryInfo{
-			BuildStubs: c.library.BuildStubs(),
+			BuildStubs:       c.library.BuildStubs(),
+			AllStubsVersions: c.library.AllStubsVersions(),
 		}
 	}
 	if c.installer != nil {
@@ -2622,6 +2671,17 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 				AbiDiffPaths: installer.abiDiffPaths,
 				InstallPath:  installer.installPath,
 			}
+		}
+	}
+	if c.stl != nil {
+		ccInfo.StlInfo = &StlInfo{
+			Stl: c.stl.Properties.Stl,
+		}
+	}
+	if c.sanitize != nil {
+		ccInfo.SanitizeInfo = &SanitizeInfo{
+			IsUnsanitizedVariant: c.sanitize.isUnsanitizedVariant(),
+			Sanitize:             c.sanitize.Properties.Sanitize,
 		}
 	}
 	android.SetProvider(ctx, CcInfoProvider, &ccInfo)
@@ -2703,6 +2763,7 @@ func CreateCommonLinkableInfo(ctx android.ModuleContext, mod VersionedLinkableIn
 		info.HasLLNDKStubs = vi.HasLLNDKStubs()
 		info.IsLLNDKMovedToApex = vi.IsLLNDKMovedToApex()
 		info.ImplementationModuleName = vi.ImplementationModuleName(mod.BaseModuleName())
+		vi.AllStubsVersions()
 	}
 
 	if !mod.PreventInstall() && fuzz.IsValid(ctx, mod.FuzzModuleStruct()) && mod.IsFuzzModule() {

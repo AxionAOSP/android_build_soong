@@ -197,7 +197,7 @@ func (b hiddenAPIStubsDependencyTag) ReplaceSourceWithPrebuilt() bool {
 	return false
 }
 
-func (b hiddenAPIStubsDependencyTag) SdkMemberType(child android.Module) android.SdkMemberType {
+func (b hiddenAPIStubsDependencyTag) SdkMemberType(ctx android.ModuleContext, child android.ModuleProxy) android.SdkMemberType {
 	// Do not add additional dependencies to the sdk.
 	if b.fromAdditionalDependency {
 		return nil
@@ -205,7 +205,7 @@ func (b hiddenAPIStubsDependencyTag) SdkMemberType(child android.Module) android
 
 	// If the module is a java_sdk_library then treat it as if it was specific in the java_sdk_libs
 	// property, otherwise treat if it was specified in the java_header_libs property.
-	if javaSdkLibrarySdkMemberType.IsInstance(child) {
+	if javaSdkLibrarySdkMemberType.IsInstance(ctx, child) {
 		return javaSdkLibrarySdkMemberType
 	}
 

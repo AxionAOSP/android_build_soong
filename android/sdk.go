@@ -31,10 +31,10 @@ type minApiLevelForSdkSnapshot interface {
 // MinApiLevelForSdkSnapshot returns the ApiLevel of the min_sdk_version of the supplied module.
 //
 // If the module does not provide a min_sdk_version then it defaults to 1.
-func MinApiLevelForSdkSnapshot(ctx EarlyModuleContext, module Module) ApiLevel {
+func MinApiLevelForSdkSnapshot(commonInfo *CommonModuleInfo) ApiLevel {
 	minApiLevel := NoneApiLevel
-	if m, ok := module.(minApiLevelForSdkSnapshot); ok {
-		minApiLevel = m.MinSdkVersion(ctx)
+	if commonInfo.MinSdkVersion.ApiLevel != nil {
+		minApiLevel = *commonInfo.MinSdkVersion.ApiLevel
 	}
 	if minApiLevel == NoneApiLevel {
 		// The default min API level is 1.
@@ -410,7 +410,7 @@ type SdkMember interface {
 	Name() string
 
 	// Variants returns all the variants of this module depended upon by the SDK.
-	Variants() []Module
+	Variants() []ModuleProxy
 }
 
 // SdkMemberDependencyTag is the interface that a tag must implement in order to allow the
@@ -422,7 +422,7 @@ type SdkMemberDependencyTag interface {
 	// to the sdk.
 	//
 	// Returning nil will prevent the module being added to the sdk.
-	SdkMemberType(child Module) SdkMemberType
+	SdkMemberType(ctx ModuleContext, child ModuleProxy) SdkMemberType
 
 	// ExportMember determines whether a module added to the sdk through this tag will be exported
 	// from the sdk or not.
@@ -449,7 +449,7 @@ type sdkMemberDependencyTag struct {
 	export     bool
 }
 
-func (t *sdkMemberDependencyTag) SdkMemberType(_ Module) SdkMemberType {
+func (t *sdkMemberDependencyTag) SdkMemberType(_ ModuleContext, _ ModuleProxy) SdkMemberType {
 	return t.memberType
 }
 
@@ -534,7 +534,7 @@ type SdkMemberType interface {
 	// This is used to check the type of each variant before added to the SdkMember. Returning false
 	// will cause an error to be logged explaining that the module is not allowed in whichever sdk
 	// property it was added.
-	IsInstance(module Module) bool
+	IsInstance(ctx ModuleContext, module ModuleProxy) bool
 
 	// UsesSourceModuleTypeInSnapshot returns true when the AddPrebuiltModule() method returns a
 	// source module type.
@@ -800,7 +800,7 @@ type SdkMemberProperties interface {
 	// PopulateFromVariant populates this structure with information from a module variant.
 	//
 	// It will typically be called once for each variant of a member module that the SDK depends upon.
-	PopulateFromVariant(ctx SdkMemberContext, variant Module)
+	PopulateFromVariant(ctx SdkMemberContext, variant ModuleProxy)
 
 	// AddToPropertySet adds the information from this structure to the property set.
 	//

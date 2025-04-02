@@ -267,6 +267,11 @@ type ModuleContext interface {
 	// goal is built.
 	DistForGoalWithFilename(goal string, path Path, filename string)
 
+	// DistForGoalWithFilenameTag creates a rule to copy a Path to the artifacts
+	// directory on the build server with the given filename appended with the
+	// `-FILE_NAME_TAG_PLACEHOLDER` suffix when the specified goal is built.
+	DistForGoalWithFilenameTag(goal string, path Path, filename string)
+
 	// DistForGoals creates a rule to copy one or more Paths to the artifacts
 	// directory on the build server when any of the specified goals are built.
 	DistForGoals(goals []string, paths ...Path)
@@ -1026,6 +1031,15 @@ func (c *moduleContext) DistForGoal(goal string, paths ...Path) {
 
 func (c *moduleContext) DistForGoalWithFilename(goal string, path Path, filename string) {
 	c.DistForGoalsWithFilename([]string{goal}, path, filename)
+}
+
+func (c *moduleContext) DistForGoalWithFilenameTag(goal string, path Path, filename string) {
+	insertBeforeExtension := func(file, insertion string) string {
+		ext := filepath.Ext(file)
+		return strings.TrimSuffix(file, ext) + insertion + ext
+	}
+
+	c.DistForGoalWithFilename(goal, path, insertBeforeExtension(filename, "-FILE_NAME_TAG_PLACEHOLDER"))
 }
 
 func (c *moduleContext) DistForGoals(goals []string, paths ...Path) {

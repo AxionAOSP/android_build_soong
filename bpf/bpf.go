@@ -110,8 +110,7 @@ type bpf struct {
 	android.DefaultableModuleBase
 	properties BpfProperties
 
-	objs       android.Paths
-	installDir android.InstallPath
+	objs android.Paths
 }
 
 var _ android.ImageInterface = (*bpf)(nil)
@@ -229,12 +228,12 @@ func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	}
 
-	bpf.installDir = android.PathForModuleInstall(ctx, "etc", "bpf")
+	installDir := android.PathForModuleInstall(ctx, "etc", "bpf")
 	if len(bpf.properties.Sub_dir) > 0 {
-		bpf.installDir = bpf.installDir.Join(ctx, bpf.properties.Sub_dir)
+		installDir = installDir.Join(ctx, bpf.properties.Sub_dir)
 	}
 	for _, obj := range bpf.objs {
-		ctx.InstallFile(bpf.installDir, obj.Base(), obj)
+		ctx.PackageFile(installDir, obj.Base(), obj)
 	}
 
 	android.SetProvider(ctx, BpfInfoProvider, BpfInfo{
@@ -268,7 +267,6 @@ func (bpf *bpf) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", obj.String())
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", obj.Base())
 				fmt.Fprintln(w, "LOCAL_MODULE_CLASS := ETC")
-				fmt.Fprintln(w, "LOCAL_SOONG_INSTALLED_MODULE := ", filepath.Join(bpf.installDir.String(), obj.Base()))
 				fmt.Fprintln(w, localModulePath)
 				// AconfigUpdateAndroidMkData may have added elements to Extra.  Process them here.
 				for _, extra := range data.Extra {

@@ -15,6 +15,7 @@
 package android
 
 import (
+	"fmt"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -182,7 +183,37 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	ctx.Phony("ravenwood-tests", ravenwoodZip, ravenwoodListZip)
 	ctx.DistForGoal("ravenwood-tests", ravenwoodZip, ravenwoodListZip)
 
-	buildPerformanceTests(ctx, allTestSuiteInstalls["performance-tests"])
+	packageTestSuite(ctx, allTestSuiteInstalls["performance-tests"], performanceTests)
+	packageTestSuite(ctx, allTestSuiteInstalls["device-platinum-tests"], devicePlatinumTests)
+}
+
+type suiteKind int
+
+const (
+	performanceTests suiteKind = iota
+	devicePlatinumTests
+)
+
+func (sk suiteKind) String() string {
+	switch sk {
+	case performanceTests:
+		return "performance-tests"
+	case devicePlatinumTests:
+		return "device-platinum-tests"
+	default:
+		panic(fmt.Sprintf("Unrecognized suite kind %d for use in packageTestSuite", sk))
+	}
+	return ""
+}
+
+func (sk suiteKind) buildHostSharedLibsZip() bool {
+	switch sk {
+	case performanceTests:
+		return false
+	case devicePlatinumTests:
+		return true
+	}
+	return false
 }
 
 func buildTestSuite(ctx SingletonContext, suiteName string, files map[string]InstallPaths) (Path, Path) {
@@ -250,16 +281,17 @@ func pathForTestCases(ctx PathContext) InstallPath {
 	return pathForInstall(ctx, ctx.Config().BuildOS, X86, "testcases")
 }
 
-func buildPerformanceTests(ctx SingletonContext, files Paths) {
+func packageTestSuite(ctx SingletonContext, files Paths, sk suiteKind) {
 	hostOutTestCases := pathForInstall(ctx, ctx.Config().BuildOSTarget.Os, ctx.Config().BuildOSTarget.Arch.ArchType, "testcases")
 	targetOutTestCases := pathForInstall(ctx, ctx.Config().AndroidFirstDeviceTarget.Os, ctx.Config().AndroidFirstDeviceTarget.Arch.ArchType, "testcases")
 	hostOut := filepath.Dir(hostOutTestCases.String())
 	targetOut := filepath.Dir(targetOutTestCases.String())
 
-	testsZip := pathForPackaging(ctx, "performance-tests.zip")
-	testsListTxt := pathForPackaging(ctx, "performance-tests_list.txt")
-	testsListZip := pathForPackaging(ctx, "performance-tests_list.zip")
-	testsConfigsZip := pathForPackaging(ctx, "performance-tests_configs.zip")
+	testsZip := pathForPackaging(ctx, sk.String()+".zip")
+	testsListTxt := pathForPackaging(ctx, sk.String()+"_list.txt")
+	testsListZip := pathForPackaging(ctx, sk.String()+"_list.zip")
+	testsConfigsZip := pathForPackaging(ctx, sk.String()+"_configs.zip")
+	testsHostSharedLibsZip := pathForPackaging(ctx, sk.String()+"_host-shared-libs.zip")
 	var listLines []string
 
 	testsZipBuilder := NewRuleBuilder(pctx, ctx)
@@ -308,8 +340,26 @@ func buildPerformanceTests(ctx SingletonContext, files Paths) {
 		}
 	}
 
-	testsZipBuilder.Build("performance_tests_zip", "building performance-tests zip")
-	testsConfigsZipBuilder.Build("performance_tests_configs_zip", "building performance-tests configs zip")
+	testsZipBuilder.Build(sk.String(), "building "+sk.String()+" zip")
+	testsConfigsZipBuilder.Build(sk.String()+"-configs", "building "+sk.String()+" configs zip")
+
+	if sk.buildHostSharedLibsZip() {
+		testsHostSharedLibsZipBuilder := NewRuleBuilder(pctx, ctx)
+		testsHostSharedLibsZipCmd := testsHostSharedLibsZipBuilder.Command().
+			BuiltTool("soong_zip").
+			Flag("-d").
+			FlagWithOutput("-o ", testsHostSharedLibsZip).
+			FlagWithArg("-P ", "host").
+			FlagWithArg("-C ", hostOut)
+
+		for _, f := range files {
+			if strings.HasPrefix(f.String(), hostOutTestCases.String()) && strings.HasSuffix(f.String(), ".so") {
+				testsHostSharedLibsZipCmd.FlagWithInput("-f ", f)
+			}
+		}
+
+		testsHostSharedLibsZipBuilder.Build(sk.String()+"-host-shared-libs", "building "+sk.String()+"host shared libs")
+	}
 
 	WriteFileRule(ctx, testsListTxt, strings.Join(listLines, "\n"))
 
@@ -318,11 +368,14 @@ func buildPerformanceTests(ctx SingletonContext, files Paths) {
 		BuiltTool("soong_zip").
 		Flag("-d").
 		FlagWithOutput("-o ", testsListZip).
-		FlagWithArg("-e ", "performance-tests_list").
+		FlagWithArg("-e ", sk.String()+"_list").
 		FlagWithInput("-f ", testsListTxt)
-	testsListZipBuilder.Build("performance_tests_list_zip", "building performance-tests list zip")
+	testsListZipBuilder.Build(sk.String()+"_list_zip", "building "+sk.String()+" list zip")
 
-	ctx.Phony("performance-tests", testsZip)
-	ctx.DistForGoal("performance-tests", testsZip, testsListZip, testsConfigsZip)
-	ctx.Phony("tests", PathForPhony(ctx, "performance-tests"))
+	ctx.Phony(sk.String(), testsZip)
+	ctx.DistForGoal(sk.String(), testsZip, testsListZip, testsConfigsZip)
+	if sk.buildHostSharedLibsZip() {
+		ctx.DistForGoal(sk.String(), testsHostSharedLibsZip)
+	}
+	ctx.Phony("tests", PathForPhony(ctx, sk.String()))
 }
