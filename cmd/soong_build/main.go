@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -28,13 +29,14 @@ import (
 	"android/soong/android/allowlists"
 	"android/soong/shared"
 
+	androidProtobuf "google.golang.org/protobuf/android"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/deptools"
 	"github.com/google/blueprint/metrics"
 	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
-	androidProtobuf "google.golang.org/protobuf/android"
 )
 
 var (
@@ -330,6 +332,12 @@ func parseAvailableEnv() map[string]string {
 func main() {
 	flag.Parse()
 
+	if cmdlineArgs.Memprofile == "" {
+		// Go enables memory profile collection automatically if any references
+		// are linked in to the binary.
+		// Disable collection of memory profiles if we won't save one to disk.
+		runtime.MemProfileRate = 0
+	}
 	soongStartTime := time.Now()
 
 	shared.ReexecWithDelveMaybe(delveListen, delvePath)

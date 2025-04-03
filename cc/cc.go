@@ -21,7 +21,6 @@ package cc
 import (
 	"errors"
 	"fmt"
-	"io"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -109,6 +108,7 @@ type LibraryDecoratorInfo struct {
 	SharedLibs          []string
 	SystemSharedLibs    []string
 	StubsSymbolFilePath android.Path
+	SAbiDiff            android.Paths
 }
 
 type SnapshotInfo struct {
@@ -174,14 +174,17 @@ type CcInfo struct {
 	OdmAvailable           bool
 	ProductAvailable       bool
 	// Allowable SdkMemberTypes of this module type.
-	SdkMemberTypes []android.SdkMemberType
-	CompilerInfo   *CompilerInfo
-	LinkerInfo     *LinkerInfo
-	SnapshotInfo   *SnapshotInfo
-	LibraryInfo    *LibraryInfo
-	InstallerInfo  *InstallerInfo
-	StlInfo        *StlInfo
-	SanitizeInfo   *SanitizeInfo
+	SdkMemberTypes     []android.SdkMemberType
+	LocalFlags         LocalOrGlobalFlagsInfo
+	GlobalFlags        LocalOrGlobalFlagsInfo
+	SystemIncludeFlags []string
+	CompilerInfo       *CompilerInfo
+	LinkerInfo         *LinkerInfo
+	SnapshotInfo       *SnapshotInfo
+	LibraryInfo        *LibraryInfo
+	InstallerInfo      *InstallerInfo
+	StlInfo            *StlInfo
+	SanitizeInfo       *SanitizeInfo
 }
 
 var CcInfoProvider = blueprint.NewProvider[*CcInfo]()
@@ -2574,6 +2577,19 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		OdmAvailable:           c.OdmAvailable(),
 		ProductAvailable:       c.ProductAvailable(),
 		SdkMemberTypes:         c.sdkMemberTypes,
+		LocalFlags: LocalOrGlobalFlagsInfo{
+			CommonFlags: c.flags.Local.CommonFlags,
+			CFlags:      c.flags.Local.CFlags,
+			ConlyFlags:  c.flags.Local.ConlyFlags,
+			CppFlags:    c.flags.Local.CppFlags,
+		},
+		GlobalFlags: LocalOrGlobalFlagsInfo{
+			CommonFlags: c.flags.Global.CommonFlags,
+			CFlags:      c.flags.Global.CFlags,
+			ConlyFlags:  c.flags.Global.ConlyFlags,
+			CppFlags:    c.flags.Global.CppFlags,
+		},
+		SystemIncludeFlags: c.flags.SystemIncludeFlags,
 	}
 	if c.compiler != nil {
 		cflags := c.compiler.baseCompilerProps().Cflags
@@ -2616,6 +2632,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 				VndkFileName:        decorator.getLibNameHelper(c.BaseModuleName(), true, false) + ".so",
 				UniqueHostSoname:    decorator.Properties.Unique_host_soname,
 				StubsSymbolFilePath: decorator.stubsSymbolFilePath,
+				SAbiDiff:            decorator.sAbiDiff,
 			}
 			var properties StaticOrSharedProperties
 			if decorator.static() {
@@ -4412,14 +4429,6 @@ func installable(c LinkableInterface, apexInfo android.ApexInfo) bool {
 	}
 
 	return false
-}
-
-func (c *Module) AndroidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer) {
-	if c.linker != nil {
-		if library, ok := c.linker.(*libraryDecorator); ok {
-			library.androidMkWriteAdditionalDependenciesForSourceAbiDiff(w)
-		}
-	}
 }
 
 var _ android.ApexModule = (*Module)(nil)

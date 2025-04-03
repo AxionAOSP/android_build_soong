@@ -281,6 +281,14 @@ type ModuleWithSdkDepInfo struct {
 	Stubs       bool
 }
 
+type ApexDependencyInfo struct {
+	// These fields can be different from the ones in JavaInfo, for example, for sdk_library
+	// the following fields are set since sdk_library inherits the implementations of
+	// ApexDependency from base, but the same-named fields are not set in JavaInfo.
+	HeaderJars                     android.Paths
+	ImplementationAndResourcesJars android.Paths
+}
+
 // JavaInfo contains information about a java module for use by modules that depend on it.
 type JavaInfo struct {
 	// HeaderJars is a list of jars that can be passed as the javac classpath in order to link
@@ -438,6 +446,8 @@ type JavaInfo struct {
 	OverrideMinSdkVersion *string
 	CompileDex            *bool
 	SystemModules         string
+	Installable           bool
+	ApexDependencyInfo    *ApexDependencyInfo
 }
 
 var JavaInfoProvider = blueprint.NewProvider[*JavaInfo]()
@@ -2568,7 +2578,6 @@ func (al *ApiLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	apiContributions := al.properties.Api_contributions
 	addValidations := !ctx.Config().IsEnvTrue("DISABLE_STUB_VALIDATION") &&
 		!ctx.Config().IsEnvTrue("WITHOUT_CHECK_API") &&
-		!ctx.Config().PartialCompileFlags().Disable_stub_validation &&
 		proptools.BoolDefault(al.properties.Enable_validation, true)
 	for _, apiContributionName := range apiContributions {
 		ctx.AddDependency(ctx.Module(), javaApiContributionTag, apiContributionName)
@@ -2744,7 +2753,15 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		cmd.FlagForEachInput("--migrate-nullness ", previousApiFiles)
 	}
 
-	al.addValidation(ctx, cmd, al.validationPaths)
+	// While we could use SOONG_USE_PARTIAL_COMPILE in the validation's rule, that would unduly
+	// complicate the code for minimal benefit.  Instead, add a phony
+	// target to let the developer manually run the validation if they so
+	// desire.
+	ctx.Phony("stub-validation", al.validationPaths...)
+	ctx.Phony(ctx.ModuleName()+"-stub-validation", al.validationPaths...)
+	if !ctx.Config().PartialCompileFlags().Disable_stub_validation {
+		al.addValidation(ctx, cmd, al.validationPaths)
+	}
 
 	generateRevertAnnotationArgs(ctx, cmd, al.stubsType, al.aconfigProtoFiles)
 
@@ -3896,5 +3913,12 @@ func setExtraJavaInfo(ctx android.ModuleContext, module android.Module, javaInfo
 	if sdk, ok := module.(android.SdkContext); ok {
 		javaInfo.SystemModules = sdk.SystemModules()
 		javaInfo.SdkVersion = sdk.SdkVersion(ctx)
+	}
+
+	if ap, ok := module.(ApexDependency); ok {
+		javaInfo.ApexDependencyInfo = &ApexDependencyInfo{
+			HeaderJars:                     ap.HeaderJars(),
+			ImplementationAndResourcesJars: ap.ImplementationAndResourcesJars(),
+		}
 	}
 }

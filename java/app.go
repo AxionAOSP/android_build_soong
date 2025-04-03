@@ -83,6 +83,9 @@ type AppInfo struct {
 	PrivAppAllowlist              android.OptionalPath
 	OverriddenManifestPackageName *string
 	ApkCertsFile                  android.Path
+	JniLibs                       []jniLib
+	JniCoverageOutputs            android.Paths
+	PackedAdditionalOutputs       android.Path
 }
 
 var AppInfoProvider = blueprint.NewProvider[*AppInfo]()
@@ -413,8 +416,10 @@ func (a *AndroidTestHelperApp) GenerateAndroidBuildActions(ctx android.ModuleCon
 		TestOnly: true,
 	})
 	appInfo := &AppInfo{
-		Updatable:     Bool(a.appProperties.Updatable),
-		TestHelperApp: true,
+		Updatable:          Bool(a.appProperties.Updatable),
+		TestHelperApp:      true,
+		JniLibs:            a.jniLibs,
+		JniCoverageOutputs: a.jniCoverageOutputs,
 	}
 	setCommonAppInfo(appInfo, a)
 	android.SetProvider(ctx, AppInfoProvider, appInfo)
@@ -452,7 +457,7 @@ func (a *AndroidApp) baseSymbolInfo(ctx android.ModuleContext) *cc.SymbolInfo {
 
 func (a *AndroidApp) GetJniSymbolInfos(ctx android.ModuleContext, JniSymbolInstallPath android.Path) []*cc.SymbolInfo {
 	infos := []*cc.SymbolInfo{}
-	for _, install := range a.JNISymbolsInstalls(JniSymbolInstallPath.String()) {
+	for _, install := range JNISymbolsInstalls(a.jniLibs, JniSymbolInstallPath.String()) {
 		info := a.baseSymbolInfo(ctx)
 		info.UnstrippedBinaryPath = install.From
 		info.ModuleDir = filepath.Dir(install.To)
@@ -483,6 +488,8 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		EmbeddedJNILibs:               embeddedJniLibs,
 		MergedManifestFile:            a.mergedManifest,
 		OverriddenManifestPackageName: &overriddenName,
+		JniLibs:                       a.jniLibs,
+		JniCoverageOutputs:            a.jniCoverageOutputs,
 	}
 	setCommonAppInfo(appInfo, a)
 	android.SetProvider(ctx, AppInfoProvider, appInfo)
@@ -864,9 +871,9 @@ func (a *AndroidApp) jniBuildActions(jniLibs []jniLib, prebuiltJniPackages andro
 	return jniJarFile
 }
 
-func (a *AndroidApp) JNISymbolsInstalls(installPath string) android.RuleBuilderInstalls {
+func JNISymbolsInstalls(jniLibs []jniLib, installPath string) android.RuleBuilderInstalls {
 	var jniSymbols android.RuleBuilderInstalls
-	for _, jniLib := range a.jniLibs {
+	for _, jniLib := range jniLibs {
 		if jniLib.unstrippedFile != nil {
 			jniSymbols = append(jniSymbols, android.RuleBuilderInstall{
 				From: jniLib.unstrippedFile,

@@ -332,15 +332,20 @@ func aapt2ExtractExtraPackages(ctx android.ModuleContext, out android.WritablePa
 
 var aapt2ConvertRule = pctx.AndroidStaticRule("aapt2Convert",
 	blueprint.RuleParams{
-		Command: `${config.Aapt2Cmd} convert --enable-compact-entries ` +
+		Command: `${config.Aapt2Cmd} convert $flags ` +
 			`--output-format $format $in -o $out`,
 		CommandDeps: []string{"${config.Aapt2Cmd}"},
-	}, "format",
+	}, "format", "flags",
 )
 
 // Converts xml files and resource tables (resources.arsc) in the given jar/apk file to a proto
 // format. The proto definition is available at frameworks/base/tools/aapt2/Resources.proto.
 func aapt2Convert(ctx android.ModuleContext, out android.WritablePath, in android.Path, format string) {
+	extraFlags := []string{"--enable-compact-entries"}
+	if ctx.Config().ReleaseUseSparseEncoding() {
+		extraFlags = append(extraFlags, "--enable-sparse-encoding")
+	}
+
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        aapt2ConvertRule,
 		Input:       in,
@@ -348,6 +353,7 @@ func aapt2Convert(ctx android.ModuleContext, out android.WritablePath, in androi
 		Description: "convert to " + format,
 		Args: map[string]string{
 			"format": format,
+			"flags": strings.Join(extraFlags, " "),
 		},
 	})
 }

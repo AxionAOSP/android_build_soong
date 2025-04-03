@@ -193,10 +193,11 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	)
 
 	android.SetProvider(ctx, AppInfoProvider, &AppInfo{
-		AppSet:       true,
-		Privileged:   as.Privileged(),
-		OutputFile:   as.OutputFile(),
-		ApkCertsFile: as.apkcertsFile,
+		AppSet:                  true,
+		Privileged:              as.Privileged(),
+		OutputFile:              as.OutputFile(),
+		ApkCertsFile:            as.apkcertsFile,
+		PackedAdditionalOutputs: as.packedOutput,
 	})
 }
 

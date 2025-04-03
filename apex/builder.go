@@ -526,7 +526,7 @@ func markManifestTestOnly(ctx android.ModuleContext, androidManifestFile android
 
 func shouldApplyAssembleVintf(fi apexFile) bool {
 	isVintfFragment, _ := path.Match("etc/vintf/*", fi.path())
-	_, fromVintfFragmentModule := fi.module.(*android.VintfFragmentModule)
+	fromVintfFragmentModule := fi.providers != nil && fi.providers.vintfFragmentInfo != nil
 	return isVintfFragment && !fromVintfFragmentModule
 }
 
@@ -653,10 +653,10 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 				// are zipped. So we need to unzip them.
 				copyCommands = append(copyCommands,
 					fmt.Sprintf("unzip -qDD -d %s %s", destPathDir,
-						fi.module.(*java.AndroidAppSet).PackedAdditionalOutputs().String()))
+						fi.providers.appInfo.PackedAdditionalOutputs.String()))
 				if installSymbolFiles {
 					installedPath = ctx.InstallFileWithExtraFilesZip(apexDir.Join(ctx, fi.installDir),
-						fi.stem(), fi.builtFile, fi.module.(*java.AndroidAppSet).PackedAdditionalOutputs())
+						fi.stem(), fi.builtFile, fi.providers.appInfo.PackedAdditionalOutputs)
 				}
 			} else {
 				if installSymbolFiles {
@@ -1200,7 +1200,7 @@ func (a *apexBundle) buildCannedFsConfig(ctx android.ModuleContext) android.Path
 			readOnlyPaths = append(readOnlyPaths, pathInApex)
 			// Additional APKs
 			appSetDirs = append(appSetDirs, f.installDir)
-			appSetFiles[f.installDir] = f.module.(*java.AndroidAppSet).PackedAdditionalOutputs()
+			appSetFiles[f.installDir] = f.providers.appInfo.PackedAdditionalOutputs
 		} else {
 			readOnlyPaths = append(readOnlyPaths, pathInApex)
 		}

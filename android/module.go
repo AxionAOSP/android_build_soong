@@ -1688,8 +1688,8 @@ func (m *ModuleBase) generateVariantTarget(ctx *moduleContext) {
 		namespacePrefix = namespacePrefix + "-"
 	}
 
-	if !ctx.uncheckedModule {
-		name := namespacePrefix + ctx.ModuleName() + "-" + ctx.ModuleSubDir() + "-checkbuild"
+	if !ctx.uncheckedModule && !shouldSkipAndroidMkProcessing(ctx, m) {
+		name := namespacePrefix + ctx.module.base().BaseModuleName() + "-" + ctx.ModuleSubDir() + "-checkbuild"
 		ctx.Phony(name, ctx.checkbuildFiles...)
 		ctx.checkbuildTarget = PathForPhony(ctx, name)
 	}
@@ -1710,7 +1710,7 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 	var info ModuleBuildTargetsInfo
 
 	if len(ctx.installFiles) > 0 {
-		name := namespacePrefix + ctx.ModuleName() + "-install"
+		name := namespacePrefix + ctx.module.base().BaseModuleName() + "-install"
 		installFiles := ctx.installFiles.Paths()
 		ctx.Phony(name, installFiles...)
 		info.InstallTarget = PathForPhony(ctx, name)
@@ -1722,13 +1722,13 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 	// Those could depend on the build target and fail to compile
 	// for the current build target.
 	if (!ctx.Config().KatiEnabled() || !shouldSkipAndroidMkProcessing(ctx, m)) && !ctx.uncheckedModule && ctx.checkbuildTarget != nil {
-		name := namespacePrefix + ctx.ModuleName() + "-checkbuild"
+		name := namespacePrefix + ctx.module.base().BaseModuleName() + "-checkbuild"
 		ctx.Phony(name, ctx.checkbuildTarget)
 		deps = append(deps, ctx.checkbuildTarget)
 	}
 
 	if outputFiles, err := outputFilesForModule(ctx, ctx.Module(), ""); err == nil && len(outputFiles) > 0 {
-		name := namespacePrefix + ctx.ModuleName() + "-outputs"
+		name := namespacePrefix + ctx.module.base().BaseModuleName() + "-outputs"
 		ctx.Phony(name, outputFiles...)
 		deps = append(deps, outputFiles...)
 	}
@@ -1743,16 +1743,16 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 			suffix = "-soong"
 		}
 
-		ctx.Phony(namespacePrefix+ctx.ModuleName()+suffix, deps...)
+		ctx.Phony(namespacePrefix+ctx.module.base().BaseModuleName()+suffix, deps...)
 		if ctx.Device() {
 			// Generate a target suffix for use in atest etc.
-			ctx.Phony(namespacePrefix+ctx.ModuleName()+"-target"+suffix, deps...)
+			ctx.Phony(namespacePrefix+ctx.module.base().BaseModuleName()+"-target"+suffix, deps...)
 		} else {
 			// Generate a host suffix for use in atest etc.
-			ctx.Phony(namespacePrefix+ctx.ModuleName()+"-host"+suffix, deps...)
+			ctx.Phony(namespacePrefix+ctx.module.base().BaseModuleName()+"-host"+suffix, deps...)
 			if ctx.Target().HostCross {
 				// Generate a host-cross suffix for use in atest etc.
-				ctx.Phony(namespacePrefix+ctx.ModuleName()+"-host-cross"+suffix, deps...)
+				ctx.Phony(namespacePrefix+ctx.module.base().BaseModuleName()+"-host-cross"+suffix, deps...)
 			}
 		}
 
@@ -1979,7 +1979,10 @@ type CommonModuleInfo struct {
 	PrebuiltSourceExists                         bool
 	UsePrebuilt                                  bool
 	ApexAvailable                                []string
-	ImageVariation                               blueprint.Variation
+	// This field is different from the above one as it can have different values
+	// for cc, java library and sdkLibraryXml.
+	ApexAvailableFor []string
+	ImageVariation   blueprint.Variation
 }
 
 type ApiLevelOrPlatform struct {
@@ -2387,6 +2390,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		commonData.IsInstallableToApex = am.IsInstallableToApex()
 		commonData.IsApexModule = true
 		commonData.ApexAvailable = am.apexModuleBase().ApexAvailable()
+		commonData.ApexAvailableFor = am.ApexAvailableFor()
 	}
 
 	if _, ok := m.module.(ModuleWithMinSdkVersionCheck); ok {

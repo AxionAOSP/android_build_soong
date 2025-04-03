@@ -307,6 +307,10 @@ func (c Config) ReleaseRustUseArmTargetArchVariant() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_RUST_USE_ARM_TARGET_ARCH_VARIANT")
 }
 
+func (c Config) ReleaseUseSparseEncoding() bool {
+	return c.config.productVariables.GetBuildFlagBool("RELEASE_SOONG_SPARSE_ENCODING")
+}
+
 // A DeviceConfig object represents the configuration for a particular device
 // being built. For now there will only be one of these, but in the future there
 // may be multiple devices being built.
@@ -408,13 +412,11 @@ type partialCompileFlags struct {
 	// Whether to use d8 instead of r8
 	Use_d8 bool
 
-	// Whether to disable stub validation.  This is slightly more surgical
-	// than DISABLE_STUB_VALIDATION, in that it only applies to partial
-	// compile builds.
+	// Whether to disable stub validation for partial compile builds.
+	// This is similar to setting `DISABLE_STUB_VALIDATION=true`: the
+	// validation checks are still created, but are not run by default.
+	// To run the validation checks, use `m {MODULE_NAME}-stub-validation`.
 	Disable_stub_validation bool
-
-	// Whether to disable api lint.
-	Disable_api_lint bool
 
 	// Add others as needed.
 }
@@ -425,8 +427,13 @@ var defaultPartialCompileFlags = partialCompileFlags{}
 // These are the flags when `SOONG_PARTIAL_COMPILE=true`.
 var enabledPartialCompileFlags = partialCompileFlags{
 	Use_d8:                  true,
-	Disable_stub_validation: false,
-	Disable_api_lint:        false,
+	Disable_stub_validation: true,
+}
+
+// These are the flags when `SOONG_PARTIAL_COMPILE=all`.
+var allPartialCompileFlags = partialCompileFlags{
+	Use_d8:                  true,
+	Disable_stub_validation: true,
 }
 
 type deviceConfig struct {
@@ -501,24 +508,15 @@ func (c *config) parsePartialCompileFlags(isEngBuild bool) (partialCompileFlags,
 			state = "+"
 		}
 		switch tok {
-		case "all":
-			// Turn on **all** of the flags.
-			ret = partialCompileFlags{
-				Use_d8:                  true,
-				Disable_stub_validation: true,
-				Disable_api_lint:        true,
-			}
+		// Big toggle switches.
+		case "false":
+			ret = partialCompileFlags{}
 		case "true":
 			ret = enabledPartialCompileFlags
-		case "false":
-			// Set everything to false.
-			ret = partialCompileFlags{}
+		case "all":
+			ret = allPartialCompileFlags
 
-		case "api_lint", "enable_api_lint":
-			ret.Disable_api_lint = !makeVal(state, !defaultPartialCompileFlags.Disable_api_lint)
-		case "disable_api_lint":
-			ret.Disable_api_lint = makeVal(state, defaultPartialCompileFlags.Disable_api_lint)
-
+		// Individual flags.
 		case "stub_validation", "enable_stub_validation":
 			ret.Disable_stub_validation = !makeVal(state, !defaultPartialCompileFlags.Disable_stub_validation)
 		case "disable_stub_validation":

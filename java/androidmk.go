@@ -359,7 +359,7 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.AddStrings("LOCAL_OVERRIDES_PACKAGES", app.getOverriddenPackages()...)
 
 				if app.embeddedJniLibs {
-					jniSymbols := app.JNISymbolsInstalls(app.installPathForJNISymbols.String())
+					jniSymbols := JNISymbolsInstalls(app.jniLibs, app.installPathForJNISymbols.String())
 					entries.SetString("LOCAL_SOONG_JNI_LIBS_SYMBOLS", jniSymbols.String())
 				} else {
 					var names []string

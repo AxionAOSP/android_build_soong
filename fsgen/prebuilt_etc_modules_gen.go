@@ -423,12 +423,14 @@ func createAvbpubkeyModule(ctx android.LoadHookContext) bool {
 			Private_key      *string
 			No_full_install  *bool
 			Visibility       []string
+			Licenses         []string
 		}{
 			Name:             proptools.StringPtr("system_other_avbpubkey"),
 			Product_specific: proptools.BoolPtr(true),
 			Private_key:      proptools.StringPtr(avbKeyPath),
 			No_full_install:  proptools.BoolPtr(true),
 			Visibility:       []string{"//visibility:public"},
+			Licenses:         []string{"Android-Apache-2.0"},
 		},
 	)
 	return true

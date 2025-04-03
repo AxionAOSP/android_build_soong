@@ -16,6 +16,7 @@ package android
 
 import (
 	"fmt"
+	"maps"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -90,8 +91,14 @@ type testSuiteInstallsInfo struct {
 
 var testSuiteInstallsInfoProvider = blueprint.NewProvider[testSuiteInstallsInfo]()
 
+type testModulesInstallsMap map[Module]InstallPaths
+
+func (t testModulesInstallsMap) testModules() []Module {
+	return slices.Collect(maps.Keys(t))
+}
+
 func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
-	files := make(map[string]map[string]InstallPaths)
+	files := make(map[string]testModulesInstallsMap)
 	allTestSuiteInstalls := make(map[string][]Path)
 	var toInstall []filePair
 	var oneVariantInstalls []filePair
@@ -100,10 +107,9 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 		if tsm, ok := OtherModuleProvider(ctx, m, TestSuiteInfoProvider); ok {
 			for _, testSuite := range tsm.TestSuites {
 				if files[testSuite] == nil {
-					files[testSuite] = make(map[string]InstallPaths)
+					files[testSuite] = make(testModulesInstallsMap)
 				}
-				name := ctx.ModuleName(m)
-				files[testSuite][name] = append(files[testSuite][name],
+				files[testSuite][m] = append(files[testSuite][m],
 					OtherModuleProviderOrDefault(ctx, m, InstallFilesProvider).InstallFiles...)
 			}
 
@@ -133,6 +139,18 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 			}
 		}
 	})
+
+	if !ctx.Config().KatiEnabled() {
+		for _, testSuite := range SortedKeys(files) {
+			testSuiteSymbolsZipFile := pathForTestSymbols(ctx, fmt.Sprintf("%s-symbols.zip", testSuite))
+			testSuiteMergedMappingProtoFile := pathForTestSymbols(ctx, fmt.Sprintf("%s-symbols-mapping.textproto", testSuite))
+			allTestModules := files[testSuite].testModules()
+			BuildSymbolsZip(ctx, allTestModules, testSuite, testSuiteSymbolsZipFile, testSuiteMergedMappingProtoFile)
+
+			ctx.DistForGoalWithFilenameTag(testSuite, testSuiteSymbolsZipFile, testSuiteSymbolsZipFile.Base())
+			ctx.DistForGoalWithFilenameTag(testSuite, testSuiteMergedMappingProtoFile, testSuiteMergedMappingProtoFile.Base())
+		}
+	}
 
 	for suite, suiteInstalls := range allTestSuiteInstalls {
 		allTestSuiteInstalls[suite] = SortedUniquePaths(suiteInstalls)
@@ -216,11 +234,13 @@ func (sk suiteKind) buildHostSharedLibsZip() bool {
 	return false
 }
 
-func buildTestSuite(ctx SingletonContext, suiteName string, files map[string]InstallPaths) (Path, Path) {
-	var installedPaths InstallPaths
-	for _, module := range SortedKeys(files) {
-		installedPaths = append(installedPaths, files[module]...)
+func buildTestSuite(ctx SingletonContext, suiteName string, files testModulesInstallsMap) (Path, Path) {
+	var installedPaths Paths
+	for _, module := range files.testModules() {
+		installedPaths = append(installedPaths, files[module].Paths()...)
 	}
+
+	installedPaths = SortedUniquePaths(installedPaths)
 
 	outputFile := pathForPackaging(ctx, suiteName+".zip")
 	rule := NewRuleBuilder(pctx, ctx)
@@ -228,7 +248,7 @@ func buildTestSuite(ctx SingletonContext, suiteName string, files map[string]Ins
 		FlagWithOutput("-o ", outputFile).
 		FlagWithArg("-P ", "host/testcases").
 		FlagWithArg("-C ", pathForTestCases(ctx).String()).
-		FlagWithRspFileInputList("-r ", outputFile.ReplaceExtension(ctx, "rsp"), installedPaths.Paths()).
+		FlagWithRspFileInputList("-r ", outputFile.ReplaceExtension(ctx, "rsp"), installedPaths).
 		Flag("-sha256") // necessary to save cas_uploader's time
 
 	testList := buildTestList(ctx, suiteName+"_list", installedPaths)
@@ -245,7 +265,7 @@ func buildTestSuite(ctx SingletonContext, suiteName string, files map[string]Ins
 	return outputFile, testListZipOutputFile
 }
 
-func buildTestList(ctx SingletonContext, listFile string, installedPaths InstallPaths) Path {
+func buildTestList(ctx SingletonContext, listFile string, installedPaths Paths) Path {
 	buf := &strings.Builder{}
 	for _, p := range installedPaths {
 		if p.Ext() != ".config" {
@@ -279,6 +299,10 @@ func pathForPackaging(ctx PathContext, pathComponents ...string) OutputPath {
 
 func pathForTestCases(ctx PathContext) InstallPath {
 	return pathForInstall(ctx, ctx.Config().BuildOS, X86, "testcases")
+}
+
+func pathForTestSymbols(ctx PathContext, pathComponents ...string) InstallPath {
+	return pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "", pathComponents...)
 }
 
 func packageTestSuite(ctx SingletonContext, files Paths, sk suiteKind) {

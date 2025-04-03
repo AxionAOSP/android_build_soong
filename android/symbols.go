@@ -14,7 +14,11 @@
 
 package android
 
-import "github.com/google/blueprint"
+import (
+	"fmt"
+
+	"github.com/google/blueprint"
+)
 
 var zipFiles = pctx.AndroidStaticRule("SnapshotZipFiles", blueprint.RuleParams{
 	Command:        `${SoongZipCmd}  -r $out.rsp -o $out`,
@@ -51,10 +55,16 @@ func (s *SymbolicOutputInfos) SortedUniqueElfMappingProtoPaths() Paths {
 	return SortedUniquePaths(ret)
 }
 
+// symbolsContext allows calling [BuildSymbolsZip] in both modules and singletons
+type symbolsContext interface {
+	OtherModuleProviderContext
+	BuilderContext
+}
+
 // Defines the build rules to generate the symbols.zip file and the merged elf mapping textproto
 // file. Modules in depModules that provide [SymbolInfosProvider] and are exported to make
 // will be listed in the symbols.zip and the merged proto file.
-func BuildSymbolsZip(ctx ModuleContext, depModules []Module, symbolsZipFile, mergedMappingProtoFile ModuleOutPath) {
+func BuildSymbolsZip(ctx symbolsContext, depModules []Module, iden string, symbolsZipFile, mergedMappingProtoFile WritablePath) {
 	var allSymbolicOutputPaths, allElfMappingProtoPaths Paths
 	for _, mod := range depModules {
 		if commonInfo, _ := OtherModuleProvider(ctx, mod, CommonModuleInfoProvider); commonInfo.SkipAndroidMkProcessing {
@@ -81,5 +91,5 @@ func BuildSymbolsZip(ctx ModuleContext, depModules []Module, symbolsZipFile, mer
 		Output(mergedMappingProtoFile).
 		Inputs(allElfMappingProtoPaths)
 
-	dictMappingBuilder.Build("symbols_elf_dict_mapping_proto", "Building symbols mapping proto")
+	dictMappingBuilder.Build(fmt.Sprintf("%s_symbols_elf_dict_mapping_proto", iden), fmt.Sprintf("Building symbols mapping proto for %s", iden))
 }

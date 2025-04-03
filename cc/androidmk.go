@@ -16,7 +16,6 @@ package cc
 
 import (
 	"fmt"
-	"io"
 	"path/filepath"
 	"strings"
 
@@ -215,13 +214,6 @@ func (library *libraryDecorator) androidMkWriteExportedFlags(entries *android.An
 func (library *libraryDecorator) androidMkEntriesWriteAdditionalDependenciesForSourceAbiDiff(entries *android.AndroidMkInfo) {
 	if !library.static() {
 		entries.AddPaths("LOCAL_ADDITIONAL_DEPENDENCIES", library.sAbiDiff)
-	}
-}
-
-// TODO(ccross): remove this once apex/androidmk.go is converted to AndroidMkEntries
-func (library *libraryDecorator) androidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer) {
-	if !library.static() {
-		fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES +=", strings.Join(library.sAbiDiff.Strings(), " "))
 	}
 }
 

@@ -263,6 +263,9 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext android.SdkConte
 	linkFlags = append(linkFlags, a.aaptProperties.Aaptflags...)
 
 	linkFlags = append(linkFlags, "--enable-compact-entries")
+	if ctx.Config().ReleaseUseSparseEncoding() {
+		linkFlags = append(linkFlags, "--enable-sparse-encoding")
+	}
 
 	// Find implicit or explicit asset and resource dirs
 	assets := android.PathsRelativeToModuleSourceDir(android.SourceInput{

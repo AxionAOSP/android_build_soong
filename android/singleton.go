@@ -15,7 +15,9 @@
 package android
 
 import (
+	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/google/blueprint"
@@ -112,6 +114,11 @@ type SingletonContext interface {
 	// directory on the build server with the given filename when the specified
 	// goal is built.
 	DistForGoalWithFilename(goal string, path Path, filename string)
+
+	// DistForGoalWithFilenameTag creates a rule to copy a Path to the artifacts
+	// directory on the build server with the given filename appended with the
+	// `-FILE_NAME_TAG_PLACEHOLDER` suffix when the specified goal is built.
+	DistForGoalWithFilenameTag(goal string, path Path, filename string)
 
 	// DistForGoals creates a rule to copy one or more Paths to the artifacts
 	// directory on the build server when any of the specified goals are built.
@@ -388,6 +395,15 @@ func (s *singletonContextAdaptor) DistForGoal(goal string, paths ...Path) {
 
 func (s *singletonContextAdaptor) DistForGoalWithFilename(goal string, path Path, filename string) {
 	s.DistForGoalsWithFilename([]string{goal}, path, filename)
+}
+
+func (s *singletonContextAdaptor) DistForGoalWithFilenameTag(goal string, path Path, filename string) {
+	insertBeforeExtension := func(file, insertion string) string {
+		ext := filepath.Ext(file)
+		return strings.TrimSuffix(file, ext) + insertion + ext
+	}
+
+	s.DistForGoalWithFilename(goal, path, insertBeforeExtension(filename, "-FILE_NAME_TAG_PLACEHOLDER"))
 }
 
 func (s *singletonContextAdaptor) DistForGoals(goals []string, paths ...Path) {

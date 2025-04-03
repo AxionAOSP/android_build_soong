@@ -108,7 +108,6 @@ type BaseProperties struct {
 	// list of the Python libraries compatible both with Python2 and Python3.
 	Libs []string `android:"arch_variant"`
 
-	// TODO: b/403060602 - add unit tests for this property and related code
 	// list of shared libraries that should be packaged with the python code for this module.
 	Shared_libs []string `android:"arch_variant"`
 

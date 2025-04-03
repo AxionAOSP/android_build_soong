@@ -16,7 +16,6 @@ package cc
 
 import (
 	"fmt"
-	"io"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -797,9 +796,6 @@ type libraryInterface interface {
 
 	// Gets the ABI properties for vendor, product, or platform variant
 	getHeaderAbiCheckerProperties(m *Module) headerAbiCheckerProperties
-
-	// Write LOCAL_ADDITIONAL_DEPENDENCIES for ABI diff
-	androidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer)
 
 	apexAvailable() []string
 

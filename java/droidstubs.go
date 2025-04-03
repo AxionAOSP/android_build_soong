@@ -1251,7 +1251,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Add options for the other optional tasks: API-lint and check-released.
 	// We generate separate timestamp files for them.
-	doApiLint := BoolDefault(d.properties.Check_api.Api_lint.Enabled, false) && !ctx.Config().PartialCompileFlags().Disable_api_lint
+	doApiLint := BoolDefault(d.properties.Check_api.Api_lint.Enabled, false)
 	doCheckReleased := apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released")
 
 	writeSdkValues := Bool(d.properties.Write_sdk_values)
@@ -1380,15 +1380,12 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		if d.apiLintTimestamp != nil {
 			cmd.Validation(d.apiLintTimestamp)
 		}
-
 		if d.checkLastReleasedApiTimestamp != nil {
 			cmd.Validation(d.checkLastReleasedApiTimestamp)
 		}
-
 		if d.checkNullabilityWarningsTimestamp != nil {
 			cmd.Validation(d.checkNullabilityWarningsTimestamp)
 		}
-
 		rule.Build("metalavaCurrentApiCheck", "check current API")
 
 		d.updateCurrentApiTimestamp = android.PathForModuleOut(ctx, Everything.String(), "update_current_api.timestamp")
