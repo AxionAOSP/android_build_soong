@@ -199,6 +199,7 @@ func (m *systemOtherImage) GenerateAndroidBuildActions(ctx android.ModuleContext
 	// Dump compliance metadata
 	complianceMetadataInfo := ctx.ComplianceMetadataInfo()
 	complianceMetadataInfo.SetFilesContained(fullInstallPaths)
+	complianceMetadataInfo.SetPlatformGeneratedFiles(fullInstallPaths)
 }
 
 func (s *systemOtherImage) generateFilesystemConfig(ctx android.ModuleContext, stagingDir, stagingDirTimestamp android.Path) android.Path {

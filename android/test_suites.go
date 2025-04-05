@@ -69,6 +69,9 @@ type TestSuiteInfo struct {
 	NonArchData []DataPath
 
 	CompatibilitySupportFiles []Path
+
+	// Eqivalent of LOCAL_DISABLE_TEST_CONFIG in make
+	DisableTestConfig bool
 }
 
 var TestSuiteInfoProvider = blueprint.NewProvider[TestSuiteInfo]()

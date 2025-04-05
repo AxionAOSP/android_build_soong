@@ -434,12 +434,13 @@ func (m *testModuleConfigModule) generateManifestAndConfig(ctx android.ModuleCon
 	}
 
 	ctx.SetTestSuiteInfo(android.TestSuiteInfo{
-		TestSuites:      m.tradefedProperties.Test_suites,
-		MainFile:        m.manifest,
-		MainFileStem:    fmt.Sprintf("UNUSED-%s", *m.Base),
-		MainFileExt:     mainFileExt,
-		ConfigFile:      m.testConfig,
-		NeedsArchFolder: ctx.Device(),
+		TestSuites:                m.tradefedProperties.Test_suites,
+		MainFile:                  m.manifest,
+		MainFileStem:              fmt.Sprintf("UNUSED-%s", *m.Base),
+		MainFileExt:               mainFileExt,
+		ConfigFile:                m.testConfig,
+		CompatibilitySupportFiles: m.supportFiles.Paths(),
+		NeedsArchFolder:           ctx.Device(),
 	})
 }
 

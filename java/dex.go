@@ -362,6 +362,8 @@ func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
 		flags = append(flags, "--release")
 	} else if ctx.Config().Eng() {
 		flags = append(flags, "--debug")
+	} else if ctx.Config().MinimizeJavaDebugInfo() {
+		flags = append(flags, "--release")
 	} else if !d.effectiveOptimizeEnabled(ctx) && d.dexProperties.Optimize.EnabledByDefault {
 		// D8 uses --debug by default, whereas R8 uses --release by default.
 		// For targets that default to R8 usage (e.g., apps), but override this default, we still

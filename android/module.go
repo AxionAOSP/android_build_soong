@@ -2562,16 +2562,18 @@ func (m *ModuleBase) setupTestSuites(ctx ModuleContext, info TestSuiteInfo) []fi
 			})
 		}
 
-		if info.ConfigFile != nil {
-			oneVariantInstalls = append(oneVariantInstalls, filePair{
-				src: info.ConfigFile,
-				dst: joinWriteablePath(ctx, suite.dir, name+".config"+info.ConfigFileSuffix),
-			})
-		} else if config := ExistentPathForSource(ctx, ctx.ModuleDir(), "AndroidTest.xml"); config.Valid() {
-			oneVariantInstalls = append(oneVariantInstalls, filePair{
-				src: config.Path(),
-				dst: joinWriteablePath(ctx, suite.dir, name+".config"),
-			})
+		if !info.DisableTestConfig {
+			if info.ConfigFile != nil {
+				oneVariantInstalls = append(oneVariantInstalls, filePair{
+					src: info.ConfigFile,
+					dst: joinWriteablePath(ctx, suite.dir, name+".config"+info.ConfigFileSuffix),
+				})
+			} else if config := ExistentPathForSource(ctx, ctx.ModuleDir(), "AndroidTest.xml"); config.Valid() {
+				oneVariantInstalls = append(oneVariantInstalls, filePair{
+					src: config.Path(),
+					dst: joinWriteablePath(ctx, suite.dir, name+".config"),
+				})
+			}
 		}
 
 		dynamicConfig := ExistentPathForSource(ctx, ctx.ModuleDir(), "DynamicConfig.xml")
