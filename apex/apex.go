@@ -1674,6 +1674,15 @@ func (f fsType) string() string {
 }
 
 func (a *apexBundle) setCompression(ctx android.ModuleContext) {
+	if a.isCompressable() {
+		if !a.Updatable() {
+			ctx.PropertyErrorf("compressible", "do not compress non-updatable APEX")
+		}
+		if a.PartitionTag(ctx.DeviceConfig()) != "system" {
+			ctx.PropertyErrorf("compressible", "do not compress non-system APEX")
+		}
+	}
+
 	if a.testOnlyShouldForceCompression() {
 		a.isCompressed = true
 	} else {

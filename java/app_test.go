@@ -4899,6 +4899,7 @@ func TestResourcesWithFlagDirectories(t *testing.T) {
 			"res/flag(!test.package.flag2)/values/bools.xml":                         nil,
 			"res/flag(test.package.flag1)/values-config/strings_google_services.xml": nil,
 			"res/flags(test.package.flag1)/values/strings.xml":                       nil,
+			"res/drawable/flag(test.package.flag1)/qs_flashlight_icon_off.xml":       nil,
 		}),
 	).RunTestWithBp(t, `
 		android_library {
@@ -4936,6 +4937,12 @@ func TestResourcesWithFlagDirectories(t *testing.T) {
 		"Expected to not generate flag path with non-flag(flag_name) pattern",
 		compileOutputPaths,
 		"out/soong/.intermediates/foo/android_common/aapt2/res/values_strings.(test.package.flag1).arsc.flat",
+	)
+	android.AssertStringListContains(
+		t,
+		"Expected to generate flag path when it is a subdirectory of resource type subdirectory",
+		compileOutputPaths,
+		"out/soong/.intermediates/foo/android_common/aapt2/res/drawable/_qs_flashlight_icon_off.(test.package.flag1).xml.flat",
 	)
 }
 

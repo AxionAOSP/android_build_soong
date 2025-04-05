@@ -52,14 +52,15 @@ func pathToAapt2Path(ctx android.ModuleContext, res android.Path) android.Writab
 	}
 	subDir := filepath.Dir(res.String())
 	subDir, lastDir := filepath.Split(subDir)
-	if isFlagsPath(subDir) {
-		var flag string
+	var flag string
+	if isFlagsPath(lastDir) {
+		flag = "." + strings.TrimPrefix(lastDir, "flag")
+		subDir, lastDir = filepath.Split(subDir)
+	} else if isFlagsPath(subDir) {
 		subDir, flag = filepath.Split(filepath.Dir(subDir))
-		flag = strings.TrimPrefix(flag, "flag")
-		name = fmt.Sprintf("%s_%s.%s%s.flat", lastDir, name, flag, extension)
-	} else {
-		name = fmt.Sprintf("%s_%s%s.flat", lastDir, name, extension)
+		flag = "." + strings.TrimPrefix(flag, "flag")
 	}
+	name = fmt.Sprintf("%s_%s%s%s.flat", lastDir, name, flag, extension)
 	out := android.PathForModuleOut(ctx, "aapt2", subDir, name)
 	return out
 }

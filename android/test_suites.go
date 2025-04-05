@@ -73,12 +73,6 @@ type TestSuiteInfo struct {
 
 var TestSuiteInfoProvider = blueprint.NewProvider[TestSuiteInfo]()
 
-type SupportFilesInfo struct {
-	SupportFiles InstallPaths
-}
-
-var SupportFilesInfoProvider = blueprint.NewProvider[SupportFilesInfo]()
-
 type filePair struct {
 	src Path
 	dst WritablePath
@@ -318,6 +312,11 @@ func packageTestSuite(ctx SingletonContext, files Paths, sk suiteKind) {
 	testsHostSharedLibsZip := pathForPackaging(ctx, sk.String()+"_host-shared-libs.zip")
 	var listLines []string
 
+	// use intermediate files to hold the file inputs, to prevent argument list from being too long
+	testsZipCmdHostFileInput := PathForIntermediates(ctx, sk.String()+"_host_list.txt")
+	testsZipCmdTargetFileInput := PathForIntermediates(ctx, sk.String()+"_target_list.txt")
+	var testsZipCmdHostFileInputContent, testsZipCmdTargetFileInputContent []string
+
 	testsZipBuilder := NewRuleBuilder(pctx, ctx)
 	testsZipCmd := testsZipBuilder.Command().
 		BuiltTool("soong_zip").
@@ -337,7 +336,8 @@ func packageTestSuite(ctx SingletonContext, files Paths, sk suiteKind) {
 
 	for _, f := range files {
 		if strings.HasPrefix(f.String(), hostOutTestCases.String()) {
-			testsZipCmd.FlagWithInput("-f ", f)
+			testsZipCmdHostFileInputContent = append(testsZipCmdHostFileInputContent, f.String())
+			testsZipCmd.Implicit(f)
 
 			if strings.HasSuffix(f.String(), ".config") {
 				testsConfigsZipCmd.FlagWithInput("-f ", f)
@@ -345,8 +345,10 @@ func packageTestSuite(ctx SingletonContext, files Paths, sk suiteKind) {
 			}
 		}
 	}
+	WriteFileRule(ctx, testsZipCmdHostFileInput, strings.Join(testsZipCmdHostFileInputContent, " "))
 
 	testsZipCmd.
+		FlagWithInput("-l ", testsZipCmdHostFileInput).
 		FlagWithArg("-P ", "target").
 		FlagWithArg("-C ", targetOut)
 	testsConfigsZipCmd.
@@ -355,7 +357,8 @@ func packageTestSuite(ctx SingletonContext, files Paths, sk suiteKind) {
 
 	for _, f := range files {
 		if strings.HasPrefix(f.String(), targetOutTestCases.String()) {
-			testsZipCmd.FlagWithInput("-f ", f)
+			testsZipCmdTargetFileInputContent = append(testsZipCmdTargetFileInputContent, f.String())
+			testsZipCmd.Implicit(f)
 
 			if strings.HasSuffix(f.String(), ".config") {
 				testsConfigsZipCmd.FlagWithInput("-f ", f)
@@ -363,6 +366,8 @@ func packageTestSuite(ctx SingletonContext, files Paths, sk suiteKind) {
 			}
 		}
 	}
+	WriteFileRule(ctx, testsZipCmdTargetFileInput, strings.Join(testsZipCmdTargetFileInputContent, " "))
+	testsZipCmd.FlagWithInput("-l ", testsZipCmdTargetFileInput)
 
 	testsZipBuilder.Build(sk.String(), "building "+sk.String()+" zip")
 	testsConfigsZipBuilder.Build(sk.String()+"-configs", "building "+sk.String()+" configs zip")

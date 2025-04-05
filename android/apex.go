@@ -524,10 +524,6 @@ func CheckAvailableForApex(what string, apex_available []string) bool {
 		if strings.HasSuffix(apex_name, ".*") && strings.HasPrefix(what, strings.TrimSuffix(apex_name, "*")) {
 			return true
 		}
-		// TODO b/383863941: Remove once legacy name is no longer used
-		if (apex_name == "com.android.btservices" && what == "com.android.bt") || (apex_name == "com.android.bt" && what == "com.android.btservices") {
-			return true
-		}
 	}
 	return false
 }

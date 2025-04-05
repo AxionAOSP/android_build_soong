@@ -180,7 +180,7 @@ func FixtureSetPreoptWithUpdatableBcp(value bool) android.FixturePreparer {
 // FixtureSetBootImageProfiles sets the BootImageProfiles property in the global config.
 func FixtureSetBootImageProfiles(profiles ...string) android.FixturePreparer {
 	return FixtureModifyGlobalConfig(func(ctx android.PathContext, dexpreoptConfig *GlobalConfig) {
-		dexpreoptConfig.BootImageProfiles = android.PathsForSource(ctx, profiles)
+		dexpreoptConfig.BootImageProfiles = android.PathsForTesting(profiles...)
 	})
 }
 

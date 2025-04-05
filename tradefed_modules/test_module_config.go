@@ -179,10 +179,6 @@ func (m *testModuleConfigModule) GenerateAndroidBuildActions(ctx android.ModuleC
 	moduleInfoJSON.TestConfig = []string{m.testConfig.String()}
 	moduleInfoJSON.AutoTestConfig = []string{"true"}
 	moduleInfoJSON.TestModuleConfigBase = proptools.String(m.Base)
-
-	android.SetProvider(ctx, android.SupportFilesInfoProvider, android.SupportFilesInfo{
-		SupportFiles: m.supportFiles,
-	})
 }
 
 // Ensure at least one test_suite is listed.  Ideally it should be general-tests
@@ -332,9 +328,6 @@ func (m *testModuleConfigHostModule) DepsMutator(ctx android.BottomUpMutatorCont
 func (m *testModuleConfigHostModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	m.validateBase(ctx, &testModuleConfigHostTag, "java_test_host", true)
 	m.generateManifestAndConfig(ctx)
-	android.SetProvider(ctx, android.SupportFilesInfoProvider, android.SupportFilesInfo{
-		SupportFiles: m.supportFiles,
-	})
 }
 
 // Ensure the base listed is the right type by checking that we get the expected provider data.

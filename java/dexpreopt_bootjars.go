@@ -1381,6 +1381,10 @@ const failureMessage = `ERROR: Dex2oat failed to compile a boot image.
 It is likely that the boot classpath is inconsistent.
 Rebuild with ART_BOOT_IMAGE_EXTRA_ARGS="--runtime-arg -verbose:verifier" to see verification errors.`
 
+// bootImageProfileRuleCommon contains the common logic for generating boot image profiles for both
+// the platform and the ART module when building from source.
+// Building from prebuilts is not handled here. Instead, the profile is extracted from the prebuilt
+// ART module.
 func bootImageProfileRuleCommon(ctx android.ModuleContext, name string, dexFiles android.Paths, dexLocations []string) android.WritablePath {
 	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
 	global := dexpreopt.GetGlobalConfig(ctx)
@@ -1389,33 +1393,31 @@ func bootImageProfileRuleCommon(ctx android.ModuleContext, name string, dexFiles
 		return nil
 	}
 
-	defaultProfile := "frameworks/base/boot/boot-image-profile.txt"
-	// If ART is prebuilt, primarily in next release configs, this will still use
-	// the profile from source which represent the latest code, so it may not
-	// correspond to the BCP jars in the prebuilt APEX, but this is the profile we
-	// have access to.
-	artProfile := "art/build/boot/boot-image-profile.txt"
-	extraProfile := "frameworks/base/boot/boot-image-profile-extra.txt"
-
 	rule := android.NewRuleBuilder(pctx, ctx)
 
 	var profiles android.Paths
 	if len(global.BootImageProfiles) > 0 {
+		// The most common case. The profiles are specified by
+		// `PRODUCT_DEX_PREOPT_BOOT_IMAGE_PROFILE_LOCATION`.
+		// - On a bundled build, this list contains both the ART profile and the frameworks profile.
+		// - On an unbundled build with ART source code being present, this list only contains the ART
+		//   profile.
 		profiles = append(profiles, global.BootImageProfiles...)
-	} else if path := android.ExistentPathForSource(ctx, defaultProfile); path.Valid() {
-		profiles = append(profiles, path.Path())
 	} else {
-		// No profile (not even a default one, which is the case on some branches
-		// like master-art-host that don't have frameworks/base).
+		// No profile specified. This means we are building an unbundled build with ART source code
+		// being absent, meaning we are not building the platform or the ART module, so we don't need
+		// a profile.
 		// Return nil and continue without profile.
 		return nil
 	}
-	if path := android.ExistentPathForSource(ctx, artProfile); path.Valid() {
-		profiles = append(profiles, path.Path())
-	}
+	extraProfile := "frameworks/base/boot/boot-image-profile-extra.txt"
 	if path := android.ExistentPathForSource(ctx, extraProfile); path.Valid() {
 		profiles = append(profiles, path.Path())
 	}
+	// We concatenate the profiles into a single file. Later, `profman` filters the entries based on
+	// `dexFiles` to only keep the relevant ones. For example, when this function is called for
+	// generating the profile for the ART module, `profman` only keeps the entries for the ART module
+	// and not the platform.
 	bootImageProfile := android.PathForModuleOut(ctx, name, "boot-image-profile.txt")
 	rule.Command().Text("cat").Inputs(profiles).Text(">").Output(bootImageProfile)
 
