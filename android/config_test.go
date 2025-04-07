@@ -223,6 +223,11 @@ func (p partialCompileFlags) updateDisableStubValidation(value bool) partialComp
 	return p
 }
 
+func (p partialCompileFlags) updateEnableIncJavac(value bool) partialCompileFlags {
+	p.Enable_inc_javac = value
+	return p
+}
+
 func TestPartialCompile(t *testing.T) {
 	mockConfig := func(value string) *config {
 		c := &config{
@@ -241,7 +246,7 @@ func TestPartialCompile(t *testing.T) {
 		{"false", true, partialCompileFlags{}},
 		{"true", true, enabledPartialCompileFlags},
 		{"true", false, partialCompileFlags{}},
-		{"all", true, partialCompileFlags{}.updateUseD8(true).updateDisableStubValidation(true)},
+		{"all", true, partialCompileFlags{}.updateUseD8(true).updateDisableStubValidation(true).updateEnableIncJavac(true)},
 
 		// This verifies both use_d8 and the processing order.
 		{"true,use_d8", true, enabledPartialCompileFlags.updateUseD8(true)},
@@ -256,6 +261,14 @@ func TestPartialCompile(t *testing.T) {
 		{"false,+stub_validation", true, partialCompileFlags{}.updateDisableStubValidation(false)},
 		{"false,+enable_stub_validation", true, partialCompileFlags{}.updateDisableStubValidation(false)},
 		{"false,-disable_stub_validation", true, partialCompileFlags{}.updateDisableStubValidation(false)},
+
+		// enable_inc_javac can be specified with any of 3 options.
+		{"false,-inc_javac", true, partialCompileFlags{}.updateEnableIncJavac(false)},
+		{"false,-enable_inc_javac", true, partialCompileFlags{}.updateEnableIncJavac(false)},
+		{"false,+disable_inc_javac", true, partialCompileFlags{}.updateEnableIncJavac(false)},
+		{"false,+inc_javac", true, partialCompileFlags{}.updateEnableIncJavac(true)},
+		{"false,+enable_inc_javac", true, partialCompileFlags{}.updateEnableIncJavac(true)},
+		{"false,-disable_inc_javac", true, partialCompileFlags{}.updateEnableIncJavac(true)},
 	}
 
 	for _, test := range tests {

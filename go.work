@@ -6,6 +6,7 @@ use (
 	../../external/golang-protobuf
 	../../external/starlark-go
 	../blueprint
+	../../build/make/tools/dependency_mapper/proto
 )
 
 replace (
@@ -14,4 +15,5 @@ replace (
 	github.com/google/go-cmp v0.0.0 => ../../external/go-cmp
 	google.golang.org/protobuf v0.0.0 => ../../external/golang-protobuf
 	go.starlark.net v0.0.0 => ../../external/starlark-go
+	go.dependencymapper/protoimpl v0.0.0 => ../../build/make/tools/dependency_mapper/proto
 )

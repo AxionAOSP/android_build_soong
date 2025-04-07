@@ -1475,6 +1475,24 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 				break
 			}
 		}
+
+		// turbine is disabled when API generating APs are present, in which case,
+		// we would want to process annotations before moving to incremental javac
+		if ctx.Device() && ctx.Config().PartialCompileFlags().Enable_inc_javac && disableTurbine {
+			if len(flags.processorPath) > 0 {
+				annoSrcJars, classes := j.generateJavaAnnotations(ctx, jarName, -1, uniqueJavaFiles, srcJars, flags, nil)
+				srcJars = append(srcJars, annoSrcJars)
+				localImplementationJars = append(localImplementationJars, classes)
+				flags.processorPath = nil
+				flags.processors = nil
+			}
+			// turbine was disabled, lets run it now
+			extraJars1 := slices.Clone(kotlinHeaderJars)
+			extraJars1 = append(extraJars1, extraCombinedJars...)
+			localHeaderJars, _ = j.compileJavaHeader(ctx, uniqueJavaFiles, srcJars, deps, flags, jarName, extraJars1)
+			shardingHeaderJars = localHeaderJars
+		}
+
 		var extraJarDeps android.Paths
 		if Bool(j.properties.Errorprone.Enabled) {
 			// If error-prone is enabled, enable errorprone flags on the regular
@@ -1497,7 +1515,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 				errorprone := android.PathForModuleOut(ctx, "errorprone", jarName)
 				errorproneAnnoSrcJar := android.PathForModuleOut(ctx, "errorprone", "anno.srcjar")
 
-				transformJavaToClasses(ctx, errorprone, -1, uniqueJavaFiles, srcJars, errorproneAnnoSrcJar, errorproneFlags, nil,
+				transformJavaToClasses(ctx, errorprone, -1, uniqueJavaFiles, srcJars, errorproneAnnoSrcJar, false, errorproneFlags, nil,
 					"errorprone", "errorprone")
 
 				extraJarDeps = append(extraJarDeps, errorprone)
@@ -1514,7 +1532,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 				shardSrcs = android.ShardPaths(uniqueJavaFiles, shardSize)
 				for idx, shardSrc := range shardSrcs {
 					classes := j.compileJavaClasses(ctx, jarName, idx, shardSrc,
-						nil, flags, extraJarDeps)
+						nil, nil, flags, extraJarDeps)
 					classes, _ = j.repackageFlagsIfNecessary(ctx, classes, jarName, "javac-"+strconv.Itoa(idx))
 					localImplementationJars = append(localImplementationJars, classes)
 				}
@@ -1527,13 +1545,13 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 				shardSrcJarsList := android.ShardPaths(srcJars, shardSize/5)
 				for idx, shardSrcJars := range shardSrcJarsList {
 					classes := j.compileJavaClasses(ctx, jarName, startIdx+idx,
-						nil, shardSrcJars, flags, extraJarDeps)
+						nil, shardSrcJars, nil, flags, extraJarDeps)
 					classes, _ = j.repackageFlagsIfNecessary(ctx, classes, jarName, "javac-"+strconv.Itoa(startIdx+idx))
 					localImplementationJars = append(localImplementationJars, classes)
 				}
 			}
 		} else {
-			classes := j.compileJavaClasses(ctx, jarName, -1, uniqueJavaFiles, srcJars, flags, extraJarDeps)
+			classes := j.compileJavaClasses(ctx, jarName, -1, uniqueJavaFiles, srcJars, shardingHeaderJars, flags, extraJarDeps)
 			classes, _ = j.repackageFlagsIfNecessary(ctx, classes, jarName, "javac")
 			localImplementationJars = append(localImplementationJars, classes)
 		}
@@ -2034,7 +2052,7 @@ func enableErrorproneFlags(flags javaBuilderFlags) javaBuilderFlags {
 }
 
 func (j *Module) compileJavaClasses(ctx android.ModuleContext, jarName string, idx int,
-	srcFiles, srcJars android.Paths, flags javaBuilderFlags, extraJarDeps android.Paths) android.Path {
+	srcFiles, srcJars, localHeaderJars android.Paths, flags javaBuilderFlags, extraJarDeps android.Paths) android.Path {
 
 	kzipName := pathtools.ReplaceExtension(jarName, "kzip")
 	annoSrcJar := android.PathForModuleOut(ctx, "javac", "anno.srcjar")
@@ -2045,7 +2063,13 @@ func (j *Module) compileJavaClasses(ctx android.ModuleContext, jarName string, i
 	}
 
 	classes := android.PathForModuleOut(ctx, "javac", jarName)
-	TransformJavaToClasses(ctx, classes, idx, srcFiles, srcJars, annoSrcJar, flags, extraJarDeps)
+	// enable incremental javac when corresponding flags are enabled and
+	// header jars are present
+	if ctx.Config().PartialCompileFlags().Enable_inc_javac && len(localHeaderJars) > 0 {
+		TransformJavaToClassesInc(ctx, classes, srcFiles, srcJars, localHeaderJars, annoSrcJar, flags, extraJarDeps)
+	} else {
+		TransformJavaToClasses(ctx, classes, idx, srcFiles, srcJars, annoSrcJar, flags, extraJarDeps)
+	}
 
 	if ctx.Config().EmitXrefRules() && ctx.Module() == ctx.PrimaryModule() {
 		extractionFile := android.PathForModuleOut(ctx, kzipName)
@@ -2058,6 +2082,24 @@ func (j *Module) compileJavaClasses(ctx android.ModuleContext, jarName string, i
 	}
 
 	return classes
+}
+
+func (j *Module) generateJavaAnnotations(ctx android.ModuleContext, jarName string, idx int,
+	srcFiles, srcJars android.Paths, flags javaBuilderFlags, extraJarDeps android.Paths) (android.Path, android.Path) {
+
+	annoSrcJar := android.PathForModuleOut(ctx, "javac-apt", "anno.srcjar")
+	if idx >= 0 {
+		annoSrcJar = android.PathForModuleOut(ctx, "javac-apt", "anno-"+strconv.Itoa(idx)+".srcjar")
+		jarName += strconv.Itoa(idx)
+	}
+
+	classes := android.PathForModuleOut(ctx, "javac-apt", jarName)
+	GenerateJavaAnnotations(ctx, classes, idx, srcFiles, srcJars, annoSrcJar, flags, extraJarDeps)
+
+	if len(flags.processorPath) > 0 {
+		j.annoSrcJars = append(j.annoSrcJars, annoSrcJar)
+	}
+	return annoSrcJar, classes
 }
 
 // Check for invalid kotlinc flags. Only use this for flags explicitly passed by the user,
