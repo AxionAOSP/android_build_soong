@@ -448,7 +448,7 @@ func generateContainerInfo(ctx ModuleContext) ContainersInfo {
 	}
 }
 
-func getContainerModuleInfo(ctx ModuleContext, module Module) (ContainersInfo, bool) {
+func getContainerModuleInfo(ctx ModuleContext, module blueprint.ModuleOrProxy) (ContainersInfo, bool) {
 	if EqualModules(ctx.Module(), module) {
 		return ctx.getContainersInfo(), true
 	}

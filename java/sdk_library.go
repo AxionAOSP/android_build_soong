@@ -38,11 +38,11 @@ type scopeDependencyTag struct {
 	apiScope *apiScope
 
 	// Function for extracting appropriate path information from the dependency.
-	depInfoExtractor func(paths *scopePaths, ctx android.ModuleContext, dep android.Module) error
+	depInfoExtractor func(paths *scopePaths, ctx android.ModuleContext, dep android.ModuleProxy) error
 }
 
 // Extract tag specific information from the dependency.
-func (tag scopeDependencyTag) extractDepInfo(ctx android.ModuleContext, dep android.Module, paths *scopePaths) {
+func (tag scopeDependencyTag) extractDepInfo(ctx android.ModuleContext, dep android.ModuleProxy, paths *scopePaths) {
 	err := tag.depInfoExtractor(paths, ctx, dep)
 	if err != nil {
 		ctx.ModuleErrorf("has an invalid {scopeDependencyTag: %s} dependency on module %s: %s", tag.name, ctx.OtherModuleName(dep), err.Error())
@@ -697,7 +697,7 @@ type scopePaths struct {
 	latestRemovedApiPaths android.Paths
 }
 
-func (paths *scopePaths) extractStubsLibraryInfoFromDependency(ctx android.ModuleContext, dep android.Module) error {
+func (paths *scopePaths) extractStubsLibraryInfoFromDependency(ctx android.ModuleContext, dep android.ModuleProxy) error {
 	if lib, ok := android.OtherModuleProvider(ctx, dep, JavaInfoProvider); ok {
 		paths.stubsHeaderPath = lib.HeaderJars
 		paths.stubsImplPath = lib.ImplementationJars
@@ -711,7 +711,7 @@ func (paths *scopePaths) extractStubsLibraryInfoFromDependency(ctx android.Modul
 	}
 }
 
-func (paths *scopePaths) extractEverythingStubsLibraryInfoFromDependency(ctx android.ModuleContext, dep android.Module) error {
+func (paths *scopePaths) extractEverythingStubsLibraryInfoFromDependency(ctx android.ModuleContext, dep android.ModuleProxy) error {
 	if lib, ok := android.OtherModuleProvider(ctx, dep, JavaInfoProvider); ok {
 		paths.stubsHeaderPath = lib.HeaderJars
 		if !ctx.Config().ReleaseHiddenApiExportableStubs() {
@@ -726,7 +726,7 @@ func (paths *scopePaths) extractEverythingStubsLibraryInfoFromDependency(ctx and
 	}
 }
 
-func (paths *scopePaths) extractExportableStubsLibraryInfoFromDependency(ctx android.ModuleContext, dep android.Module) error {
+func (paths *scopePaths) extractExportableStubsLibraryInfoFromDependency(ctx android.ModuleContext, dep android.ModuleProxy) error {
 	if lib, ok := android.OtherModuleProvider(ctx, dep, JavaInfoProvider); ok {
 		if ctx.Config().ReleaseHiddenApiExportableStubs() {
 			paths.stubsImplPath = lib.ImplementationJars
@@ -740,7 +740,7 @@ func (paths *scopePaths) extractExportableStubsLibraryInfoFromDependency(ctx and
 	}
 }
 
-func (paths *scopePaths) treatDepAsApiStubsProvider(ctx android.ModuleContext, dep android.Module,
+func (paths *scopePaths) treatDepAsApiStubsProvider(ctx android.ModuleContext, dep android.ModuleProxy,
 	action func(*DroidStubsInfo, *StubsSrcInfo) error) error {
 	apiStubsProvider, ok := android.OtherModuleProvider(ctx, dep, DroidStubsInfoProvider)
 	if !ok {
@@ -755,7 +755,7 @@ func (paths *scopePaths) treatDepAsApiStubsProvider(ctx android.ModuleContext, d
 }
 
 func (paths *scopePaths) treatDepAsApiStubsSrcProvider(
-	ctx android.ModuleContext, dep android.Module, action func(provider *StubsSrcInfo) error) error {
+	ctx android.ModuleContext, dep android.ModuleProxy, action func(provider *StubsSrcInfo) error) error {
 	if apiStubsProvider, ok := android.OtherModuleProvider(ctx, dep, StubsSrcInfoProvider); ok {
 		err := action(&apiStubsProvider)
 		if err != nil {
@@ -797,7 +797,7 @@ func (paths *scopePaths) extractStubsSourceInfoFromApiStubsProviders(provider *S
 	return err
 }
 
-func (paths *scopePaths) extractStubsSourceInfoFromDep(ctx android.ModuleContext, dep android.Module) error {
+func (paths *scopePaths) extractStubsSourceInfoFromDep(ctx android.ModuleContext, dep android.ModuleProxy) error {
 	stubsType := Everything
 	if ctx.Config().ReleaseHiddenApiExportableStubs() {
 		stubsType = Exportable
@@ -807,7 +807,7 @@ func (paths *scopePaths) extractStubsSourceInfoFromDep(ctx android.ModuleContext
 	})
 }
 
-func (paths *scopePaths) extractStubsSourceAndApiInfoFromApiStubsProvider(ctx android.ModuleContext, dep android.Module) error {
+func (paths *scopePaths) extractStubsSourceAndApiInfoFromApiStubsProvider(ctx android.ModuleContext, dep android.ModuleProxy) error {
 	stubsType := Everything
 	if ctx.Config().ReleaseHiddenApiExportableStubs() {
 		stubsType = Exportable
@@ -819,7 +819,7 @@ func (paths *scopePaths) extractStubsSourceAndApiInfoFromApiStubsProvider(ctx an
 	})
 }
 
-func extractOutputPaths(ctx android.ModuleContext, dep android.Module) (android.Paths, error) {
+func extractOutputPaths(ctx android.ModuleContext, dep android.ModuleProxy) (android.Paths, error) {
 	var paths android.Paths
 	if sourceFileProducer, ok := android.OtherModuleProvider(ctx, dep, android.SourceFilesInfoProvider); ok {
 		paths = sourceFileProducer.Srcs
@@ -829,13 +829,13 @@ func extractOutputPaths(ctx android.ModuleContext, dep android.Module) (android.
 	}
 }
 
-func (paths *scopePaths) extractLatestApiPath(ctx android.ModuleContext, dep android.Module) error {
+func (paths *scopePaths) extractLatestApiPath(ctx android.ModuleContext, dep android.ModuleProxy) error {
 	outputPaths, err := extractOutputPaths(ctx, dep)
 	paths.latestApiPaths = outputPaths
 	return err
 }
 
-func (paths *scopePaths) extractLatestRemovedApiPath(ctx android.ModuleContext, dep android.Module) error {
+func (paths *scopePaths) extractLatestRemovedApiPath(ctx android.ModuleContext, dep android.ModuleProxy) error {
 	outputPaths, err := extractOutputPaths(ctx, dep)
 	paths.latestRemovedApiPaths = outputPaths
 	return err

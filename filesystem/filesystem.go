@@ -1306,7 +1306,11 @@ func (f *filesystem) getAvbAddHashtreeFooterArgs(ctx android.ModuleContext) stri
 	// We're not going to add BuildFingerPrintFile as a dep. If it changed, it's likely because
 	// the build number changed, and we don't want to trigger rebuilds solely based on the build
 	// number.
-	avb_add_hashtree_footer_args += fmt.Sprintf(" --prop com.android.build.%s.fingerprint:{CONTENTS_OF:%s}", f.partitionName(), ctx.Config().BuildFingerprintFile(ctx))
+	if ctx.Module().UseGenericConfig() {
+		avb_add_hashtree_footer_args += fmt.Sprintf(" --prop com.android.build.%s.fingerprint:{CONTENTS_OF:%s}", f.partitionName(), ctx.Config().BuildThumbprintFile(ctx))
+	} else {
+		avb_add_hashtree_footer_args += fmt.Sprintf(" --prop com.android.build.%s.fingerprint:{CONTENTS_OF:%s}", f.partitionName(), ctx.Config().BuildFingerprintFile(ctx))
+	}
 	if f.properties.Security_patch != nil && proptools.String(f.properties.Security_patch) != "" {
 		avb_add_hashtree_footer_args += fmt.Sprintf(" --prop com.android.build.%s.security_patch:%s", f.partitionName(), proptools.String(f.properties.Security_patch))
 	}

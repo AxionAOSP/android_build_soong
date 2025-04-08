@@ -95,6 +95,12 @@ func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Andr
 	ret.Class = "EXECUTABLES"
 }
 
+func (object *objectDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkEntries) {
+	ctx.SubAndroidMk(ret, object.baseCompiler)
+
+	ret.Class = "STATIC_LIBRARIES"
+}
+
 func (test *testDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkEntries) {
 	ctx.SubAndroidMk(ret, test.binaryDecorator)
 

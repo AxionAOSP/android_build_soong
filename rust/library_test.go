@@ -25,27 +25,27 @@ import (
 func TestLibraryVariants(t *testing.T) {
 
 	ctx := testRust(t, `
-		rust_library_host {
+		rust_library {
 			name: "libfoo",
 			srcs: ["foo.rs"],
 			crate_name: "foo",
 		}
-		rust_ffi_host {
+		rust_ffi {
 			name: "libfoo.ffi",
 			srcs: ["foo.rs"],
 			crate_name: "foo"
 		}
-		rust_ffi_host_static {
+		rust_ffi_static {
 			name: "libfoo.ffi_static",
 			srcs: ["foo.rs"],
 			crate_name: "foo"
 		}`)
 
 	// Test all variants are being built.
-	libfooRlib := ctx.ModuleForTests(t, "libfoo", "linux_glibc_x86_64_rlib_rlib-std").Rule("rustc")
-	libfooDylib := ctx.ModuleForTests(t, "libfoo", "linux_glibc_x86_64_dylib").Rule("rustc")
-	libfooFFIRlib := ctx.ModuleForTests(t, "libfoo.ffi", "linux_glibc_x86_64_rlib_rlib-std").Rule("rustc")
-	libfooShared := ctx.ModuleForTests(t, "libfoo.ffi", "linux_glibc_x86_64_shared").Rule("rustc")
+	libfooRlib := ctx.ModuleForTests(t, "libfoo", "android_arm64_armv8-a_rlib_rlib-std").Rule("rustc")
+	libfooDylib := ctx.ModuleForTests(t, "libfoo", "android_arm64_armv8-a_dylib").Rule("rustc")
+	libfooFFIRlib := ctx.ModuleForTests(t, "libfoo.ffi", "android_arm64_armv8-a_rlib_rlib-std").Rule("rustc")
+	libfooShared := ctx.ModuleForTests(t, "libfoo.ffi", "android_arm64_armv8-a_shared").Rule("rustc")
 
 	rlibCrateType := "rlib"
 	dylibCrateType := "dylib"
@@ -76,13 +76,13 @@ func TestLibraryVariants(t *testing.T) {
 // Test that dylibs are not statically linking the standard library.
 func TestDylibPreferDynamic(t *testing.T) {
 	ctx := testRust(t, `
-		rust_library_host_dylib {
+		rust_library_dylib {
 			name: "libfoo",
 			srcs: ["foo.rs"],
 			crate_name: "foo",
 		}`)
 
-	libfooDylib := ctx.ModuleForTests(t, "libfoo", "linux_glibc_x86_64_dylib").Rule("rustc")
+	libfooDylib := ctx.ModuleForTests(t, "libfoo", "android_arm64_armv8-a_dylib").Rule("rustc")
 
 	if !strings.Contains(libfooDylib.Args["rustcFlags"], "prefer-dynamic") {
 		t.Errorf("missing prefer-dynamic flag for libfoo dylib, rustcFlags: %#v", libfooDylib.Args["rustcFlags"])
@@ -247,17 +247,17 @@ func TestNativeDependencyOfRlib(t *testing.T) {
 func TestAutoDeps(t *testing.T) {
 
 	ctx := testRust(t, `
-		rust_library_host {
+		rust_library {
 			name: "libbar",
 			srcs: ["bar.rs"],
 			crate_name: "bar",
 		}
-		rust_library_host_rlib {
+		rust_library_rlib {
 			name: "librlib_only",
 			srcs: ["bar.rs"],
 			crate_name: "rlib_only",
 		}
-		rust_library_host {
+		rust_library {
 			name: "libfoo",
 			srcs: ["foo.rs"],
 			crate_name: "foo",
@@ -266,7 +266,7 @@ func TestAutoDeps(t *testing.T) {
 				"librlib_only",
 			],
 		}
-		rust_ffi_host {
+		rust_ffi {
 			name: "libfoo.ffi",
 			srcs: ["foo.rs"],
 			crate_name: "foo",
@@ -275,7 +275,7 @@ func TestAutoDeps(t *testing.T) {
 				"librlib_only",
 			],
 		}
-		rust_ffi_host_static {
+		rust_ffi_static {
 			name: "libfoo.ffi.static",
 			srcs: ["foo.rs"],
 			crate_name: "foo",
@@ -285,10 +285,10 @@ func TestAutoDeps(t *testing.T) {
 			],
 		}`)
 
-	libfooRlib := ctx.ModuleForTests(t, "libfoo", "linux_glibc_x86_64_rlib_rlib-std")
-	libfooDylib := ctx.ModuleForTests(t, "libfoo", "linux_glibc_x86_64_dylib")
-	libfooFFIRlib := ctx.ModuleForTests(t, "libfoo.ffi", "linux_glibc_x86_64_rlib_rlib-std")
-	libfooShared := ctx.ModuleForTests(t, "libfoo.ffi", "linux_glibc_x86_64_shared")
+	libfooRlib := ctx.ModuleForTests(t, "libfoo", "android_arm64_armv8-a_rlib_rlib-std")
+	libfooDylib := ctx.ModuleForTests(t, "libfoo", "android_arm64_armv8-a_dylib")
+	libfooFFIRlib := ctx.ModuleForTests(t, "libfoo.ffi", "android_arm64_armv8-a_rlib_rlib-std")
+	libfooShared := ctx.ModuleForTests(t, "libfoo.ffi", "android_arm64_armv8-a_shared")
 
 	for _, static := range []android.TestingModule{libfooRlib, libfooFFIRlib} {
 		if !android.InList("libbar.rlib-std", static.Module().(*Module).Properties.AndroidMkRlibs) {

@@ -32,7 +32,7 @@ var (
 			Command: "$envVars $rustcCmd " +
 				"-C linker=${RustcLinkerCmd} " +
 				"-C link-args=\"--android-clang-bin=${config.ClangCmd} ${crtBegin} ${earlyLinkFlags} ${linkFlags} ${crtEnd}\" " +
-				"--emit link -o $out --emit dep-info=$out.d.raw $in ${libFlags} $rustcFlags" +
+				"--emit ${emitType} -o $out --emit dep-info=$out.d.raw $in ${libFlags} $rustcFlags" +
 				" && grep ^$out: $out.d.raw > $out.d",
 			CommandDeps: []string{"$rustcCmd", "${RustcLinkerCmd}", "${config.ClangCmd}"},
 			// Rustc deps-info writes out make compatible dep files: https://github.com/rust-lang/rust/issues/7633
@@ -43,7 +43,7 @@ var (
 			Deps:    blueprint.DepsGCC,
 			Depfile: "$out.d",
 		},
-		"rustcFlags", "earlyLinkFlags", "linkFlags", "libFlags", "crtBegin", "crtEnd", "envVars")
+		"rustcFlags", "earlyLinkFlags", "linkFlags", "libFlags", "crtBegin", "crtEnd", "emitType", "envVars")
 
 	_       = pctx.SourcePathVariable("rustdocCmd", "${config.RustBin}/rustdoc")
 	rustdoc = pctx.AndroidStaticRule("rustdoc",
@@ -134,6 +134,7 @@ type transformProperties struct {
 	cargoOutDir     android.OptionalPath
 	synthetic       bool
 	crateType       string
+	emitType        string
 }
 
 // Populates a standard transformProperties struct for Rust modules
@@ -154,6 +155,8 @@ func getTransformProperties(ctx ModuleContext, crateType string) transformProper
 
 		// synthetic indicates whether this is an actual Rust module or not
 		synthetic: false,
+
+		emitType: module.compiler.emitType(),
 	}
 }
 
@@ -164,6 +167,13 @@ func TransformSrcToBinary(ctx ModuleContext, mainSrc android.Path, deps PathDeps
 	}
 
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, getTransformProperties(ctx, "bin"))
+}
+
+func TransformSrcToObject(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
+	outputFile android.WritablePath) buildOutput {
+
+	// There's no "obj" crate-type since it doesn't get linked, so don't define one.
+	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, getTransformProperties(ctx, ""))
 }
 
 func TransformSrctoRlib(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
@@ -199,6 +209,7 @@ func TransformRlibstoStaticlib(ctx android.ModuleContext, mainSrc android.Path, 
 		inRecovery:      mod.InRecovery(),
 		inRamdisk:       mod.InRamdisk(),
 		inVendorRamdisk: mod.InVendorRamdisk(),
+		emitType:        "link",
 
 		// crateType indicates what type of crate to build
 		crateType: "staticlib",
@@ -358,7 +369,9 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 	// Collect rustc flags
 	rustcFlags = append(rustcFlags, flags.GlobalRustFlags...)
 	rustcFlags = append(rustcFlags, flags.RustFlags...)
-	rustcFlags = append(rustcFlags, "--crate-type="+t.crateType)
+	if t.crateType != "" {
+		rustcFlags = append(rustcFlags, "--crate-type="+t.crateType)
+	}
 	if t.crateName != "" {
 		rustcFlags = append(rustcFlags, "--crate-name="+t.crateName)
 	}
@@ -491,6 +504,7 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 			"crtBegin":       strings.Join(deps.CrtBegin.Strings(), " "),
 			"crtEnd":         strings.Join(deps.CrtEnd.Strings(), " "),
 			"envVars":        strings.Join(envVars, " "),
+			"emitType":       t.emitType,
 		},
 	})
 

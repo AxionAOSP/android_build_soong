@@ -103,7 +103,7 @@ var (
 			PropertyName: "java_header_libs",
 			SupportsSdk:  true,
 		},
-		func(_ android.SdkMemberContext, j android.Module, javaInfo *JavaInfo) android.Path {
+		func(_ android.SdkMemberContext, j android.ModuleProxy, javaInfo *JavaInfo) android.Path {
 			headerJars := javaInfo.HeaderJars
 			if len(headerJars) != 1 {
 				panic(fmt.Errorf("there must be only one header jar from %q", j.Name()))
@@ -116,7 +116,7 @@ var (
 	}
 
 	// Export implementation classes jar as part of the sdk.
-	exportImplementationClassesJar = func(_ android.SdkMemberContext, j android.Module, javaInfo *JavaInfo) android.Path {
+	exportImplementationClassesJar = func(_ android.SdkMemberContext, j android.ModuleProxy, javaInfo *JavaInfo) android.Path {
 		implementationJars := javaInfo.ImplementationAndResourcesJars
 		if len(implementationJars) != 1 {
 			panic(fmt.Errorf("there must be only one implementation jar from %q", j.Name()))
@@ -160,7 +160,7 @@ var (
 			PropertyName: "java_boot_libs",
 			SupportsSdk:  true,
 		},
-		func(ctx android.SdkMemberContext, j android.Module, javaInfo *JavaInfo) android.Path {
+		func(ctx android.SdkMemberContext, j android.ModuleProxy, javaInfo *JavaInfo) android.Path {
 			if snapshotRequiresImplementationJar(ctx) {
 				return exportImplementationClassesJar(ctx, j, javaInfo)
 			}
@@ -202,7 +202,7 @@ var (
 			// This was only added in Tiramisu.
 			SupportedBuildReleaseSpecification: "Tiramisu+",
 		},
-		func(ctx android.SdkMemberContext, _ android.Module, _ *JavaInfo) android.Path {
+		func(ctx android.SdkMemberContext, _ android.ModuleProxy, _ *JavaInfo) android.Path {
 			// Java systemserver libs are only provided in the SDK to provide access to their dex
 			// implementation jar for use by dexpreopting. They do not need to provide an actual
 			// implementation jar but the java_import will need a file that exists so just copy an empty
@@ -1354,7 +1354,7 @@ type librarySdkMemberType struct {
 
 	// Function to retrieve the appropriate output jar (implementation or header) from
 	// the library.
-	jarToExportGetter func(ctx android.SdkMemberContext, j android.Module, javaInfo *JavaInfo) android.Path
+	jarToExportGetter func(ctx android.SdkMemberContext, j android.ModuleProxy, javaInfo *JavaInfo) android.Path
 
 	// Function to compute the snapshot relative path to which the named library's
 	// jar should be copied.

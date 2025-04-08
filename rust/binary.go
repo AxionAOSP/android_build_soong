@@ -16,6 +16,8 @@ package rust
 
 import (
 	"android/soong/android"
+
+	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -69,6 +71,24 @@ func NewRustBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator
 	return module, binary
 }
 
+func (binary *binaryDecorator) begin(ctx BaseModuleContext) {
+	binary.baseCompiler.begin(ctx)
+
+	if ctx.Os().Linux() && ctx.Host() && ctx.toolchain().Musl() {
+		// Unless explicitly specified otherwise, host static binaries are built statically
+		// if HostStaticBinaries is true for the product configuration.
+		// In Rust however this is only supported for musl targets.
+		if binary.Properties.Static_executable == nil && ctx.Config().HostStaticBinaries() {
+			binary.Properties.Static_executable = proptools.BoolPtr(true)
+		}
+	}
+
+	if ctx.Darwin() || (ctx.Os().Linux() && ctx.Host() && ctx.toolchain().Glibc()) {
+		// Static executables are not supported on Darwin
+		binary.Properties.Static_executable = nil
+	}
+}
+
 func (binary *binaryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = binary.baseCompiler.compilerFlags(ctx, flags)
 
@@ -79,11 +99,11 @@ func (binary *binaryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Fla
 			"-Wl,--gc-sections",
 			"-Wl,-z,nocopyreloc",
 			"-Wl,--no-undefined-version")
+	}
 
-		if Bool(binary.Properties.Static_executable) {
-			flags.LinkFlags = append(flags.LinkFlags, "-static")
-			flags.RustFlags = append(flags.RustFlags, "-C relocation-model=static")
-		}
+	if Bool(binary.Properties.Static_executable) {
+		flags.LinkFlags = append(flags.LinkFlags, "-static")
+		flags.RustFlags = append(flags.RustFlags, "-C relocation-model=static")
 	}
 
 	return flags

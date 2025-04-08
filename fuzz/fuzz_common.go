@@ -568,7 +568,7 @@ func IsValid(ctx android.ConfigurableEvaluatorContext, fuzzModule FuzzModule) bo
 
 // TODO(b/397766191): Change the signature to take ModuleProxy
 // Please only access the module's internal data through providers.
-func (s *FuzzPackager) PackageArtifacts(ctx android.SingletonContext, module android.Module, fuzzModule *FuzzPackagedModuleInfo, archDir android.OutputPath, builder *android.RuleBuilder) []FileToZip {
+func (s *FuzzPackager) PackageArtifacts(ctx android.SingletonContext, module blueprint.ModuleOrProxy, fuzzModule *FuzzPackagedModuleInfo, archDir android.OutputPath, builder *android.RuleBuilder) []FileToZip {
 	// Package the corpora into a zipfile.
 	var files []FileToZip
 	if fuzzModule.Corpus != nil {
@@ -609,7 +609,7 @@ func (s *FuzzPackager) PackageArtifacts(ctx android.SingletonContext, module and
 
 // TODO(b/397766191): Change the signature to take ModuleProxy
 // Please only access the module's internal data through providers.
-func (s *FuzzPackager) BuildZipFile(ctx android.SingletonContext, module android.Module, fuzzModule *FuzzPackagedModuleInfo, files []FileToZip, builder *android.RuleBuilder, archDir android.OutputPath, archString string, hostOrTargetString string, archOs ArchOs, archDirs map[ArchOs][]FileToZip) ([]FileToZip, bool) {
+func (s *FuzzPackager) BuildZipFile(ctx android.SingletonContext, module blueprint.ModuleOrProxy, fuzzModule *FuzzPackagedModuleInfo, files []FileToZip, builder *android.RuleBuilder, archDir android.OutputPath, archString string, hostOrTargetString string, archOs ArchOs, archDirs map[ArchOs][]FileToZip) ([]FileToZip, bool) {
 	fuzzZip := archDir.Join(ctx, module.Name()+".zip")
 
 	command := builder.Command().BuiltTool("soong_zip").

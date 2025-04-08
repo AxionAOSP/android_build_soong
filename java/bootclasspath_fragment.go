@@ -398,7 +398,7 @@ type BootclasspathFragmentApexContentInfo struct {
 // DexBootJarPathForContentModule returns the path to the dex boot jar for specified module.
 //
 // The dex boot jar is one which has had hidden API encoding performed on it.
-func (i BootclasspathFragmentApexContentInfo) DexBootJarPathForContentModule(module android.Module) (android.Path, error) {
+func (i BootclasspathFragmentApexContentInfo) DexBootJarPathForContentModule(module blueprint.ModuleOrProxy) (android.Path, error) {
 	// A bootclasspath_fragment cannot use a prebuilt library so Name() will return the base name
 	// without a prebuilt_ prefix so is safe to use as the key for the contentModuleDexJarPaths.
 	name := module.Name()

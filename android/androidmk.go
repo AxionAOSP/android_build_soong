@@ -501,12 +501,12 @@ func (a *AndroidMkEntries) GetDistForGoals(mod Module) []string {
 // fillInEntries goes through the common variable processing and calls the extra data funcs to
 // generate and fill in AndroidMkEntries's in-struct data, ready to be flushed to a file.
 type fillInEntriesContext interface {
-	ModuleDir(module blueprint.Module) string
-	ModuleSubDir(module blueprint.Module) string
+	ModuleDir(module blueprint.ModuleOrProxy) string
+	ModuleSubDir(module blueprint.ModuleOrProxy) string
 	Config() Config
-	otherModuleProvider(module blueprint.Module, provider blueprint.AnyProviderKey) (any, bool)
-	ModuleType(module blueprint.Module) string
-	OtherModulePropertyErrorf(module Module, property string, fmt string, args ...interface{})
+	otherModuleProvider(module blueprint.ModuleOrProxy, provider blueprint.AnyProviderKey) (any, bool)
+	ModuleType(module blueprint.ModuleOrProxy) string
+	OtherModulePropertyErrorf(module blueprint.ModuleOrProxy, property string, fmt string, args ...interface{})
 	HasMutatorFinished(mutatorName string) bool
 }
 

@@ -67,7 +67,7 @@ type CodegenInfo struct {
 
 var CodegenInfoProvider = blueprint.NewProvider[CodegenInfo]()
 
-func propagateModeInfos(ctx ModuleContext, module Module, to, from map[string]ModeInfo) {
+func propagateModeInfos(ctx ModuleContext, module ModuleProxy, to, from map[string]ModeInfo) {
 	if len(from) > 0 {
 		depTag := ctx.OtherModuleDependencyTag(module)
 		if tag, ok := depTag.(PropagateAconfigValidationDependencyTag); ok && tag.PropagateAconfigValidation() {
@@ -83,7 +83,7 @@ type aconfigPropagatingDeclarationsInfo struct {
 
 var AconfigPropagatingProviderKey = blueprint.NewProvider[aconfigPropagatingDeclarationsInfo]()
 
-func VerifyAconfigBuildMode(ctx ModuleContext, container string, module blueprint.Module, asError bool) {
+func VerifyAconfigBuildMode(ctx ModuleContext, container string, module blueprint.ModuleOrProxy, asError bool) {
 	if dep, ok := OtherModuleProvider(ctx, module, AconfigPropagatingProviderKey); ok {
 		for k, v := range dep.ModeInfos {
 			msg := fmt.Sprintf("%s/%s depends on %s/%s/%s across containers\n",

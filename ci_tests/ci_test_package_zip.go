@@ -169,10 +169,10 @@ func (p *testPackageZip) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	ctx.SetOutputFiles(android.Paths{p.output}, "")
 }
 
-func getAllTestModules(ctx android.ModuleContext) []android.Module {
-	var ret []android.Module
-	ctx.WalkDeps(func(child, parent android.Module) bool {
-		if !child.Enabled(ctx) {
+func getAllTestModules(ctx android.ModuleContext) []android.ModuleProxy {
+	var ret []android.ModuleProxy
+	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
+		if info, ok := android.OtherModuleProvider(ctx, child, android.CommonModuleInfoProvider); !ok || !info.Enabled {
 			return false
 		}
 		if android.EqualModules(parent, ctx.Module()) && ctx.OtherModuleDependencyTag(child) == testPackageZipDepTag {
@@ -188,7 +188,7 @@ func getAllTestModules(ctx android.ModuleContext) []android.Module {
 		}
 	})
 	ret = android.FirstUniqueInPlace(ret)
-	slices.SortFunc(ret, func(a, b android.Module) int {
+	slices.SortFunc(ret, func(a, b android.ModuleProxy) int {
 		return cmp.Compare(a.String(), b.String())
 	})
 	return ret
@@ -224,7 +224,7 @@ func createOutput(ctx android.ModuleContext, pctx android.PackageContext) androi
 	return output
 }
 
-func createSymbolsZip(ctx android.ModuleContext, allModules []android.Module) {
+func createSymbolsZip(ctx android.ModuleContext, allModules []android.ModuleProxy) {
 	symbolsZipFile := android.PathForModuleOut(ctx, "symbols.zip")
 	symbolsMappingFile := android.PathForModuleOut(ctx, "symbols-mapping.textproto")
 	android.BuildSymbolsZip(ctx, allModules, ctx.ModuleName(), symbolsZipFile, symbolsMappingFile)
@@ -233,7 +233,7 @@ func createSymbolsZip(ctx android.ModuleContext, allModules []android.Module) {
 	ctx.SetOutputFiles(android.Paths{symbolsMappingFile}, ".elf_mapping")
 }
 
-func extendBuilderCommand(ctx android.ModuleContext, m android.Module, builder *android.RuleBuilder, stagingDir android.ModuleOutPath, productOut, arch, secondArch string) {
+func extendBuilderCommand(ctx android.ModuleContext, m blueprint.ModuleOrProxy, builder *android.RuleBuilder, stagingDir android.ModuleOutPath, productOut, arch, secondArch string) {
 	info, ok := android.OtherModuleProvider(ctx, m, android.ModuleInfoJSONProvider)
 	if !ok {
 		ctx.OtherModuleErrorf(m, "doesn't set ModuleInfoJSON provider")

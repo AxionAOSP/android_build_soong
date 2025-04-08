@@ -311,6 +311,8 @@ func (library *libraryDecorator) stdLinkage(device bool) RustLinkage {
 		return RlibLinkage
 	} else if library.baseCompiler.preferRlib() {
 		return RlibLinkage
+	} else if !device {
+		return RlibLinkage
 	}
 	return DylibLinkage
 }
@@ -942,7 +944,8 @@ func (libraryTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 	if library.buildRlib() {
 		variants = append(variants, rlibVariation)
 	}
-	if library.buildDylib() {
+	if library.buildDylib() && !ctx.Host() {
+		// Hosts do not produce dylib variants.
 		variants = append(variants, dylibVariation)
 	}
 
@@ -1039,6 +1042,10 @@ func (libstdTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 		// Only create a variant if a library is actually being built.
 		if library, ok := m.compiler.(libraryInterface); ok {
 			if library.rlib() && !library.sysroot() {
+				if ctx.Host() {
+					// Hosts do not produce dylib variants, so there's only one std option.
+					return []string{"rlib-std"}
+				}
 				return []string{"rlib-std", "dylib-std"}
 			}
 		}

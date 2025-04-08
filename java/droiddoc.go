@@ -429,8 +429,8 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	for _, src := range j.properties.Srcs {
 		if moduleName, tag := android.SrcIsModuleWithTag(src); moduleName != "" {
 			otherModule := android.GetModuleProxyFromPathDep(ctx, moduleName, tag)
-			if otherModule != nil {
-				if dep, ok := android.OtherModuleProvider(ctx, *otherModule, android.CodegenInfoProvider); ok {
+			if !otherModule.IsNil() {
+				if dep, ok := android.OtherModuleProvider(ctx, otherModule, android.CodegenInfoProvider); ok {
 					deps.aconfigProtoFiles = append(deps.aconfigProtoFiles, dep.IntermediateCacheOutputPaths...)
 				}
 			}

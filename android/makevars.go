@@ -72,15 +72,15 @@ type BaseMakeVarsContext interface {
 type MakeVarsContext interface {
 	BaseMakeVarsContext
 
-	ModuleName(module blueprint.Module) string
-	ModuleDir(module blueprint.Module) string
-	ModuleSubDir(module blueprint.Module) string
-	ModuleType(module blueprint.Module) string
-	otherModuleProvider(module blueprint.Module, key blueprint.AnyProviderKey) (any, bool)
-	BlueprintFile(module blueprint.Module) string
+	ModuleName(module blueprint.ModuleOrProxy) string
+	ModuleDir(module blueprint.ModuleOrProxy) string
+	ModuleSubDir(module blueprint.ModuleOrProxy) string
+	ModuleType(module blueprint.ModuleOrProxy) string
+	otherModuleProvider(module blueprint.ModuleOrProxy, key blueprint.AnyProviderKey) (any, bool)
+	BlueprintFile(module blueprint.ModuleOrProxy) string
 
-	ModuleErrorf(module blueprint.Module, format string, args ...interface{})
-	OtherModulePropertyErrorf(module Module, property, format string, args ...interface{})
+	ModuleErrorf(module blueprint.ModuleOrProxy, format string, args ...interface{})
+	OtherModulePropertyErrorf(module blueprint.ModuleOrProxy, property, format string, args ...interface{})
 	Errorf(format string, args ...interface{})
 
 	VisitAllModules(visit func(Module))

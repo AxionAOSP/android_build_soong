@@ -48,6 +48,7 @@ type compiler interface {
 	features(ctx android.ConfigurableEvaluatorContext, module *Module) []string
 	rustdoc(ctx ModuleContext, flags Flags, deps PathDeps) android.OptionalPath
 	Thinlto() bool
+	begin(ctx BaseModuleContext)
 
 	// Output directory in which source-generated code from dependencies is
 	// copied. This is equivalent to Cargo's OUT_DIR variable.
@@ -80,6 +81,8 @@ type compiler interface {
 	Aliases() map[string]string
 
 	moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON)
+
+	emitType() string
 }
 
 func (compiler *baseCompiler) edition() string {
@@ -108,6 +111,7 @@ type installLocation int
 const (
 	InstallInSystem installLocation = 0
 	InstallInData                   = iota
+	NoInstall                       = iota
 
 	incorrectSourcesError = "srcs can only contain one path for a rust file and source providers prefixed by \":\""
 	genSubDir             = "out/"
@@ -279,6 +283,8 @@ type baseCompiler struct {
 	cachedCrateRootError error
 }
 
+func (compiler *baseCompiler) begin(ctx BaseModuleContext) {}
+
 func (compiler *baseCompiler) Disabled() bool {
 	return false
 }
@@ -353,6 +359,7 @@ func (compiler *baseCompiler) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *
 }
 
 var _ compiler = (*baseCompiler)(nil)
+var _ autoDeppable = (*baseCompiler)(nil)
 
 func (compiler *baseCompiler) inData() bool {
 	return compiler.location == InstallInData
@@ -691,4 +698,13 @@ func srcPathFromModuleSrcs(ctx ModuleContext, srcs []string) (android.Path, erro
 		return nil, errors.New("srcs must not be empty")
 	}
 	return paths[srcIndex], nil
+}
+
+// Returns an emit type corresponding to the `--emit=` rustc flag.
+func (compiler *baseCompiler) emitType() string {
+	return "link"
+}
+
+func (compiler *baseCompiler) autoDep(ctx android.BottomUpMutatorContext) autoDep {
+	panic("baseCompiler does not implement autoDep()")
 }

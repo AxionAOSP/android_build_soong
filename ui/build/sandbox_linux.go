@@ -218,7 +218,8 @@ func (c *Cmd) workDir() string {
 	return abfsSrcDir
 }
 
-func abfsCacheFromMount(mntDir string) (string, error) {
+func abfsCacheFromMount() (string, error) {
+	wd, _ := os.Getwd()
 	type Config struct {
 		CacheDir string
 	}
@@ -226,7 +227,7 @@ func abfsCacheFromMount(mntDir string) (string, error) {
 		Config Config
 	}
 	var m MountDetails
-	file, err := os.Open(filepath.Join(mntDir, ".repo/mount-details"))
+	file, err := os.Open(filepath.Join(wd, ".repo/mount-details"))
 	if err != nil {
 		return "", err
 	}
@@ -299,7 +300,7 @@ func (c *Cmd) wrapSandbox() {
 		"-q",
 	)
 	if c.config.UseABFS() {
-		cacheDir, err := abfsCacheFromMount(wd)
+		cacheDir, err := abfsCacheFromMount()
 		if err != nil {
 			c.ctx.Fatalln(err)
 		}

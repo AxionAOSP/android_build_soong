@@ -14,9 +14,9 @@
 package java
 
 import (
-	"android/soong/aconfig"
 	"strconv"
 
+	"android/soong/aconfig"
 	"android/soong/android"
 	"android/soong/tradefed"
 
@@ -371,7 +371,7 @@ func (r *ravenwoodLibgroup) GenerateAndroidBuildActions(ctx android.ModuleContex
 	installPath := android.PathForModuleInstall(ctx, r.BaseModuleName())
 	for _, lib := range r.ravenwoodLibgroupProperties.Libs {
 		libModule := ctx.GetDirectDepProxyWithTag(lib, ravenwoodLibContentTag)
-		if libModule == nil {
+		if libModule.IsNil() {
 			if ctx.Config().AllowMissingDependencies() {
 				ctx.AddMissingDependencies([]string{lib})
 			} else {
@@ -403,7 +403,7 @@ func (r *ravenwoodLibgroup) GenerateAndroidBuildActions(ctx android.ModuleContex
 	// Copy aconfig flag storage files.
 	if r.Name() == ravenwoodRuntimeName {
 		allAconfigFound := false
-		if allAconfig := ctx.GetDirectDepProxyWithTag(aconfig.AllAconfigModule, allAconfigModuleTag); allAconfig != nil {
+		if allAconfig := ctx.GetDirectDepProxyWithTag(aconfig.AllAconfigModule, allAconfigModuleTag); !allAconfig.IsNil() {
 			aadi, ok := android.OtherModuleProvider(ctx, allAconfig, aconfig.AllAconfigDeclarationsInfoProvider)
 			if ok {
 				// Binary proto file and the text proto.

@@ -680,7 +680,7 @@ func (p *PythonLibraryModule) collectPathsFromTransitiveDeps(ctx android.ModuleC
 		destToPyData[path.dest] = path.src.String()
 	}
 
-	seen := make(map[android.Module]bool)
+	seen := make(map[android.ModuleProxy]bool)
 
 	var result android.Paths
 
@@ -726,7 +726,7 @@ func (p *PythonLibraryModule) collectPathsFromTransitiveDeps(ctx android.ModuleC
 }
 
 func (p *PythonLibraryModule) collectSharedLibDeps(ctx android.ModuleContext) android.Paths {
-	seen := make(map[android.Module]bool)
+	seen := make(map[android.ModuleProxy]bool)
 
 	var result android.Paths
 

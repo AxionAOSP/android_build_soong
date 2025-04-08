@@ -238,7 +238,7 @@ func (ctx *TestContext) HardCodedPreArchMutators(f RegisterMutatorFunc) {
 	ctx.PreArchMutators(f)
 }
 
-func (ctx *TestContext) otherModuleProvider(m blueprint.Module, p blueprint.AnyProviderKey) (any, bool) {
+func (ctx *TestContext) otherModuleProvider(m blueprint.ModuleOrProxy, p blueprint.AnyProviderKey) (any, bool) {
 	return ctx.Context.ModuleProvider(m, p)
 }
 
@@ -259,12 +259,12 @@ func (ctx *TestContext) FinalDepsMutators(f RegisterMutatorFunc) {
 }
 
 func (ctx *TestContext) OtherModuleProviderAdaptor() OtherModuleProviderContext {
-	return NewOtherModuleProviderAdaptor(func(module blueprint.Module, provider blueprint.AnyProviderKey) (any, bool) {
+	return NewOtherModuleProviderAdaptor(func(module blueprint.ModuleOrProxy, provider blueprint.AnyProviderKey) (any, bool) {
 		return ctx.otherModuleProvider(module, provider)
 	})
 }
 
-func (ctx *TestContext) OtherModulePropertyErrorf(module Module, property string, fmt_ string, args ...interface{}) {
+func (ctx *TestContext) OtherModulePropertyErrorf(module blueprint.ModuleOrProxy, property string, fmt_ string, args ...interface{}) {
 	panic(fmt.Sprintf(fmt_, args...))
 }
 
@@ -1378,7 +1378,7 @@ type panickingConfigAndErrorContext struct {
 	ctx *TestContext
 }
 
-func (ctx *panickingConfigAndErrorContext) OtherModulePropertyErrorf(module Module, property, fmt string, args ...interface{}) {
+func (ctx *panickingConfigAndErrorContext) OtherModulePropertyErrorf(module blueprint.ModuleOrProxy, property, fmt string, args ...interface{}) {
 	panic(ctx.ctx.PropertyErrorf(module, property, fmt, args...).Error())
 }
 
@@ -1390,7 +1390,7 @@ func (ctx *panickingConfigAndErrorContext) HasMutatorFinished(mutatorName string
 	return ctx.ctx.HasMutatorFinished(mutatorName)
 }
 
-func (ctx *panickingConfigAndErrorContext) otherModuleProvider(m blueprint.Module, p blueprint.AnyProviderKey) (any, bool) {
+func (ctx *panickingConfigAndErrorContext) otherModuleProvider(m blueprint.ModuleOrProxy, p blueprint.AnyProviderKey) (any, bool) {
 	return ctx.ctx.otherModuleProvider(m, p)
 }
 

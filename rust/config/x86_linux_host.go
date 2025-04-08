@@ -105,6 +105,10 @@ func (t *toolchainLinuxX8664) RustTriple() string {
 	return "x86_64-unknown-linux-gnu"
 }
 
+func (t *toolchainLinuxGlibcX8664) Glibc() bool {
+	return true
+}
+
 func (t *toolchainLinuxGlibcX8664) ToolchainLinkFlags() string {
 	return t.toolchainLinuxX8664.ToolchainLinkFlags() + " " + "${config.LinuxGlibcToolchainLinkFlags}"
 }
@@ -133,6 +137,10 @@ func (t *toolchainLinuxMuslX8664) ToolchainRustFlags() string {
 
 func linuxMuslX8664ToolchainFactory(arch android.Arch) Toolchain {
 	return toolchainLinuxMuslX8664Singleton
+}
+
+func (t *toolchainLinuxMuslX8664) Musl() bool {
+	return true
 }
 
 // Base 32-bit linux rust toolchain
@@ -180,6 +188,10 @@ func (t *toolchainLinuxGlibcX86) RustTriple() string {
 	return "i686-unknown-linux-gnu"
 }
 
+func (t *toolchainLinuxGlibcX86) Glibc() bool {
+	return true
+}
+
 func (t *toolchainLinuxGlibcX86) ToolchainLinkFlags() string {
 	return t.toolchainLinuxX86.ToolchainLinkFlags() + " " + "${config.LinuxGlibcToolchainLinkFlags}"
 }
@@ -204,6 +216,10 @@ func (t *toolchainLinuxMuslX86) ToolchainLinkFlags() string {
 
 func (t *toolchainLinuxMuslX86) ToolchainRustFlags() string {
 	return t.toolchainLinuxX86.ToolchainRustFlags() + " " + "${config.LinuxMuslToolchainRustFlags}"
+}
+
+func (t *toolchainLinuxMuslX86) Musl() bool {
+	return true
 }
 
 func linuxMuslX86ToolchainFactory(arch android.Arch) Toolchain {

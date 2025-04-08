@@ -190,6 +190,8 @@ func registerRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("rust_library_host", RustLibraryHostFactory)
 	ctx.RegisterModuleType("rust_library_host_dylib", RustLibraryDylibHostFactory)
 	ctx.RegisterModuleType("rust_library_host_rlib", RustLibraryRlibHostFactory)
+	ctx.RegisterModuleType("rust_object", RustObjectFactory)
+	ctx.RegisterModuleType("rust_object_host", RustObjectHostFactory)
 	ctx.RegisterModuleType("rust_fuzz", RustFuzzFactory)
 	ctx.RegisterModuleType("rust_fuzz_host", RustFuzzHostFactory)
 	ctx.RegisterModuleType("rust_ffi", RustFFIFactory)

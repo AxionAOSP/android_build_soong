@@ -496,15 +496,15 @@ func (m *moduleContext) GetDirectDepWithTag(name string, tag blueprint.Dependenc
 	}
 }
 
-func (m *moduleContext) GetDirectDepProxyWithTag(name string, tag blueprint.DependencyTag) *ModuleProxy {
+func (m *moduleContext) GetDirectDepProxyWithTag(name string, tag blueprint.DependencyTag) ModuleProxy {
 	deps := m.getDirectDepsProxyInternal(name, tag)
 	if len(deps) == 1 {
-		return &deps[0]
+		return deps[0]
 	} else if len(deps) >= 2 {
 		panic(fmt.Errorf("Multiple dependencies having same BaseModuleName() %q found from %q",
 			name, m.ModuleName()))
 	} else {
-		return nil
+		return ModuleProxy{}
 	}
 }
 

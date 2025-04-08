@@ -406,7 +406,7 @@ func (r *robolectricRuntimes) GenerateAndroidBuildActions(ctx android.ModuleCont
 
 	if !ctx.Config().AlwaysUsePrebuiltSdks() && r.props.Lib != nil {
 		runtimeFromSourceModule := ctx.GetDirectDepProxyWithTag(String(r.props.Lib), libTag)
-		if runtimeFromSourceModule == nil {
+		if runtimeFromSourceModule.IsNil() {
 			if ctx.Config().AllowMissingDependencies() {
 				ctx.AddMissingDependencies([]string{String(r.props.Lib)})
 			} else {

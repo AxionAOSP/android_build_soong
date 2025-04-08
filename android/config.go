@@ -2115,16 +2115,16 @@ func (c *deviceConfig) BoardSepolicyVers() string {
 	return c.PlatformSepolicyVersion()
 }
 
-func (c *deviceConfig) SystemExtSepolicyPrebuiltApiDir() string {
-	return String(c.config.productVariables.SystemExtSepolicyPrebuiltApiDir)
+func (c *deviceConfig) SystemExtSepolicyPrebuiltApiDirs() []string {
+	return c.config.productVariables.SystemExtSepolicyPrebuiltApiDirs
 }
 
-func (c *deviceConfig) ProductSepolicyPrebuiltApiDir() string {
-	return String(c.config.productVariables.ProductSepolicyPrebuiltApiDir)
+func (c *deviceConfig) ProductSepolicyPrebuiltApiDirs() []string {
+	return c.config.productVariables.ProductSepolicyPrebuiltApiDirs
 }
 
 func (c *deviceConfig) IsPartnerTrebleSepolicyTestEnabled() bool {
-	return c.SystemExtSepolicyPrebuiltApiDir() != "" || c.ProductSepolicyPrebuiltApiDir() != ""
+	return len(c.SystemExtSepolicyPrebuiltApiDirs()) > 0 || len(c.ProductSepolicyPrebuiltApiDirs()) > 0
 }
 
 func createDirsMap(previous map[string]bool, dirs []string) (map[string]bool, error) {
