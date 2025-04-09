@@ -18,8 +18,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
-
-	"github.com/google/blueprint"
 )
 
 func TestSrcIsModule(t *testing.T) {
@@ -990,7 +988,7 @@ type pathContextAddMissingDependenciesWrapper struct {
 func (p *pathContextAddMissingDependenciesWrapper) AddMissingDependencies(deps []string) {
 	p.missingDeps = append(p.missingDeps, deps...)
 }
-func (p *pathContextAddMissingDependenciesWrapper) OtherModuleName(module blueprint.ModuleOrProxy) string {
+func (p *pathContextAddMissingDependenciesWrapper) OtherModuleName(module ModuleOrProxy) string {
 	return module.Name()
 }
 

@@ -289,12 +289,13 @@ type DepsProperty struct {
 }
 
 type packagingMultilibProperties struct {
-	First    DepsProperty `android:"arch_variant"`
-	Common   DepsProperty `android:"arch_variant"`
-	Lib32    DepsProperty `android:"arch_variant"`
-	Lib64    DepsProperty `android:"arch_variant"`
-	Both     DepsProperty `android:"arch_variant"`
-	Prefer32 DepsProperty `android:"arch_variant"`
+	First         DepsProperty `android:"arch_variant"`
+	Common        DepsProperty `android:"arch_variant"`
+	Lib32         DepsProperty `android:"arch_variant"`
+	Lib64         DepsProperty `android:"arch_variant"`
+	Both          DepsProperty `android:"arch_variant"`
+	Prefer32      DepsProperty `android:"arch_variant"`
+	Native_bridge DepsProperty `android:"arch_variant"`
 }
 
 type packagingArchProperties struct {
@@ -325,7 +326,8 @@ func (p *PackagingBase) packagingBase() *PackagingBase {
 // multi target, deps is selected for each of the targets and is NOT selected for the current
 // architecture which would be Common.
 // It returns two lists, the normal and high priority deps, respectively.
-func (p *PackagingBase) getDepsForArch(ctx BaseModuleContext, arch ArchType) ([]string, []string) {
+func (p *PackagingBase) getDepsForTarget(ctx BaseModuleContext, target Target) ([]string, []string) {
+	arch := target.Arch.ArchType
 	var normalDeps []string
 	var highPriorityDeps []string
 
@@ -337,7 +339,10 @@ func (p *PackagingBase) getDepsForArch(ctx BaseModuleContext, arch ArchType) ([]
 		return len(prop.Deps.GetOrDefault(ctx, nil)) > 0 || len(prop.High_priority_deps) > 0
 	}
 
-	if arch == ctx.Target().Arch.ArchType && len(ctx.MultiTargets()) == 0 {
+	if target.NativeBridge == NativeBridgeEnabled {
+		get(p.properties.Multilib.Native_bridge)
+		return FirstUniqueStrings(normalDeps), FirstUniqueStrings(highPriorityDeps)
+	} else if arch == ctx.Target().Arch.ArchType && len(ctx.MultiTargets()) == 0 {
 		get(p.properties.DepsProperty)
 	} else if arch.Multilib == "lib32" {
 		get(p.properties.Multilib.Lib32)
@@ -498,7 +503,7 @@ func (p *PackagingBase) AddDeps(ctx BottomUpMutatorContext, depTag blueprint.Dep
 		ctx.AddFarVariationDependencies(targetVariation, depTagToUse, dep)
 	}
 	for _, t := range getSupportedTargets(ctx) {
-		normalDeps, highPriorityDeps := p.getDepsForArch(ctx, t.Arch.ArchType)
+		normalDeps, highPriorityDeps := p.getDepsForTarget(ctx, t)
 		for _, dep := range normalDeps {
 			addDep(t, dep, false)
 		}

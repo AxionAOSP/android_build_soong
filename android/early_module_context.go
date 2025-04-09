@@ -61,7 +61,7 @@ type EarlyModuleContext interface {
 	Errorf(pos scanner.Position, fmt string, args ...interface{})
 
 	// OtherModulePropertyErrorf reports an error at the line number of a property in the given module definition.
-	OtherModulePropertyErrorf(module blueprint.ModuleOrProxy, property, fmt string, args ...interface{})
+	OtherModulePropertyErrorf(module ModuleOrProxy, property, fmt string, args ...interface{})
 
 	// Failed returns true if any errors have been reported.  In most cases the module can continue with generating
 	// build rules after an error, allowing it to report additional errors in a single run, but in cases where the error
@@ -188,7 +188,7 @@ func (e *earlyModuleContext) Namespace() *Namespace {
 	return e.EarlyModuleContext.Namespace().(*Namespace)
 }
 
-func (e *earlyModuleContext) OtherModulePropertyErrorf(module blueprint.ModuleOrProxy, property string, fmt string, args ...interface{}) {
+func (e *earlyModuleContext) OtherModulePropertyErrorf(module ModuleOrProxy, property string, fmt string, args ...interface{}) {
 	e.EarlyModuleContext.OtherModulePropertyErrorf(module, property, fmt, args...)
 }
 

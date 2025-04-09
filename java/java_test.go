@@ -2740,16 +2740,6 @@ func TestMultiplePrebuilts(t *testing.T) {
 			contents: ["%v"],
 		}
 	`
-	hasDep := func(ctx *android.TestResult, m android.Module, wantDep android.Module) bool {
-		t.Helper()
-		var found bool
-		ctx.VisitDirectDeps(m, func(dep blueprint.Module) {
-			if dep == wantDep {
-				found = true
-			}
-		})
-		return found
-	}
 
 	hasFileWithStem := func(m android.TestingModule, stem string) bool {
 		t.Helper()
@@ -2793,7 +2783,8 @@ func TestMultiplePrebuilts(t *testing.T) {
 		// check that rdep gets the correct variation of dep
 		foo := ctx.ModuleForTests(t, "foo", "android_common")
 		expectedDependency := ctx.ModuleForTests(t, tc.expectedDependencyName, "android_common")
-		android.AssertBoolEquals(t, fmt.Sprintf("expected dependency from %s to %s\n", foo.Module().Name(), tc.expectedDependencyName), true, hasDep(ctx, foo.Module(), expectedDependency.Module()))
+		android.AssertBoolEquals(t, fmt.Sprintf("expected dependency from %s to %s\n", foo.Module().Name(), tc.expectedDependencyName),
+			true, android.HasDirectDep(ctx, foo.Module(), expectedDependency.Module()))
 
 		// check that output file of dep is always bar.jar
 		// The filename should be agnostic to source/prebuilt/prebuilt_version

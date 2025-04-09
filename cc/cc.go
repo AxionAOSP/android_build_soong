@@ -2703,6 +2703,17 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 	android.SetProvider(ctx, CcInfoProvider, &ccInfo)
 
+	android.SetProvider(ctx, android.TestSuiteSharedLibsInfoProvider, android.TestSuiteSharedLibsInfo{
+		MakeNames: c.Properties.AndroidMkSharedLibs,
+	})
+
+	// TODO: Refactor MakeLibName so we don't have to fake CommonModuleInfo like this
+	myCommonInfo := android.CommonModuleInfo{
+		BaseModuleName: c.BaseModuleName(),
+		Target:         ctx.Target(),
+	}
+	android.SetProvider(ctx, android.MakeNameInfoProvider, MakeLibName(&ccInfo, linkableInfo, &myCommonInfo, ctx.ModuleName()))
+
 	c.setOutputFiles(ctx)
 
 	if c.makeVarsInfo != nil {
@@ -4045,7 +4056,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	return depPaths
 }
 
-func ShouldUseStubForApex(ctx android.ModuleContext, parent blueprint.ModuleOrProxy, dep android.ModuleProxy) bool {
+func ShouldUseStubForApex(ctx android.ModuleContext, parent android.ModuleOrProxy, dep android.ModuleProxy) bool {
 	inVendorOrProduct := false
 	bootstrap := false
 	if android.EqualModules(ctx.Module(), parent) {

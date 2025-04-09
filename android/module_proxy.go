@@ -7,3 +7,7 @@ import (
 type ModuleProxy struct {
 	blueprint.ModuleProxy
 }
+
+type ModuleOrProxy interface {
+	blueprint.ModuleOrProxy
+}

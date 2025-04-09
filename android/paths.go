@@ -60,7 +60,7 @@ type EarlyModulePathContext interface {
 
 	ModuleDir() string
 	ModuleErrorf(fmt string, args ...interface{})
-	OtherModulePropertyErrorf(module blueprint.ModuleOrProxy, property, fmt string, args ...interface{})
+	OtherModulePropertyErrorf(module ModuleOrProxy, property, fmt string, args ...interface{})
 }
 
 var _ EarlyModulePathContext = ModuleContext(nil)
@@ -93,7 +93,7 @@ type ModuleWithDepsPathContext interface {
 	VisitDirectDeps(visit func(Module))
 	VisitDirectDepsProxy(visit func(ModuleProxy))
 	VisitDirectDepsProxyWithTag(tag blueprint.DependencyTag, visit func(ModuleProxy))
-	OtherModuleDependencyTag(m blueprint.ModuleOrProxy) blueprint.DependencyTag
+	OtherModuleDependencyTag(m ModuleOrProxy) blueprint.DependencyTag
 	HasMutatorFinished(mutatorName string) bool
 }
 
@@ -235,13 +235,13 @@ func ReportPathErrorf(ctx PathContext, format string, args ...interface{}) {
 	}
 }
 
-func pathContextName(ctx PathContext, module blueprint.ModuleOrProxy) string {
+func pathContextName(ctx PathContext, module ModuleOrProxy) string {
 	if x, ok := ctx.(interface {
-		ModuleName(blueprint.ModuleOrProxy) string
+		ModuleName(ModuleOrProxy) string
 	}); ok {
 		return x.ModuleName(module)
 	} else if x, ok := ctx.(interface {
-		OtherModuleName(blueprint.ModuleOrProxy) string
+		OtherModuleName(ModuleOrProxy) string
 	}); ok {
 		return x.OtherModuleName(module)
 	}

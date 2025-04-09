@@ -27,7 +27,6 @@ import (
 
 	"android/soong/aconfig/codegen"
 
-	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -11794,19 +11793,6 @@ func TestApexMinSdkVersionOverride(t *testing.T) {
 		}
 	}
 
-	checkHasDep := func(t *testing.T, ctx *android.TestContext, m android.Module, wantDep android.Module) {
-		t.Helper()
-		found := false
-		ctx.VisitDirectDeps(m, func(dep blueprint.Module) {
-			if dep == wantDep {
-				found = true
-			}
-		})
-		if !found {
-			t.Errorf("Could not find a dependency from %v to %v\n", m, wantDep)
-		}
-	}
-
 	ctx := testApex(t, `
 		apex {
 			name: "com.android.apex30",
@@ -11853,13 +11839,13 @@ func TestApexMinSdkVersionOverride(t *testing.T) {
 	overridingModuleSameMinSdkVersion := ctx.ModuleForTests(t, "com.android.apex30", "android_common_com.mycompany.android.apex30_com.mycompany.android.apex30")
 	javalibApex30Variant := ctx.ModuleForTests(t, "javalib", "android_common_apex30")
 	checkMinSdkVersion(t, overridingModuleSameMinSdkVersion, "30")
-	checkHasDep(t, ctx, overridingModuleSameMinSdkVersion.Module(), javalibApex30Variant.Module())
+	android.AssertHasDirectDep(t, ctx, overridingModuleSameMinSdkVersion.Module(), javalibApex30Variant.Module())
 
 	// Override module, uses different min_sdk_version
 	overridingModuleDifferentMinSdkVersion := ctx.ModuleForTests(t, "com.android.apex30", "android_common_com.mycompany.android.apex31_com.mycompany.android.apex31")
 	javalibApex31Variant := ctx.ModuleForTests(t, "javalib", "android_common_apex31")
 	checkMinSdkVersion(t, overridingModuleDifferentMinSdkVersion, "31")
-	checkHasDep(t, ctx, overridingModuleDifferentMinSdkVersion.Module(), javalibApex31Variant.Module())
+	android.AssertHasDirectDep(t, ctx, overridingModuleDifferentMinSdkVersion.Module(), javalibApex31Variant.Module())
 }
 
 func TestOverrideApexWithPrebuiltApexPreferred(t *testing.T) {

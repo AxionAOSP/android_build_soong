@@ -83,7 +83,7 @@ type aconfigPropagatingDeclarationsInfo struct {
 
 var AconfigPropagatingProviderKey = blueprint.NewProvider[aconfigPropagatingDeclarationsInfo]()
 
-func VerifyAconfigBuildMode(ctx ModuleContext, container string, module blueprint.ModuleOrProxy, asError bool) {
+func VerifyAconfigBuildMode(ctx ModuleContext, container string, module ModuleOrProxy, asError bool) {
 	if dep, ok := OtherModuleProvider(ctx, module, AconfigPropagatingProviderKey); ok {
 		for k, v := range dep.ModeInfos {
 			msg := fmt.Sprintf("%s/%s depends on %s/%s/%s across containers\n",

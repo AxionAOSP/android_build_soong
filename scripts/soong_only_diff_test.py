@@ -172,7 +172,8 @@ def get_zip_sha_map(product: Product, soong_only: bool) -> dict[str, bytes]:
         sys.exit(f'{build_type} build failed')
 
     build_id = find_build_id()
-    target_files_zip = os.path.join(out_dir, "dist", f'{product.product}-target_files-{build_id}.zip')
+    dist_dir = os.getenv('DIST_DIR', os.path.join(out_dir, 'dist'))
+    target_files_zip = os.path.join(dist_dir, f'{product.product}-target_files-{build_id}.zip')
     zip_sha_map = get_local_file_sha256_fields(target_files_zip)
     if zip_sha_map is None:
         sys.exit("Could not construct sha map for target_files.zip entries for soong only build")

@@ -30,19 +30,19 @@ type SingletonContext interface {
 	Config() Config
 	DeviceConfig() DeviceConfig
 
-	ModuleName(module blueprint.ModuleOrProxy) string
-	ModuleDir(module blueprint.ModuleOrProxy) string
-	ModuleSubDir(module blueprint.ModuleOrProxy) string
-	ModuleType(module blueprint.ModuleOrProxy) string
-	BlueprintFile(module blueprint.ModuleOrProxy) string
+	ModuleName(module ModuleOrProxy) string
+	ModuleDir(module ModuleOrProxy) string
+	ModuleSubDir(module ModuleOrProxy) string
+	ModuleType(module ModuleOrProxy) string
+	BlueprintFile(module ModuleOrProxy) string
 
 	// ModuleVariantsFromName returns the list of module variants named `name` in the same namespace as `referer` enforcing visibility rules.
 	// Allows generating build actions for `referer` based on the metadata for `name` deferred until the singleton context.
 	ModuleVariantsFromName(referer ModuleProxy, name string) []ModuleProxy
 
-	otherModuleProvider(module blueprint.ModuleOrProxy, provider blueprint.AnyProviderKey) (any, bool)
+	otherModuleProvider(module ModuleOrProxy, provider blueprint.AnyProviderKey) (any, bool)
 
-	ModuleErrorf(module blueprint.ModuleOrProxy, format string, args ...interface{})
+	ModuleErrorf(module ModuleOrProxy, format string, args ...interface{})
 	Errorf(format string, args ...interface{})
 	Failed() bool
 
@@ -89,7 +89,7 @@ type SingletonContext interface {
 
 	PrimaryModuleProxy(module ModuleProxy) ModuleProxy
 
-	IsFinalModule(module blueprint.ModuleOrProxy) bool
+	IsFinalModule(module ModuleOrProxy) bool
 
 	AddNinjaFileDeps(deps ...string)
 
@@ -100,7 +100,7 @@ type SingletonContext interface {
 	GlobWithDeps(pattern string, excludes []string) ([]string, error)
 
 	// OtherModulePropertyErrorf reports an error on the line number of the given property of the given module
-	OtherModulePropertyErrorf(module blueprint.ModuleOrProxy, property string, format string, args ...interface{})
+	OtherModulePropertyErrorf(module ModuleOrProxy, property string, format string, args ...interface{})
 
 	// HasMutatorFinished returns true if the given mutator has finished running.
 	// It will panic if given an invalid mutator name.
@@ -247,6 +247,10 @@ func (s *singletonContextAdaptor) Eval(pctx PackageContext, ninjaStr string) (st
 	return s.SingletonContext.Eval(pctx.PackageContext, ninjaStr)
 }
 
+func (s *singletonContextAdaptor) ModuleErrorf(module ModuleOrProxy, fmt string, args ...any) {
+	s.SingletonContext.ModuleErrorf(module, fmt, args...)
+}
+
 // visitAdaptor wraps a visit function that takes an android.Module parameter into
 // a function that takes a blueprint.Module parameter and only calls the visit function if the
 // blueprint.Module is an android.Module.
@@ -279,23 +283,23 @@ func predAdaptor(pred func(Module) bool) func(blueprint.Module) bool {
 	}
 }
 
-func (s *singletonContextAdaptor) ModuleName(module blueprint.ModuleOrProxy) string {
+func (s *singletonContextAdaptor) ModuleName(module ModuleOrProxy) string {
 	return s.SingletonContext.ModuleName(module)
 }
 
-func (s *singletonContextAdaptor) ModuleDir(module blueprint.ModuleOrProxy) string {
+func (s *singletonContextAdaptor) ModuleDir(module ModuleOrProxy) string {
 	return s.SingletonContext.ModuleDir(module)
 }
 
-func (s *singletonContextAdaptor) ModuleSubDir(module blueprint.ModuleOrProxy) string {
+func (s *singletonContextAdaptor) ModuleSubDir(module ModuleOrProxy) string {
 	return s.SingletonContext.ModuleSubDir(module)
 }
 
-func (s *singletonContextAdaptor) ModuleType(module blueprint.ModuleOrProxy) string {
+func (s *singletonContextAdaptor) ModuleType(module ModuleOrProxy) string {
 	return s.SingletonContext.ModuleType(module)
 }
 
-func (s *singletonContextAdaptor) BlueprintFile(module blueprint.ModuleOrProxy) string {
+func (s *singletonContextAdaptor) BlueprintFile(module ModuleOrProxy) string {
 	return s.SingletonContext.BlueprintFile(module)
 }
 
@@ -347,7 +351,7 @@ func (s *singletonContextAdaptor) PrimaryModuleProxy(module ModuleProxy) ModuleP
 	return ModuleProxy{s.SingletonContext.PrimaryModuleProxy(module.ModuleProxy)}
 }
 
-func (s *singletonContextAdaptor) IsFinalModule(module blueprint.ModuleOrProxy) bool {
+func (s *singletonContextAdaptor) IsFinalModule(module ModuleOrProxy) bool {
 	return s.SingletonContext.IsFinalModule(module)
 }
 
@@ -376,11 +380,11 @@ func (s *singletonContextAdaptor) ModuleVariantsFromName(referer ModuleProxy, na
 	return result
 }
 
-func (s *singletonContextAdaptor) otherModuleProvider(module blueprint.ModuleOrProxy, provider blueprint.AnyProviderKey) (any, bool) {
+func (s *singletonContextAdaptor) otherModuleProvider(module ModuleOrProxy, provider blueprint.AnyProviderKey) (any, bool) {
 	return s.SingletonContext.ModuleProvider(module, provider)
 }
 
-func (s *singletonContextAdaptor) OtherModulePropertyErrorf(module blueprint.ModuleOrProxy, property string, format string, args ...interface{}) {
+func (s *singletonContextAdaptor) OtherModulePropertyErrorf(module ModuleOrProxy, property string, format string, args ...interface{}) {
 	s.blueprintSingletonContext().OtherModulePropertyErrorf(module, property, format, args...)
 }
 

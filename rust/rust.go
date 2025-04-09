@@ -1224,6 +1224,13 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 	android.SetProvider(ctx, cc.CcInfoProvider, ccInfo)
 
+	// TODO: Refactor rustMakeLibName so we don't have to fake CommonModuleInfo like this
+	myCommonInfo := android.CommonModuleInfo{
+		BaseModuleName: mod.BaseModuleName(),
+		Target:         ctx.Target(),
+	}
+	android.SetProvider(ctx, android.MakeNameInfoProvider, rustMakeLibName(rustInfo, linkableInfo, &myCommonInfo, ctx.ModuleName()))
+
 	mod.setOutputFiles(ctx)
 
 	buildComplianceMetadataInfo(ctx, mod, deps)
@@ -1857,7 +1864,11 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		}
 	})
 
-	mod.transitiveAndroidMkSharedLibs = depset.New[string](depset.PREORDER, directAndroidMkSharedLibs, transitiveAndroidMkSharedLibs)
+	mod.transitiveAndroidMkSharedLibs = depset.New(depset.PREORDER, directAndroidMkSharedLibs, transitiveAndroidMkSharedLibs)
+
+	android.SetProvider(ctx, android.TestSuiteSharedLibsInfoProvider, android.TestSuiteSharedLibsInfo{
+		MakeNames: append(mod.transitiveAndroidMkSharedLibs.ToList(), mod.Properties.AndroidMkDylibs...),
+	})
 
 	var rlibDepFiles RustLibraries
 	aliases := mod.compiler.Aliases()

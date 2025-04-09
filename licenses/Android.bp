@@ -219,6 +219,12 @@ license_kind {
 }
 
 license_kind {
+    name: "SPDX-license-identifier-blessing",
+    conditions: ["unencumbered"],
+    url: "https://spdx.org/licenses/blessing.html",
+}
+
+license_kind {
     name: "SPDX-license-identifier-BSD",
     conditions: ["notice"],
 }

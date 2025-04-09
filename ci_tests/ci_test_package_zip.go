@@ -233,7 +233,7 @@ func createSymbolsZip(ctx android.ModuleContext, allModules []android.ModuleProx
 	ctx.SetOutputFiles(android.Paths{symbolsMappingFile}, ".elf_mapping")
 }
 
-func extendBuilderCommand(ctx android.ModuleContext, m blueprint.ModuleOrProxy, builder *android.RuleBuilder, stagingDir android.ModuleOutPath, productOut, arch, secondArch string) {
+func extendBuilderCommand(ctx android.ModuleContext, m android.ModuleOrProxy, builder *android.RuleBuilder, stagingDir android.ModuleOutPath, productOut, arch, secondArch string) {
 	info, ok := android.OtherModuleProvider(ctx, m, android.ModuleInfoJSONProvider)
 	if !ok {
 		ctx.OtherModuleErrorf(m, "doesn't set ModuleInfoJSON provider")

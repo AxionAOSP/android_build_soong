@@ -7,7 +7,7 @@ import (
 // OtherModuleProviderContext is a helper interface that is a subset of ModuleContext or BottomUpMutatorContext
 // for use in OtherModuleProvider.
 type OtherModuleProviderContext interface {
-	otherModuleProvider(m blueprint.ModuleOrProxy, provider blueprint.AnyProviderKey) (any, bool)
+	otherModuleProvider(m ModuleOrProxy, provider blueprint.AnyProviderKey) (any, bool)
 }
 
 var _ OtherModuleProviderContext = BaseModuleContext(nil)
@@ -27,7 +27,7 @@ type ConfigAndOtherModuleProviderContext interface {
 // and the boolean is false.  The value returned may be a deep copy of the value originally passed to SetProvider.
 //
 // OtherModuleProviderContext is a helper interface that accepts ModuleContext or BottomUpMutatorContext.
-func OtherModuleProvider[K any](ctx OtherModuleProviderContext, module blueprint.ModuleOrProxy, provider blueprint.ProviderKey[K]) (K, bool) {
+func OtherModuleProvider[K any](ctx OtherModuleProviderContext, module ModuleOrProxy, provider blueprint.ProviderKey[K]) (K, bool) {
 	value, ok := ctx.otherModuleProvider(module, provider)
 	if !ok {
 		var k K
@@ -36,12 +36,12 @@ func OtherModuleProvider[K any](ctx OtherModuleProviderContext, module blueprint
 	return value.(K), ok
 }
 
-func OtherModuleProviderOrDefault[K any](ctx OtherModuleProviderContext, module blueprint.ModuleOrProxy, provider blueprint.ProviderKey[K]) K {
+func OtherModuleProviderOrDefault[K any](ctx OtherModuleProviderContext, module ModuleOrProxy, provider blueprint.ProviderKey[K]) K {
 	value, _ := OtherModuleProvider(ctx, module, provider)
 	return value
 }
 
-func OtherModulePointerProviderOrDefault[K *T, T any](ctx OtherModuleProviderContext, module blueprint.ModuleOrProxy, provider blueprint.ProviderKey[K]) K {
+func OtherModulePointerProviderOrDefault[K *T, T any](ctx OtherModuleProviderContext, module ModuleOrProxy, provider blueprint.ProviderKey[K]) K {
 	if value, ok := OtherModuleProvider(ctx, module, provider); ok {
 		return value
 	}
@@ -97,13 +97,13 @@ var _ OtherModuleProviderContext = (*otherModuleProviderAdaptor)(nil)
 
 // An OtherModuleProviderFunc can be passed to NewOtherModuleProviderAdaptor to create an OtherModuleProviderContext
 // for use in tests.
-type OtherModuleProviderFunc func(module blueprint.ModuleOrProxy, provider blueprint.AnyProviderKey) (any, bool)
+type OtherModuleProviderFunc func(module ModuleOrProxy, provider blueprint.AnyProviderKey) (any, bool)
 
 type otherModuleProviderAdaptor struct {
 	otherModuleProviderFunc OtherModuleProviderFunc
 }
 
-func (p *otherModuleProviderAdaptor) otherModuleProvider(module blueprint.ModuleOrProxy, provider blueprint.AnyProviderKey) (any, bool) {
+func (p *otherModuleProviderAdaptor) otherModuleProvider(module ModuleOrProxy, provider blueprint.AnyProviderKey) (any, bool) {
 	return p.otherModuleProviderFunc(module, provider)
 }
 

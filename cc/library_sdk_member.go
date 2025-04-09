@@ -577,7 +577,7 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 	}
 }
 
-func getRequiredMemberOutputFile(ctx android.SdkMemberContext, module blueprint.ModuleOrProxy) android.Path {
+func getRequiredMemberOutputFile(ctx android.SdkMemberContext, module android.ModuleOrProxy) android.Path {
 	var path android.Path
 	if info, ok := android.OtherModuleProvider(ctx.SdkModuleContext(), module, LinkableInfoProvider); ok && info.OutputFile.Valid() {
 		path = info.OutputFile.Path()

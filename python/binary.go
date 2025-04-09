@@ -171,6 +171,11 @@ func (p *PythonBinaryModule) buildBinary(ctx android.ModuleContext) {
 		sharedLibs = append(sharedLibs, ctx.OtherModuleName(dep))
 	}
 	p.androidMkSharedLibs = sharedLibs
+
+	android.SetProvider(ctx, android.TestSuiteSharedLibsInfoProvider, android.TestSuiteSharedLibsInfo{
+		MakeNames: p.androidMkSharedLibs,
+	})
+	android.SetProvider(ctx, android.MakeNameInfoProvider, ctx.ModuleName())
 }
 
 func (p *PythonBinaryModule) AndroidMkEntries() []android.AndroidMkEntries {
