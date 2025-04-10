@@ -29,6 +29,8 @@ package android
 
 import (
 	"fmt"
+	"reflect"
+	"slices"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -224,9 +226,16 @@ func overrideModuleDepsMutator(ctx BottomUpMutatorContext) {
 
 		ctx.AddDependency(ctx.Module(), overrideBaseDepTag, *module.getOverrideModuleProperties().Base)
 
+		// Make a copy of module.getOverridingProperties so that it won't be modified by any future
+		// mutators, which would violate the immutable providers requirement.
+		overridingProps := slices.Clone(module.getOverridingProperties())
+		for i, props := range overridingProps {
+			overridingProps[i] = proptools.CloneProperties(reflect.ValueOf(props)).Interface()
+		}
+
 		info := overrideTransitionMutatorInfo{
 			name:                 module.Name(),
-			overridingProperties: module.getOverridingProperties(),
+			overridingProperties: overridingProps,
 		}
 
 		prebuiltDeps := ctx.GetDirectDepsWithTag(PrebuiltDepTag)

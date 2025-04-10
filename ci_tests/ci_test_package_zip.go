@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/cc"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -155,6 +156,15 @@ func TestPackageZipFactory() android.Module {
 
 	return module
 }
+
+// We need to implement IsNativeCoverageNeeded so that in coverage builds we depend on the coverage
+// variants of the tests. The non-coverage variants will have PreventInstall called on them,
+// so they won't be able to be packaged into this test zip.
+func (p *testPackageZip) IsNativeCoverageNeeded(ctx cc.IsNativeCoverageNeededContext) bool {
+	return ctx.DeviceConfig().NativeCoverageEnabled()
+}
+
+var _ cc.UseCoverage = (*testPackageZip)(nil)
 
 func (p *testPackageZip) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Never install this test package, it's for disting only

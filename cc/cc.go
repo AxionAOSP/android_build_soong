@@ -203,6 +203,7 @@ type LinkableInfo struct {
 	CoverageFiles        android.Paths
 	// CoverageOutputFile returns the output archive of gcno coverage information files.
 	CoverageOutputFile android.OptionalPath
+	LinkCoverage       bool
 	SAbiDumpFiles      android.Paths
 	// Partition returns the partition string for this module.
 	Partition            string
@@ -1484,6 +1485,10 @@ func (c *Module) CoverageOutputFile() android.OptionalPath {
 	return android.OptionalPath{}
 }
 
+func (c *Module) LinkCoverage() bool {
+	return c.coverage != nil && c.coverage.linkCoverage
+}
+
 func (c *Module) RelativeInstallPath() string {
 	if c.installer != nil {
 		return c.installer.relativeInstallPath()
@@ -2755,6 +2760,7 @@ func CreateCommonLinkableInfo(ctx android.ModuleContext, mod VersionedLinkableIn
 		OutputFile:           mod.OutputFile(),
 		UnstrippedOutputFile: mod.UnstrippedOutputFile(),
 		CoverageOutputFile:   mod.CoverageOutputFile(),
+		LinkCoverage:         mod.LinkCoverage(),
 		Partition:            mod.Partition(),
 		IsStubs:              mod.IsStubs(),
 		CcLibrary:            mod.CcLibrary(),

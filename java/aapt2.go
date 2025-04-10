@@ -354,7 +354,7 @@ func aapt2Convert(ctx android.ModuleContext, out android.WritablePath, in androi
 		Description: "convert to " + format,
 		Args: map[string]string{
 			"format": format,
-			"flags": strings.Join(extraFlags, " "),
+			"flags":  strings.Join(extraFlags, " "),
 		},
 	})
 }

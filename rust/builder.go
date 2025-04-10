@@ -388,6 +388,8 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 		incrementalPath := android.PathForOutput(ctx, "rustc").String()
 
 		rustcFlags = append(rustcFlags, "-C incremental="+incrementalPath)
+	} else if ctx.Config().Eng() {
+		rustcFlags = append(rustcFlags, "-C codegen-units=16")
 	} else {
 		rustcFlags = append(rustcFlags, "-C codegen-units=1")
 	}

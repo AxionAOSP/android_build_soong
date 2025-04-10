@@ -357,7 +357,7 @@ func (p *prebuiltCommon) checkExportedDependenciesArePrebuilts(ctx android.Modul
 			}
 
 			// It is an error if the other module is not an ApexModule.
-			if _, ok := dep.(android.ApexModule); !ok {
+			if _, ok := android.OtherModuleProvider(ctx, dep, android.ApexInfoProvider); !ok {
 				ctx.PropertyErrorf(propertyName, "%q is not usable within an apex", depName)
 			}
 		}
@@ -652,7 +652,7 @@ func (p *prebuiltCommon) providePrebuiltInfo(ctx android.ModuleContext) {
 // PRODUCT_APEX_BOOT_JARS
 // This validation will only run on the apex which is active for this product/release_config
 func validateApexClasspathFragments(ctx android.ModuleContext) {
-	ctx.VisitDirectDeps(func(m android.Module) {
+	ctx.VisitDirectDepsProxy(func(m android.ModuleProxy) {
 		if info, exists := android.OtherModuleProvider(ctx, m, java.ClasspathFragmentValidationInfoProvider); exists {
 			ctx.ModuleErrorf("%s in contents of %s must also be declared in PRODUCT_APEX_BOOT_JARS", info.UnknownJars, info.ClasspathFragmentModuleName)
 		}

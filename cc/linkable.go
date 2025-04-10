@@ -117,6 +117,8 @@ type LinkableInterface interface {
 	// CoverageOutputFile returns the output archive of gcno coverage information files.
 	CoverageOutputFile() android.OptionalPath
 
+	LinkCoverage() bool
+
 	NonCcVariants() bool
 
 	SelectedStl() string

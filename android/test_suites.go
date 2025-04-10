@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/gobtools"
 )
 
 func init() {
@@ -93,6 +94,31 @@ var MakeNameInfoProvider = blueprint.NewProvider[string]()
 type filePair struct {
 	src Path
 	dst WritablePath
+}
+
+type filePairGob struct {
+	Src Path
+	Dst WritablePath
+}
+
+func (f *filePair) ToGob() *filePairGob {
+	return &filePairGob{
+		Src: f.src,
+		Dst: f.dst,
+	}
+}
+
+func (f *filePair) FromGob(data *filePairGob) {
+	f.src = data.Src
+	f.dst = data.Dst
+}
+
+func (p filePair) GobEncode() ([]byte, error) {
+	return gobtools.CustomGobEncode[filePairGob](&p)
+}
+
+func (p *filePair) GobDecode(data []byte) error {
+	return gobtools.CustomGobDecode[filePairGob](data, p)
 }
 
 type testSuiteInstallsInfo struct {
@@ -267,10 +293,9 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	ctx.Phony("ravenwood-tests", ravenwoodZip, ravenwoodListZip)
 	ctx.DistForGoal("ravenwood-tests", ravenwoodZip, ravenwoodListZip)
 
-	packageTestSuite(ctx, allTestSuiteInstalls["performance-tests"], testInstalledSharedLibs["performance-tests"], performanceTests)
-	packageTestSuite(ctx, allTestSuiteInstalls["device-platinum-tests"], testInstalledSharedLibs["device-platinum-tests"], devicePlatinumTests)
-	// TODO: Enable in followup
-	// packageTestSuite(ctx, allTestSuiteInstalls["device-tests"], testInstalledSharedLibs["device-tests"], deviceTests)
+	packageTestSuite(ctx, allTestSuiteInstalls["performance-tests"], nil, performanceTests)
+	packageTestSuite(ctx, allTestSuiteInstalls["device-platinum-tests"], nil, devicePlatinumTests)
+	packageTestSuite(ctx, allTestSuiteInstalls["device-tests"], testInstalledSharedLibs["device-tests"], deviceTests)
 }
 
 // Get a mapping from testSuite -> list of host shared libraries, given:

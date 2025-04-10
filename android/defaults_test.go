@@ -16,8 +16,6 @@ package android
 
 import (
 	"testing"
-
-	"github.com/google/blueprint"
 )
 
 type defaultsTestProperties struct {
@@ -158,7 +156,7 @@ func TestDefaultsPathProperties(t *testing.T) {
 
 	collectDeps := func(m Module) []string {
 		var deps []string
-		result.VisitDirectDeps(m, func(dep blueprint.Module) {
+		result.VisitDirectDeps(m, func(dep Module) {
 			deps = append(deps, result.ModuleName(dep))
 		})
 		return deps

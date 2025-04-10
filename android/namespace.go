@@ -220,6 +220,7 @@ func (r *NameResolver) NewModule(ctx blueprint.NamespaceContext, moduleGroup blu
 		// inform the module whether its namespace is one that we want to export to Make
 		amod.base().commonProperties.NamespaceExportedToMake = ns.exportToKati
 		amod.base().commonProperties.DebugName = module.Name()
+		amod.base().commonProperties.DebugNamespace = ns.Path
 	}
 
 	return ns, nil

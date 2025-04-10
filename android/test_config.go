@@ -56,8 +56,11 @@ func initTestConfig(buildDir string, env map[string]string) *config {
 		outDir:       buildDir,
 		soongOutDir:  filepath.Join(buildDir, "soong"),
 		captureBuild: true,
-		env:          envCopy,
-		OncePer:      &OncePer{},
+		modulesForTests: &modulesForTests{
+			moduleGroups: make(map[string]*moduleGroupForTests),
+		},
+		env:     envCopy,
+		OncePer: &OncePer{},
 
 		// Set testAllowNonExistentPaths so that test contexts don't need to specify every path
 		// passed to PathForSource or PathForModuleSrc.

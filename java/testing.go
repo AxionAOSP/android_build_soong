@@ -583,7 +583,7 @@ func getModuleDependencies(t *testing.T, ctx *android.TestContext, name, variant
 	t.Helper()
 	module := ctx.ModuleForTests(t, name, variant).Module()
 	deps := []string{}
-	ctx.VisitDirectDeps(module, func(m blueprint.Module) {
+	ctx.VisitDirectDeps(module, func(m android.Module) {
 		deps = append(deps, m.Name())
 	})
 	return android.SortedUniqueStrings(deps)
@@ -650,7 +650,7 @@ func CheckPlatformBootclasspathDependencies(t *testing.T, ctx *android.TestConte
 	t.Helper()
 	platformBootclasspath := ctx.ModuleForTests(t, name, variant).Module().(*platformBootclasspathModule)
 	modules := []android.Module{}
-	ctx.VisitDirectDeps(platformBootclasspath, func(m blueprint.Module) {
+	ctx.VisitDirectDeps(platformBootclasspath, func(m android.Module) {
 		modules = append(modules, m.(android.Module))
 	})
 

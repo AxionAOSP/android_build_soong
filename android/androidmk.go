@@ -582,9 +582,8 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod Module) {
 		a.AddStrings("LOCAL_TEST_DATA", androidMkDataPaths(info.TestData)...)
 	}
 
-	if am, ok := mod.(ApexModule); ok {
-		a.SetBoolIfTrue("LOCAL_NOT_AVAILABLE_FOR_PLATFORM", am.NotAvailableForPlatform())
-	}
+	platformAvailabilityInfo := OtherModuleProviderOrDefault(ctx, mod, PlatformAvailabilityInfoProvider)
+	a.SetBoolIfTrue("LOCAL_NOT_AVAILABLE_FOR_PLATFORM", platformAvailabilityInfo.NotAvailableToPlatform)
 
 	archStr := base.Arch().ArchType.String()
 	host := false
@@ -1541,8 +1540,8 @@ func (a *AndroidMkInfo) fillInEntries(ctx fillInEntriesContext, mod Module, comm
 		helperInfo.AddStrings("LOCAL_TEST_DATA", androidMkDataPaths(info.TestData)...)
 	}
 
-	if commonInfo.IsApexModule {
-		helperInfo.SetBoolIfTrue("LOCAL_NOT_AVAILABLE_FOR_PLATFORM", commonInfo.NotAvailableForPlatform)
+	if platformAvailabilityInfo, ok := OtherModuleProvider(ctx, mod, PlatformAvailabilityInfoProvider); ok {
+		helperInfo.SetBoolIfTrue("LOCAL_NOT_AVAILABLE_FOR_PLATFORM", platformAvailabilityInfo.NotAvailableToPlatform)
 	}
 
 	archStr := commonInfo.Target.Arch.ArchType.String()

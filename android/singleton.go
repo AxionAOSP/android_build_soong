@@ -71,6 +71,7 @@ type SingletonContext interface {
 	VisitAllModules(visit func(Module))
 	VisitAllModuleProxies(visit func(proxy ModuleProxy))
 	VisitAllModulesIf(pred func(Module) bool, visit func(Module))
+	VisitAllModulesOrProxies(visit func(ModuleOrProxy))
 
 	VisitDirectDeps(module Module, visit func(Module))
 	VisitDirectDepsIf(module Module, pred func(Module) bool, visit func(Module))
@@ -89,6 +90,7 @@ type SingletonContext interface {
 
 	PrimaryModuleProxy(module ModuleProxy) ModuleProxy
 
+	IsPrimaryModule(module ModuleOrProxy) bool
 	IsFinalModule(module ModuleOrProxy) bool
 
 	AddNinjaFileDeps(deps ...string)
@@ -315,6 +317,12 @@ func (s *singletonContextAdaptor) VisitAllModuleProxies(visit func(proxy ModuleP
 	s.SingletonContext.VisitAllModuleProxies(visitProxyAdaptor(visit))
 }
 
+func (s *singletonContextAdaptor) VisitAllModulesOrProxies(visit func(ModuleOrProxy)) {
+	s.SingletonContext.VisitAllModulesOrProxies(func(module blueprint.ModuleOrProxy) {
+		visit(module)
+	})
+}
+
 func (s *singletonContextAdaptor) VisitAllModulesIf(pred func(Module) bool, visit func(Module)) {
 	s.SingletonContext.VisitAllModulesIf(predAdaptor(pred), visitAdaptor(visit))
 }
@@ -349,6 +357,10 @@ func (s *singletonContextAdaptor) PrimaryModule(module Module) Module {
 
 func (s *singletonContextAdaptor) PrimaryModuleProxy(module ModuleProxy) ModuleProxy {
 	return ModuleProxy{s.SingletonContext.PrimaryModuleProxy(module.ModuleProxy)}
+}
+
+func (s *singletonContextAdaptor) IsPrimaryModule(module ModuleOrProxy) bool {
+	return s.SingletonContext.IsPrimaryModule(module)
 }
 
 func (s *singletonContextAdaptor) IsFinalModule(module ModuleOrProxy) bool {

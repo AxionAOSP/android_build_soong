@@ -284,6 +284,11 @@ type ModuleContext interface {
 	// Defines this module as a compatibility suite test and gives all the information needed
 	// to build the suite.
 	SetTestSuiteInfo(info TestSuiteInfo)
+
+	// FreeModuleAfterGenerateBuildActions marks this module as no longer necessary after the completion of
+	// GenerateBuildActions, i.e. all later accesses to the module will be via ModuleProxy and not direct access
+	// to the Module.
+	FreeModuleAfterGenerateBuildActions()
 }
 
 type moduleContext struct {
@@ -1069,4 +1074,8 @@ func (c *moduleContext) SetTestSuiteInfo(info TestSuiteInfo) {
 	}
 	c.testSuiteInfo = info
 	c.testSuiteInfoSet = true
+}
+
+func (c *moduleContext) FreeModuleAfterGenerateBuildActions() {
+	c.bp.FreeModuleAfterGenerateBuildActions()
 }

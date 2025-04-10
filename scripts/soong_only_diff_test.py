@@ -109,6 +109,7 @@ SHA_DIFF_ALLOWLIST = {
     "IMAGES/odm_dlkm.img",
     "IMAGES/odm.img",
     "IMAGES/product.img",
+    "IMAGES/product.map",
     "IMAGES/system_dlkm.img",
     "IMAGES/system_ext.img",
     "IMAGES/system.img",
@@ -136,6 +137,7 @@ SHA_DIFF_ALLOWLIST = {
     "SYSTEM_EXT/etc/NOTICE.xml.gz",
     "VENDOR_DLKM/etc/NOTICE.xml.gz",
     "VENDOR/etc/NOTICE.xml.gz",
+    "SYSTEM_EXT/etc/vm/trusty_vm/trusty_security_vm.elf", # TODO: Make this hermetic
 }
 
 def compare_sha_maps(soong_only_map: dict[str, bytes], soong_plus_make_map: dict[str, bytes]) -> bool:

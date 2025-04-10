@@ -7194,14 +7194,14 @@ func TestApexAvailable_CheckForPlatform(t *testing.T) {
 	// libfoo shouldn't be available to platform even though it has "//apex_available:platform",
 	// because it depends on libbar which isn't available to platform
 	libfoo := ctx.ModuleForTests(t, "libfoo", "android_arm64_armv8-a_shared").Module().(*cc.Module)
-	if libfoo.NotAvailableForPlatform() != true {
+	if android.OtherModuleProviderOrDefault(ctx, libfoo, android.PlatformAvailabilityInfoProvider).NotAvailableToPlatform != true {
 		t.Errorf("%q shouldn't be available to platform", libfoo.String())
 	}
 
 	// libfoo2 however can be available to platform because it depends on libbaz which provides
 	// stubs
 	libfoo2 := ctx.ModuleForTests(t, "libfoo2", "android_arm64_armv8-a_shared").Module().(*cc.Module)
-	if libfoo2.NotAvailableForPlatform() == true {
+	if android.OtherModuleProviderOrDefault(ctx, libfoo2, android.PlatformAvailabilityInfoProvider).NotAvailableToPlatform == true {
 		t.Errorf("%q should be available to platform", libfoo2.String())
 	}
 }
@@ -7233,11 +7233,11 @@ func TestApexAvailable_CreatedForApex(t *testing.T) {
 	}`)
 
 	libfooShared := ctx.ModuleForTests(t, "libfoo", "android_arm64_armv8-a_shared").Module().(*cc.Module)
-	if libfooShared.NotAvailableForPlatform() != true {
+	if android.OtherModuleProviderOrDefault(ctx, libfooShared, android.PlatformAvailabilityInfoProvider).NotAvailableToPlatform != true {
 		t.Errorf("%q shouldn't be available to platform", libfooShared.String())
 	}
 	libfooStatic := ctx.ModuleForTests(t, "libfoo", "android_arm64_armv8-a_static").Module().(*cc.Module)
-	if libfooStatic.NotAvailableForPlatform() != false {
+	if android.OtherModuleProviderOrDefault(ctx, libfooStatic, android.PlatformAvailabilityInfoProvider).NotAvailableToPlatform != false {
 		t.Errorf("%q should be available to platform", libfooStatic.String())
 	}
 }

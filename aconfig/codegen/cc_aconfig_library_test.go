@@ -20,8 +20,6 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
-
-	"github.com/google/blueprint"
 )
 
 var ccCodegenModeTestData = []struct {
@@ -256,7 +254,7 @@ func TestForceReadOnly(t *testing.T) {
 
 	module := result.ModuleForTests(t, "my_cc_aconfig_library", "android_arm64_armv8-a_shared").Module()
 	dependOnReadLib := false
-	result.VisitDirectDeps(module, func(dep blueprint.Module) {
+	result.VisitDirectDeps(module, func(dep android.Module) {
 		if dep.Name() == libAconfigStorageReadApiCcDep {
 			dependOnReadLib = true
 		}

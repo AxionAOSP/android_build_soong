@@ -29,8 +29,6 @@ import (
 	"sync"
 	"unicode"
 
-	"android/soong/shared"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/pathtools"
@@ -38,6 +36,7 @@ import (
 
 	"android/soong/android/soongconfig"
 	"android/soong/remoteexec"
+	"android/soong/shared"
 )
 
 // Bool re-exports proptools.Bool for the android package.
@@ -406,6 +405,10 @@ type config struct {
 	// Copy of this config struct but some product-specific variables are
 	// replaced with the generic configuration values.
 	genericConfig *config
+
+	// modulesForTests stores the list of modules that exist during Soong tests.  It is nil
+	// when not running Soong tests.
+	modulesForTests *modulesForTests
 }
 
 type partialCompileFlags struct {

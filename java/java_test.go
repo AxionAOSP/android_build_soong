@@ -3141,7 +3141,7 @@ func assertTestOnlyAndTopLevel(t *testing.T, ctx *android.TestResult, expectedTe
 		}
 	}
 
-	ctx.VisitAllModules(func(m blueprint.Module) {
+	ctx.VisitAllModules(func(m android.Module) {
 		addActuals(m, android.TestOnlyProviderKey)
 
 	})
@@ -3162,7 +3162,7 @@ func TestNativeRequiredDepOfJavaBinary(t *testing.T) {
 	t.Parallel()
 	findDepsOfModule := func(ctx *android.TestContext, module android.Module, depName string) []blueprint.Module {
 		var ret []blueprint.Module
-		ctx.VisitDirectDeps(module, func(dep blueprint.Module) {
+		ctx.VisitDirectDeps(module, func(dep android.Module) {
 			if dep.Name() == depName {
 				ret = append(ret, dep)
 			}

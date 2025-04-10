@@ -173,12 +173,12 @@ func (libbpf *libbpfProg) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		cflags = append(cflags, "-fdebug-prefix-map=/proc/self/cwd=")
 	}
 
-	ctx.VisitDirectDeps(func(dep android.Module) {
+	ctx.VisitDirectDepsProxy(func(dep android.ModuleProxy) {
 		depTag := ctx.OtherModuleDependencyTag(dep)
 		if depTag == libbpfProgDepTag {
-			if genRule, ok := dep.(genrule.SourceFileGenerator); ok {
-				cFlagsDeps = append(cFlagsDeps, genRule.GeneratedDeps()...)
-				dirs := genRule.GeneratedHeaderDirs()
+			if info, ok := android.OtherModuleProvider(ctx, dep, android.GeneratedSourceInfoProvider); ok {
+				cFlagsDeps = append(cFlagsDeps, info.GeneratedDeps...)
+				dirs := info.GeneratedHeaderDirs
 				for _, dir := range dirs {
 					cflags = append(cflags, "-I "+dir.String())
 				}

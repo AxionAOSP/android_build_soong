@@ -1175,12 +1175,13 @@ func markPlatformAvailability(mctx android.BottomUpMutatorContext) {
 
 	// If any of the dep is not available to platform, this module is also considered as being
 	// not available to platform even if it has "//apex_available:platform"
-	mctx.VisitDirectDeps(func(child android.Module) {
+	mctx.VisitDirectDepsProxy(func(child android.ModuleProxy) {
 		if !android.IsDepInSameApex(mctx, am, child) {
 			// if the dependency crosses apex boundary, don't consider it
 			return
 		}
-		if dep, ok := child.(android.ApexModule); ok && dep.NotAvailableForPlatform() {
+		info := android.OtherModuleProviderOrDefault(mctx, child, android.PlatformAvailabilityInfoProvider)
+		if info.NotAvailableToPlatform {
 			availableToPlatform = false
 			// TODO(b/154889534) trigger an error when 'am' has
 			// "//apex_available:platform"
@@ -1198,8 +1199,11 @@ func markPlatformAvailability(mctx android.BottomUpMutatorContext) {
 	}
 
 	if !availableToPlatform {
-		am.SetNotAvailableForPlatform()
+		android.SetProvider(mctx, android.PlatformAvailabilityInfoProvider, android.PlatformAvailabilityInfo{
+			NotAvailableToPlatform: true,
+		})
 	}
+
 }
 
 type apexTransitionMutator struct{}
@@ -2282,7 +2286,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	android.SetProvider(ctx, java.AppInfosProvider, a.appInfos)
 	a.setSymbolInfosProvider(ctx)
 
-	android.SetProvider(ctx, android.ApexBundleTypeInfoProvider, android.ApexBundleTypeInfo{})
+	pem, key := a.getCertificateAndPrivateKey(ctx)
+	android.SetProvider(ctx, android.ApexBundleTypeInfoProvider, android.ApexBundleTypeInfo{
+		Pem: pem,
+		Key: key,
+	})
 }
 
 // Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file

@@ -1856,30 +1856,34 @@ func (txt *sanitizerLibrariesTxtModule) DepsMutator(actx android.BottomUpMutator
 func (txt *sanitizerLibrariesTxtModule) getSanitizerLibs(ctx android.ModuleContext) string {
 	var sanitizerLibStems []string
 
-	ctx.VisitDirectDepsIf(func(m android.Module) bool {
-		if !m.Enabled(ctx) {
-			return false
+	ctx.VisitDirectDepsProxy(func(m android.ModuleProxy) {
+		info := android.OtherModuleProviderOrDefault(ctx, m, android.CommonModuleInfoProvider)
+		if !info.Enabled {
+			return
 		}
 
-		ccModule, _ := m.(*Module)
-		if ccModule == nil || ccModule.library == nil || !ccModule.library.shared() {
-			return false
+		if _, ok := android.OtherModuleProvider(ctx, m, SharedLibraryInfoProvider); !ok {
+			return
 		}
 
 		targets := ctx.Config().Targets[android.Android]
 
+		var targetMatches bool
 		for _, target := range targets {
-			if m.Target().Os == target.Os && m.Target().Arch.ArchType == target.Arch.ArchType {
-				return true
+			if info.Target.Os == target.Os && info.Target.Arch.ArchType == target.Arch.ArchType {
+				targetMatches = true
 			}
 		}
 
-		return false
-	}, func(m android.Module) {
-		ccModule, _ := m.(*Module)
-		outputFile := ccModule.outputFile
-		if outputFile.Valid() {
-			sanitizerLibStems = append(sanitizerLibStems, outputFile.Path().Base())
+		if !targetMatches {
+			return
+		}
+
+		outputFiles := android.OutputFilesForModule(ctx, m, "")
+		if len(outputFiles) == 1 {
+			sanitizerLibStems = append(sanitizerLibStems, outputFiles[0].Base())
+		} else if len(outputFiles) > 1 {
+			panic(fmt.Errorf("multiple output files for %s: %s", m, outputFiles.Strings()))
 		}
 	})
 

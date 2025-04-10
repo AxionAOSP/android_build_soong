@@ -511,6 +511,7 @@ type commonProperties struct {
 
 	// Name and variant strings stored by mutators to enable Module.String()
 	DebugName       string   `blueprint:"mutated"`
+	DebugNamespace  string   `blueprint:"mutated"`
 	DebugMutators   []string `blueprint:"mutated"`
 	DebugVariations []string `blueprint:"mutated"`
 
@@ -1934,7 +1935,6 @@ type CommonModuleInfo struct {
 	CanHaveApexVariants     bool
 	MinSdkVersion           ApiLevelOrPlatform
 	SdkVersion              string
-	NotAvailableForPlatform bool
 	// There some subtle differences between this one and the one above.
 	NotInPlatform bool
 	// UninstallableApexPlatformVariant is set by MakeUninstallable called by the apex
@@ -2026,6 +2026,10 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		baseModuleContext: m.baseModuleContextFactory(blueprintCtx),
 		variables:         make(map[string]string),
 		phonies:           make(map[string]Paths),
+	}
+
+	if ctx.config.captureBuild {
+		ctx.config.modulesForTests.Insert(ctx.ModuleName(), ctx.Module())
 	}
 
 	setContainerInfo(ctx)
@@ -2385,7 +2389,6 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 	if am, ok := m.module.(ApexModule); ok {
 		commonData.CanHaveApexVariants = am.CanHaveApexVariants()
-		commonData.NotAvailableForPlatform = am.NotAvailableForPlatform()
 		commonData.NotInPlatform = am.NotInPlatform()
 		commonData.MinSdkVersionSupported = am.MinSdkVersionSupported(ctx)
 		commonData.IsInstallableToApex = am.IsInstallableToApex()

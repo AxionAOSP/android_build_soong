@@ -149,11 +149,11 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 			// For static libraries, the only thing that changes our object files
 			// are included whole static libraries, so check to see if any of
 			// those have coverage enabled.
-			ctx.VisitDirectDeps(func(m android.Module) {
+			ctx.VisitDirectDepsProxy(func(m android.ModuleProxy) {
 				if depTag, ok := ctx.OtherModuleDependencyTag(m).(libraryDependencyTag); ok {
 					if depTag.static() && depTag.wholeStatic {
-						if cc, ok := m.(*Module); ok && cc.coverage != nil {
-							if cc.coverage.linkCoverage {
+						if info, ok := android.OtherModuleProvider(ctx, m, LinkableInfoProvider); ok {
+							if info.LinkCoverage {
 								cov.linkCoverage = true
 							}
 						}
@@ -163,18 +163,13 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 		} else {
 			// For executables and shared libraries, we need to check all of
 			// our static dependencies.
-			ctx.VisitDirectDeps(func(m android.Module) {
-				cc, ok := m.(*Module)
-				if !ok || cc.coverage == nil {
-					return
-				}
-
-				if static, ok := cc.linker.(libraryInterface); !ok || !static.static() {
-					return
-				}
-
-				if cc.coverage.linkCoverage {
-					cov.linkCoverage = true
+			ctx.VisitDirectDepsProxy(func(m android.ModuleProxy) {
+				if _, ok := android.OtherModuleProvider(ctx, m, StaticLibraryInfoProvider); ok {
+					if info, ok := android.OtherModuleProvider(ctx, m, LinkableInfoProvider); ok {
+						if info.LinkCoverage {
+							cov.linkCoverage = true
+						}
+					}
 				}
 			})
 		}
@@ -196,8 +191,8 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 			}
 
 			if ctx.Device() {
-				coverage := ctx.GetDirectDepWithTag(getClangProfileLibraryName(ctx), CoverageDepTag).(*Module)
-				deps.WholeStaticLibs = append(deps.WholeStaticLibs, coverage.OutputFile().Path())
+				coverage := ctx.GetDirectDepProxyWithTag(getClangProfileLibraryName(ctx), CoverageDepTag)
+				deps.WholeStaticLibs = append(deps.WholeStaticLibs, android.OutputFileForModule(ctx, coverage, ""))
 				flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--wrap,open")
 			}
 		}

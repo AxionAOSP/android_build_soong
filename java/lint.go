@@ -660,11 +660,12 @@ func (l *lintSingleton) generateLintReportZips(ctx android.SingletonContext) {
 	var dirs []string
 	ctx.VisitAllModuleProxies(func(m android.ModuleProxy) {
 		commonInfo := android.OtherModulePointerProviderOrDefault(ctx, m, android.CommonModuleInfoProvider)
+		platformAvailabilitInfo := android.OtherModuleProviderOrDefault(ctx, m, android.PlatformAvailabilityInfoProvider)
 		if ctx.Config().KatiEnabled() && !commonInfo.ExportedToMake {
 			return
 		}
 
-		if commonInfo.IsApexModule && commonInfo.NotAvailableForPlatform {
+		if commonInfo.IsApexModule && platformAvailabilitInfo.NotAvailableToPlatform {
 			apexInfo, _ := android.OtherModuleProvider(ctx, m, android.ApexInfoProvider)
 			if apexInfo.IsForPlatform() {
 				// There are stray platform variants of modules in apexes that are not available for

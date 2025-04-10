@@ -814,6 +814,10 @@ func (mod *Module) CoverageOutputFile() android.OptionalPath {
 	return android.OptionalPath{}
 }
 
+func (c *Module) LinkCoverage() bool {
+	return false
+}
+
 func (mod *Module) IsNdk(config android.Config) bool {
 	return false
 }
