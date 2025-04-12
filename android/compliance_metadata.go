@@ -133,6 +133,7 @@ type ComplianceMetadataInfo struct {
 	filesContained         []string
 	prebuiltFilesCopied    []string
 	platformGeneratedFiles []string
+	kernelModuleCopyFiles  []string
 }
 
 type complianceMetadataInfoGob struct {
@@ -140,6 +141,7 @@ type complianceMetadataInfoGob struct {
 	FilesContained         []string
 	PrebuiltFilesCopied    []string
 	PlatformGeneratedFiles []string
+	KernelModuleCopyFiles  []string
 }
 
 func NewComplianceMetadataInfo() *ComplianceMetadataInfo {
@@ -148,6 +150,7 @@ func NewComplianceMetadataInfo() *ComplianceMetadataInfo {
 		filesContained:         make([]string, 0),
 		prebuiltFilesCopied:    make([]string, 0),
 		platformGeneratedFiles: make([]string, 0),
+		kernelModuleCopyFiles:  make([]string, 0),
 	}
 }
 
@@ -157,6 +160,7 @@ func (m *ComplianceMetadataInfo) ToGob() *complianceMetadataInfoGob {
 		FilesContained:         m.filesContained,
 		PrebuiltFilesCopied:    m.prebuiltFilesCopied,
 		PlatformGeneratedFiles: m.platformGeneratedFiles,
+		KernelModuleCopyFiles:  m.kernelModuleCopyFiles,
 	}
 }
 
@@ -165,6 +169,7 @@ func (m *ComplianceMetadataInfo) FromGob(data *complianceMetadataInfoGob) {
 	m.filesContained = data.FilesContained
 	m.prebuiltFilesCopied = data.PrebuiltFilesCopied
 	m.platformGeneratedFiles = data.PlatformGeneratedFiles
+	m.kernelModuleCopyFiles = data.KernelModuleCopyFiles
 }
 
 func (c *ComplianceMetadataInfo) GobEncode() ([]byte, error) {
@@ -208,6 +213,14 @@ func (c *ComplianceMetadataInfo) SetPlatformGeneratedFiles(files []string) {
 
 func (c *ComplianceMetadataInfo) GetPlatformGeneratedFiles() []string {
 	return c.platformGeneratedFiles
+}
+
+func (c *ComplianceMetadataInfo) SetKernelModuleCopyFiles(files []string) {
+	c.kernelModuleCopyFiles = files
+}
+
+func (c *ComplianceMetadataInfo) GetKernelModuleCopyFiles() []string {
+	return c.kernelModuleCopyFiles
 }
 
 func (c *ComplianceMetadataInfo) getStringValue(propertyName string) string {
@@ -259,6 +272,17 @@ func buildComplianceMetadataProvider(ctx *moduleContext, m *ModuleBase) {
 		installed = append(installed, ctx.katiSymlinks.InstallPaths()...)
 		installed = append(installed, ctx.katiInitRcInstalls.InstallPaths()...)
 		installed = append(installed, ctx.katiVintfInstalls.InstallPaths()...)
+		// The following module types use PackageFiles instead of InstallFiles so here we need to
+		// collect the fullInstallPaths from the packagingSpecs.
+		// TODO: b/409854522
+		if strings.HasPrefix(ctx.ModuleType(), "sdk_library_internal") ||
+			ctx.ModuleType() == "bpf" ||
+			ctx.ModuleType() == "libbpf_prog" ||
+			ctx.ModuleType() == "avbpubkey__loadHookModule" {
+			for _, s := range ctx.packagingSpecs {
+				installed = append(installed, s.fullInstallPath)
+			}
+		}
 		complianceMetadataInfo.SetListValue(ComplianceMetadataProp.INSTALLED_FILES, FirstUniqueStrings(installed.Strings()))
 	}
 	ctx.setProvider(ComplianceMetadataProvider, complianceMetadataInfo)
@@ -374,6 +398,12 @@ func (c *complianceMetadataSingleton) GenerateBuildActions(ctx SingletonContext)
 						}
 						sort.Strings(allFiles)
 
+						destToKernelModuleMap := make(map[string]string)
+						for _, p := range metadataInfo.GetKernelModuleCopyFiles() {
+							pair := strings.Split(p, "::")
+							destToKernelModuleMap[pair[1]] = p
+						}
+
 						csvHeaders := "installed_file,module_path,is_soong_module,is_prebuilt_make_module,product_copy_files,kernel_module_copy_files,is_platform_generated,static_libs,whole_static_libs,license_text"
 						csvContent := make([]string, 0, len(allFiles)+1)
 						csvContent = append(csvContent, csvHeaders)
@@ -383,6 +413,8 @@ func (c *complianceMetadataSingleton) GenerateBuildActions(ctx SingletonContext)
 								csvContent = append(csvContent, file+",,,,"+srcDestPair+",,,,,")
 							} else if slices.Contains(metadataInfo.platformGeneratedFiles, file) {
 								csvContent = append(csvContent, file+",,,,,,Y,,,build/soong/licenses/LICENSE")
+							} else if km, ok := destToKernelModuleMap[file]; ok {
+								csvContent = append(csvContent, file+",,,,,"+km+",,,,")
 							} else {
 								csvContent = append(csvContent, file+",,Y,,,,,,,")
 							}

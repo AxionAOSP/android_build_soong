@@ -643,7 +643,7 @@ func (f *filesystemCreator) createPartition(ctx android.LoadHookContext, partiti
 		return
 	}
 
-	baseProps := generateBaseProps(proptools.StringPtr(partition.moduleName))
+	baseProps := generateBaseProps(proptools.StringPtr(partition.moduleName), ctx.Config())
 
 	fsProps, supported := generateFsProps(ctx, partitions, partition.partitionType)
 	if !supported {
@@ -962,15 +962,17 @@ func (f *filesystemCreator) createLinkerConfigSourceFilegroups(ctx android.LoadH
 }
 
 type filesystemBaseProperty struct {
-	Name             *string
-	Compile_multilib *string
-	Visibility       []string
+	Name                    *string
+	Compile_multilib        *string
+	Native_bridge_supported *bool
+	Visibility              []string
 }
 
-func generateBaseProps(namePtr *string) *filesystemBaseProperty {
+func generateBaseProps(namePtr *string, config android.Config) *filesystemBaseProperty {
 	return &filesystemBaseProperty{
-		Name:             namePtr,
-		Compile_multilib: proptools.StringPtr("both"),
+		Name:                    namePtr,
+		Compile_multilib:        proptools.StringPtr("both"),
+		Native_bridge_supported: proptools.BoolPtr(config.ProductVariables().NativeBridgeArch != nil),
 		// The vbmeta modules are currently in the root directory and depend on the partitions
 		Visibility: []string{"//.", "//build/soong:__subpackages__"},
 	}
@@ -1278,7 +1280,7 @@ func generateBpContent(ctx android.EarlyModuleContext, partitionType string) str
 		return ""
 	}
 
-	baseProps := generateBaseProps(proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), partitionType)))
+	baseProps := generateBaseProps(proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), partitionType)), ctx.Config())
 	deps := fsGenState.fsDeps[partitionType]
 	highPriorityDeps := fsGenState.generatedPrebuiltEtcModuleNames
 	depProps := generateDepStruct(*deps, highPriorityDeps)

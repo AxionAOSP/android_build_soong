@@ -143,10 +143,7 @@ var (
 				`    ${aconfig} create-java-lib` +
 				`        --cache ${out}.pb.tmp/$$cache` +
 				`        --mode=exported` +
-				`        --allow-instrumentation ${use_new_storage}` +
-				`        --new-exported ${use_new_exported}` +
 				`        --single-exported-file true` +
-				`        --check-api-level ${check_api_level}` +
 				`        --out ${out}.tmp; ` +
 				// LINT.ThenChange(/aconfig/codegen/init.go)
 				`  fi ` +
@@ -159,7 +156,7 @@ var (
 				"$soong_zip",
 				"$exported-flag-check",
 			},
-		}, "cache_files", "use_new_storage", "use_new_exported", "check_api_level")
+		}, "cache_files")
 )
 
 func init() {

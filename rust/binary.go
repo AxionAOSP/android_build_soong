@@ -15,9 +15,10 @@
 package rust
 
 import (
-	"android/soong/android"
-
+	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
+
+	"android/soong/android"
 )
 
 func init() {
@@ -83,8 +84,8 @@ func (binary *binaryDecorator) begin(ctx BaseModuleContext) {
 		}
 	}
 
-	if ctx.Darwin() || (ctx.Os().Linux() && ctx.Host() && ctx.toolchain().Glibc()) {
-		// Static executables are not supported on Darwin
+	if ctx.Darwin() || ctx.Windows() || (ctx.Os().Linux() && ctx.Host() && ctx.toolchain().Glibc()) {
+		// Static executables are not supported on Darwin, Linux glibc, or Windows
 		binary.Properties.Static_executable = nil
 	}
 }
@@ -129,8 +130,10 @@ func (binary *binaryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 			deps.CrtBegin = []string{"libc_musl_crtbegin_dynamic"}
 		}
 		deps.CrtEnd = []string{"libc_musl_crtend"}
+	} else if ctx.Os() == android.Windows {
+		deps.CrtBegin = []string{"rsbegin.rust_sysroot"}
+		deps.CrtEnd = []string{"rsend.rust_sysroot"}
 	}
-
 	return deps
 }
 
@@ -160,9 +163,19 @@ func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps Path
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.depLinkFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.rustLibObjects...)
-	flags.LinkFlags = append(flags.LinkFlags, deps.sharedLibObjects...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.staticLibObjects...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.wholeStaticLibObjects...)
+
+	if ctx.Windows() {
+		for _, lib := range deps.sharedLibObjects {
+			// Windows uses the .lib import library at link-time and at runtime
+			// uses the .dll library, so we need to make sure we're passing the
+			// import library to the linker.
+			flags.LinkFlags = append(flags.LinkFlags, pathtools.ReplaceExtension(lib, "lib"))
+		}
+	} else {
+		flags.LinkFlags = append(flags.LinkFlags, deps.sharedLibObjects...)
+	}
 
 	if binary.stripper.NeedsStrip(ctx) {
 		strippedOutputFile := outputFile

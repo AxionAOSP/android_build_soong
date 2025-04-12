@@ -465,6 +465,21 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 			implicits = append(implicits, outputs.Paths()...)
 		}
 	}
+	var implicitOutputs android.WritablePaths
+	mod := ctx.Module().(cc.LinkableInterface)
+	if ctx.Windows() && mod.Shared() {
+		// On windows, an additional .lib file is produced for shared libraries.
+		importLibraryPath := android.PathForModuleOut(ctx, outputFile.ReplaceExtension(ctx, "lib").Base())
+		linkFlags = append(linkFlags, "-Wl,--out-implib="+importLibraryPath.String())
+		implicitOutputs = append(implicitOutputs, importLibraryPath)
+
+		// On Windows, we always generate a PDB file
+		// --strip-debug is needed to also keep COFF symbols which are needed when
+		// we patch binaries with symbol_inject.
+		pdb := outputFile.ReplaceExtension(ctx, "pdb")
+		linkFlags = append(linkFlags, " -Wl,--strip-debug -Wl,--pdb="+pdb.String()+" ")
+		implicitOutputs = append(implicitOutputs, pdb)
+	}
 
 	if !t.synthetic {
 		// Only worry about clippy for actual Rust modules.
@@ -492,12 +507,13 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 	}
 
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        rustc,
-		Description: "rustc " + main.Rel(),
-		Output:      outputFile,
-		Inputs:      inputs,
-		Implicits:   implicits,
-		OrderOnly:   orderOnly,
+		Rule:            rustc,
+		Description:     "rustc " + main.Rel(),
+		Output:          outputFile,
+		Inputs:          inputs,
+		Implicits:       implicits,
+		ImplicitOutputs: implicitOutputs,
+		OrderOnly:       orderOnly,
 		Args: map[string]string{
 			"rustcFlags":     strings.Join(rustcFlags, " "),
 			"earlyLinkFlags": earlyLinkFlags,

@@ -189,9 +189,7 @@ func (s *sdkRepoHost) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		Flag("-o -name '*.txt' -o -name '*.windows' -o -name '*.xml' -print0").
 		// Using -n 500 for xargs to limit the max number of arguments per call to line_endings
 		// to 500. This avoids line_endings failing with "arguments too long".
-		Text("| xargs -0 -n 500 ").
-		BuiltTool("line_endings").
-		Flag("unix")
+		Text("| xargs -0 -n 500 dos2unix")
 
 	// Exclude some file types (roughly matching sdk.exclude.atree)
 	builder.Command().

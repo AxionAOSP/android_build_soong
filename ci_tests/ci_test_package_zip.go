@@ -74,8 +74,13 @@ var testPackageZipDepTag testPackageZipDepTagType
 var (
 	pctx = android.NewPackageContext("android/soong/ci_tests")
 	// test_package module type should only be used for the following modules.
-	// TODO: remove "_soong" from the module names inside when eliminating the corresponding make modules
-	moduleNamesAllowed = []string{"continuous_instrumentation_tests_soong", "continuous_instrumentation_metric_tests_soong", "continuous_native_tests_soong", "continuous_native_metric_tests_soong", "platform_tests"}
+	moduleNamesAllowed = []string{
+		"continuous_instrumentation_tests",
+		"continuous_instrumentation_metric_tests",
+		"continuous_native_tests",
+		"continuous_native_metric_tests",
+		"platform_tests",
+	}
 )
 
 func (p *testPackageZip) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -171,7 +176,7 @@ func (p *testPackageZip) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	p.SkipInstall()
 
 	if !android.InList(ctx.ModuleName(), moduleNamesAllowed) {
-		ctx.ModuleErrorf("%s is not allowed to use module type test_package")
+		ctx.ModuleErrorf("%s is not allowed to use module type test_package", ctx.ModuleName())
 	}
 
 	p.output = createOutput(ctx, pctx)

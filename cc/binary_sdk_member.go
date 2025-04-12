@@ -60,7 +60,7 @@ func (mt *binarySdkMemberType) IsInstance(ctx android.ModuleContext, module andr
 	// Check the module to see if it can be used with this module type.
 	if m, ok := android.OtherModuleProvider(ctx, module, CcInfoProvider); ok {
 		for _, allowableMemberType := range m.SdkMemberTypes {
-			if allowableMemberType == mt {
+			if allowableMemberType.SdkPropertyName() == mt.SdkPropertyName() {
 				return true
 			}
 		}

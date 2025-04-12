@@ -130,6 +130,8 @@ type SingletonContext interface {
 	// directory on the build server with the given filename when any of the
 	// specified goals are built.
 	DistForGoalsWithFilename(goals []string, path Path, filename string)
+
+	GetIncrementalAnalysis() bool
 }
 
 type singletonAdaptor struct {
@@ -439,4 +441,8 @@ func (s *singletonContextAdaptor) DistForGoalsWithFilename(goals []string, path 
 		goals: slices.Clone(goals),
 		paths: distCopies{{from: path, dest: filename}},
 	})
+}
+
+func (s *singletonContextAdaptor) GetIncrementalAnalysis() bool {
+	return s.SingletonContext.GetIncrementalAnalysis()
 }

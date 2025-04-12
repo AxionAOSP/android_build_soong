@@ -255,12 +255,22 @@ func RustTestFactory() android.Module {
 	// rustTestHostMultilib load hook to set MultilibFirst for the
 	// host target.
 	android.AddLoadHook(module, rustTestHostMultilib)
+
+	// Windows tests are currently unsupported, so disable them.
+	// To support Windows test modules, we likely need to switch
+	// to panic=unwind.
+	android.AddLoadHook(module, rustTestDisableWindows)
 	module.testModule = true
 	return module.Init()
 }
 
 func RustTestHostFactory() android.Module {
 	module, _ := NewRustTest(android.HostSupported)
+
+	// Windows tests are unsupported, so disable them.
+	// To support Windows test modules, we likely need to switch
+	// to panic=unwind.
+	android.AddLoadHook(module, rustTestDisableWindows)
 	module.testModule = true
 	return module.Init()
 }
@@ -320,5 +330,18 @@ func rustTestHostMultilib(ctx android.LoadHookContext) {
 	}
 	p := &props{}
 	p.Target.Host.Compile_multilib = proptools.StringPtr("first")
+	ctx.AppendProperties(p)
+}
+
+func rustTestDisableWindows(ctx android.LoadHookContext) {
+	type props struct {
+		Target struct {
+			Windows struct {
+				Enabled bool
+			}
+		}
+	}
+	p := &props{}
+	p.Target.Windows.Enabled = false
 	ctx.AppendProperties(p)
 }

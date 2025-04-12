@@ -16,7 +16,6 @@ package fsgen
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"sync"
 
@@ -45,9 +44,10 @@ func getAllSoongGeneratedPartitionNames(config android.Config, partitions []stri
 }
 
 type depCandidateProps struct {
-	Namespace string
-	Multilib  string
-	Arch      []android.ArchType
+	Namespace           string
+	Multilib            string
+	Arch                []android.ArchType
+	NativeBridgeSupport map[android.NativeBridgeSupport]bool
 }
 
 // Map of module name to depCandidateProps
@@ -57,7 +57,7 @@ type multilibDeps map[string]*depCandidateProps
 // dependencies
 type FsGenState struct {
 	// List of modules in `PRODUCT_PACKAGES` and `PRODUCT_PACKAGES_DEBUG`
-	depCandidates []string
+	depCandidatesMap map[string]bool
 	// Map of names of partition to the information of modules to be added as deps
 	fsDeps map[string]*multilibDeps
 	// Information about the main soong-generated partitions
@@ -79,19 +79,27 @@ type installationProperties struct {
 
 func defaultDepCandidateProps(config android.Config) *depCandidateProps {
 	return &depCandidateProps{
-		Namespace: ".",
-		Arch:      []android.ArchType{config.BuildArch},
+		Namespace:           ".",
+		Arch:                []android.ArchType{config.BuildArch},
+		NativeBridgeSupport: map[android.NativeBridgeSupport]bool{android.NativeBridgeDisabled: true},
 	}
 }
 
 func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNames []string, avbpubkeyGenerated bool) *FsGenState {
 	return ctx.Config().Once(fsGenStateOnceKey, func() interface{} {
 		partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
-		candidates := android.FirstUniqueStrings(android.Concat(partitionVars.ProductPackages, partitionVars.ProductPackagesDebug))
-		candidates = android.Concat(candidates, generatedPrebuiltEtcModuleNames)
-
+		candidatesMap := map[string]bool{}
+		for _, candidate := range partitionVars.ProductPackages {
+			candidatesMap[candidate] = true
+		}
+		for _, candidate := range partitionVars.ProductPackagesDebug {
+			candidatesMap[candidate] = true
+		}
+		for _, candidate := range generatedPrebuiltEtcModuleNames {
+			candidatesMap[candidate] = true
+		}
 		fsGenState := FsGenState{
-			depCandidates: candidates,
+			depCandidatesMap: candidatesMap,
 			fsDeps: map[string]*multilibDeps{
 				// These additional deps are added according to the cuttlefish system image bp.
 				"system": {
@@ -207,7 +215,7 @@ func checkDepModuleInMultipleNamespaces(mctx android.BottomUpMutatorContext, fou
 	}
 }
 
-func appendDepIfAppropriate(mctx android.BottomUpMutatorContext, deps *multilibDeps, installPartition string) {
+func appendDepIfAppropriate(mctx android.BottomUpMutatorContext, deps *multilibDeps, installPartition string, nbs android.NativeBridgeSupport) {
 	moduleName := mctx.ModuleName()
 	checkDepModuleInMultipleNamespaces(mctx, *deps, moduleName, installPartition)
 	if _, ok := (*deps)[moduleName]; ok {
@@ -216,12 +224,14 @@ func appendDepIfAppropriate(mctx android.BottomUpMutatorContext, deps *multilibD
 			(*deps)[moduleName].Namespace = mctx.Namespace().Path
 		}
 		(*deps)[moduleName].Arch = append((*deps)[moduleName].Arch, mctx.Module().Target().Arch.ArchType)
+		(*deps)[moduleName].NativeBridgeSupport[nbs] = true
 	} else {
 		multilib, _ := mctx.Module().DecodeMultilib(mctx)
 		(*deps)[moduleName] = &depCandidateProps{
-			Namespace: mctx.Namespace().Path,
-			Multilib:  multilib,
-			Arch:      []android.ArchType{mctx.Module().Target().Arch.ArchType},
+			Namespace:           mctx.Namespace().Path,
+			Multilib:            multilib,
+			Arch:                []android.ArchType{mctx.Module().Target().Arch.ArchType},
+			NativeBridgeSupport: map[android.NativeBridgeSupport]bool{nbs: true},
 		}
 	}
 }
@@ -236,15 +246,28 @@ func collectDepsMutator(mctx android.BottomUpMutatorContext) {
 	fsGenState.fsDepsMutex.Lock()
 	defer fsGenState.fsDepsMutex.Unlock()
 
-	if slices.Contains(fsGenState.depCandidates, mctx.ModuleName()) {
+	if _, ok := fsGenState.depCandidatesMap[mctx.ModuleName()]; ok {
 		installPartition := m.PartitionTag(mctx.DeviceConfig())
 		// Only add the module as dependency when:
 		// - its enabled
 		// - its namespace is included in PRODUCT_SOONG_NAMESPACES
 		if m.Enabled(mctx) && m.ExportedToMake() {
-			appendDepIfAppropriate(mctx, fsGenState.fsDeps[installPartition], installPartition)
+			appendDepIfAppropriate(mctx, fsGenState.fsDeps[installPartition], installPartition, android.NativeBridgeDisabled)
 		}
 	}
+
+	if _, ok := fsGenState.depCandidatesMap[mctx.ModuleName()+".native_bridge"]; ok {
+		installPartition := m.PartitionTag(mctx.DeviceConfig())
+		if m.Enabled(mctx) && m.ExportedToMake() {
+			appendDepIfAppropriate(mctx, fsGenState.fsDeps[installPartition], installPartition, android.NativeBridgeEnabled)
+		}
+	} else if _, ok := fsGenState.depCandidatesMap[mctx.ModuleName()+".bootstrap.native_bridge"]; ok {
+		installPartition := m.PartitionTag(mctx.DeviceConfig())
+		if m.Enabled(mctx) && m.ExportedToMake() {
+			appendDepIfAppropriate(mctx, fsGenState.fsDeps[installPartition], installPartition, android.NativeBridgeEnabled)
+		}
+	}
+
 	// store the map of module to (required,overrides) even if the module is not in PRODUCT_PACKAGES.
 	// the module might be installed transitively.
 	if m.Enabled(mctx) && m.ExportedToMake() {
@@ -260,11 +283,12 @@ type depsStruct struct {
 }
 
 type multilibDepsStruct struct {
-	Common   depsStruct
-	Lib32    depsStruct
-	Lib64    depsStruct
-	Both     depsStruct
-	Prefer32 depsStruct
+	Common        depsStruct
+	Lib32         depsStruct
+	Lib64         depsStruct
+	Both          depsStruct
+	Prefer32      depsStruct
+	Native_bridge depsStruct
 }
 
 type packagingPropsStruct struct {
@@ -363,6 +387,11 @@ func isHighPriorityDep(depName string) bool {
 func generateDepStruct(deps map[string]*depCandidateProps, highPriorityDeps []string) *packagingPropsStruct {
 	depsStruct := packagingPropsStruct{}
 	for depName, depProps := range deps {
+		if _, ok := depProps.NativeBridgeSupport[android.NativeBridgeDisabled]; !ok {
+			// Only the native bridge variant of this dep should be added.
+			// This will be done separately.
+			continue
+		}
 		bitness := getBitness(depProps.Arch)
 		fullyQualifiedDepName := fullyQualifiedModuleName(depName, depProps.Namespace)
 		if android.InList(depName, highPriorityDeps) {
@@ -394,12 +423,26 @@ func generateDepStruct(deps map[string]*depCandidateProps, highPriorityDeps []st
 			depsStruct.Multilib.Common.Deps = append(depsStruct.Multilib.Common.Deps, fullyQualifiedDepName)
 		}
 	}
+	// Add the native bridge deps
+	var nativeBridgeDeps []string
+	for depName, depProps := range deps {
+		if _, ok := depProps.NativeBridgeSupport[android.NativeBridgeEnabled]; !ok {
+			continue
+		}
+		if depProps.Namespace != "." { // Add the fully qualified name
+			nativeBridgeDeps = append(nativeBridgeDeps, "//"+depProps.Namespace+":"+depName)
+		} else {
+			nativeBridgeDeps = append(nativeBridgeDeps, depName)
+		}
+	}
+
 	depsStruct.Deps = android.SortedUniqueStrings(depsStruct.Deps)
 	depsStruct.Multilib.Lib32.Deps = android.SortedUniqueStrings(depsStruct.Multilib.Lib32.Deps)
 	depsStruct.Multilib.Lib64.Deps = android.SortedUniqueStrings(depsStruct.Multilib.Lib64.Deps)
 	depsStruct.Multilib.Prefer32.Deps = android.SortedUniqueStrings(depsStruct.Multilib.Prefer32.Deps)
 	depsStruct.Multilib.Both.Deps = android.SortedUniqueStrings(depsStruct.Multilib.Both.Deps)
 	depsStruct.Multilib.Common.Deps = android.SortedUniqueStrings(depsStruct.Multilib.Common.Deps)
+	depsStruct.Multilib.Native_bridge.Deps = android.SortedUniqueStrings(nativeBridgeDeps)
 	depsStruct.High_priority_deps = android.SortedUniqueStrings(depsStruct.High_priority_deps)
 
 	return &depsStruct

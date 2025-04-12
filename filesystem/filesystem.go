@@ -799,6 +799,16 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 	complianceMetadataInfo.SetFilesContained(filesContained)
 	complianceMetadataInfo.SetPlatformGeneratedFiles(platformGeneratedFiles)
+
+	kernelModuleSrcDestPairs := []string{}
+	ctx.VisitDirectDepsProxy(func(dep android.ModuleProxy) {
+		if pkmi, ok := android.OtherModuleProvider(ctx, dep, android.PrebuiltKernelModulesComplianceMetadataProvider); ok {
+			for i, _ := range pkmi.Srcs {
+				kernelModuleSrcDestPairs = append(kernelModuleSrcDestPairs, pkmi.Srcs[i]+"::"+pkmi.Dests[i])
+			}
+		}
+	})
+	complianceMetadataInfo.SetKernelModuleCopyFiles(kernelModuleSrcDestPairs)
 }
 
 func (f *filesystem) fileystemStagingDirTimestamp(ctx android.ModuleContext) android.WritablePath {

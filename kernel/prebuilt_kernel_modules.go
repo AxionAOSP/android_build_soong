@@ -120,45 +120,70 @@ func (pkm *prebuiltKernelModules) GenerateAndroidBuildActions(ctx android.Module
 		installDir = installDir.Join(ctx, pkm.KernelVersion())
 	}
 
+	dests := []string{}
 	for _, m := range modules {
-		ctx.InstallFile(installDir, filepath.Base(m.String()), m)
+		installPath := ctx.InstallFile(installDir, filepath.Base(m.String()), m)
+		dests = append(dests, installPath.String())
 	}
-	ctx.InstallFile(installDir, "modules.load", depmodOut.modulesLoad)
-	ctx.InstallFile(installDir, "modules.dep", depmodOut.modulesDep)
-	ctx.InstallFile(installDir, "modules.softdep", depmodOut.modulesSoftdep)
-	ctx.InstallFile(installDir, "modules.alias", depmodOut.modulesAlias)
-	pkm.installBlocklistFile(ctx, installDir)
-	pkm.installOptionsFile(ctx, installDir)
+	srcs := android.PathsForModuleSrc(ctx, pkm.properties.Srcs).Strings()
+	// Use ANDROID-GEN to identify the source of module.* files which are generated in the build process.
+	// See the use of ANDROID-GEN in build/make/core/Makefile
+	androidGen := "ANDROID-GEN"
+	// Add ANDROID-GEN four time to match the number of "modules.*" files installed below.
+	srcs = append(srcs, androidGen, androidGen, androidGen, androidGen)
+	installPath := ctx.InstallFile(installDir, "modules.load", depmodOut.modulesLoad)
+	dests = append(dests, installPath.String())
+	installPath = ctx.InstallFile(installDir, "modules.dep", depmodOut.modulesDep)
+	dests = append(dests, installPath.String())
+	installPath = ctx.InstallFile(installDir, "modules.softdep", depmodOut.modulesSoftdep)
+	dests = append(dests, installPath.String())
+	installPath = ctx.InstallFile(installDir, "modules.alias", depmodOut.modulesAlias)
+	dests = append(dests, installPath.String())
+
+	pkm.installBlocklistFile(ctx, installDir, &srcs, &dests)
+	pkm.installOptionsFile(ctx, installDir, &srcs, &dests)
 
 	ctx.SetOutputFiles(modules, ".modules")
+
+	android.SetProvider(ctx, android.PrebuiltKernelModulesComplianceMetadataProvider,
+		android.PrebuiltKernelModulesComplianceMetadata{
+			Srcs:  srcs,
+			Dests: dests,
+		})
 }
 
-func (pkm *prebuiltKernelModules) installBlocklistFile(ctx android.ModuleContext, installDir android.InstallPath) {
+func (pkm *prebuiltKernelModules) installBlocklistFile(ctx android.ModuleContext, installDir android.InstallPath, srcs *[]string, dests *[]string) {
 	if pkm.properties.Blocklist_file == nil {
 		return
 	}
 	blocklistOut := android.PathForModuleOut(ctx, "modules.blocklist")
 
+	src := android.PathForModuleSrc(ctx, proptools.String(pkm.properties.Blocklist_file))
+	*srcs = append(*srcs, src.String())
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   processBlocklistFile,
-		Input:  android.PathForModuleSrc(ctx, proptools.String(pkm.properties.Blocklist_file)),
+		Input:  src,
 		Output: blocklistOut,
 	})
-	ctx.InstallFile(installDir, "modules.blocklist", blocklistOut)
+	installPath := ctx.InstallFile(installDir, "modules.blocklist", blocklistOut)
+	*dests = append(*dests, installPath.String())
 }
 
-func (pkm *prebuiltKernelModules) installOptionsFile(ctx android.ModuleContext, installDir android.InstallPath) {
+func (pkm *prebuiltKernelModules) installOptionsFile(ctx android.ModuleContext, installDir android.InstallPath, srcs *[]string, dests *[]string) {
 	if pkm.properties.Options_file == nil {
 		return
 	}
 	optionsOut := android.PathForModuleOut(ctx, "modules.options")
 
+	src := android.PathForModuleSrc(ctx, proptools.String(pkm.properties.Options_file))
+	*srcs = append(*srcs, src.String())
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   processOptionsFile,
-		Input:  android.PathForModuleSrc(ctx, proptools.String(pkm.properties.Options_file)),
+		Input:  src,
 		Output: optionsOut,
 	})
-	ctx.InstallFile(installDir, "modules.options", optionsOut)
+	installPath := ctx.InstallFile(installDir, "modules.options", optionsOut)
+	*dests = append(*dests, installPath.String())
 }
 
 var (

@@ -442,6 +442,7 @@ func CommonDefaultFlags(ctx android.ModuleContext, toolchain config.Toolchain, f
 	if ctx.Os() == android.Linux {
 		// Add -lc, -lrt, -ldl, -lpthread, -lm and -lgcc_s to glibc builds to match
 		// the default behavior of device builds.
+		flags.RustFlags = append(flags.RustFlags, config.LinuxHostGlobalRustFlags...)
 		flags.LinkFlags = append(flags.LinkFlags, config.LinuxHostGlobalLinkFlags...)
 	} else if ctx.Os() == android.Darwin {
 		// Add -lc, -ldl, -lpthread and -lm to glibc darwin builds to match the default
@@ -550,6 +551,13 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 			deps.Stdlibs = append(deps.Stdlibs, stdlib)
 		}
 	}
+
+	if ctx.Windows() {
+		if ctx.ModuleName() != "libwinpthread" {
+			deps.StaticLibs = append(deps.StaticLibs, "libwinpthread")
+		}
+	}
+
 	return deps
 }
 

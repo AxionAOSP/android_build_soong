@@ -282,10 +282,6 @@ func (c Config) ReleaseHiddenApiExportableStubs() bool {
 }
 
 // Enable read flag from new storage
-func (c Config) ReleaseReadFromNewStorage() bool {
-	return c.config.productVariables.GetBuildFlagBool("RELEASE_READ_FROM_NEW_STORAGE")
-}
-
 func (c Config) ReleaseCreateAconfigStorageFile() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_CREATE_ACONFIG_STORAGE_FILE")
 }
@@ -296,10 +292,6 @@ func (c Config) ReleaseUseSystemFeatureBuildFlags() bool {
 
 func (c Config) ReleaseFingerprintAconfigPackages() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_FINGERPRINT_ACONFIG_PACKAGES")
-}
-
-func (c Config) ReleaseAconfigCheckApiLevel() bool {
-	return c.config.productVariables.GetBuildFlagBool("RELEASE_ACONFIG_CHECK_API_LEVEL")
 }
 
 func (c Config) ReleaseRustUseArmTargetArchVariant() bool {
