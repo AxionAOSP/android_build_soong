@@ -74,7 +74,7 @@ var commands = []command{
 		description:  "print the value of the legacy make variable VAR to stdout",
 		simpleOutput: true,
 		logsPrefix:   "dumpvars-",
-		config:       dumpVarConfig,
+		config:       build.NewDumpVarConfig,
 		stdio:        customStdio,
 		run:          dumpVar,
 	}, {
@@ -82,7 +82,7 @@ var commands = []command{
 		description:  "dump the values of one or more legacy make variables, in shell syntax",
 		simpleOutput: true,
 		logsPrefix:   "dumpvars-",
-		config:       dumpVarConfig,
+		config:       build.NewDumpVarConfig,
 		stdio:        customStdio,
 		run:          dumpVars,
 	}, {
@@ -440,11 +440,6 @@ func stdio() terminal.StdioInterface {
 // reporting events to keep stdout clean from noise.
 func customStdio() terminal.StdioInterface {
 	return terminal.NewCustomStdio(os.Stdin, os.Stderr, os.Stderr)
-}
-
-// dumpVarConfig does not require any arguments to be parsed by the NewConfig.
-func dumpVarConfig(ctx build.Context, args ...string) build.Config {
-	return build.NewConfig(ctx)
 }
 
 func buildActionConfig(ctx build.Context, args ...string) build.Config {

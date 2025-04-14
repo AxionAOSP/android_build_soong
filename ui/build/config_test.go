@@ -1048,6 +1048,34 @@ func TestBuildConfig(t *testing.T) {
 			},
 		},
 		{
+			name:    "partial compile not used",
+			environ: Environment{"SOONG_USE_PARTIAL_COMPILE=", "SOONG_PARTIAL_COMPILE=true"},
+			expectedBuildConfig: &smpb.BuildConfig{
+				ForceUseGoma: proto.Bool(false),
+				UseGoma:      proto.Bool(false),
+				UseRbe:       proto.Bool(false),
+				SoongEnvVars: &smpb.SoongEnvVars{
+					PartialCompile:    proto.String("true"),
+					UsePartialCompile: proto.String("false"),
+				},
+				NinjaWeightListSource: smpb.BuildConfig_NOT_USED.Enum(),
+			},
+		},
+		{
+			name:    "partial compile",
+			environ: Environment{"SOONG_USE_PARTIAL_COMPILE=true", "SOONG_PARTIAL_COMPILE=true"},
+			expectedBuildConfig: &smpb.BuildConfig{
+				ForceUseGoma: proto.Bool(false),
+				UseGoma:      proto.Bool(false),
+				UseRbe:       proto.Bool(false),
+				SoongEnvVars: &smpb.SoongEnvVars{
+					PartialCompile:    proto.String("true"),
+					UsePartialCompile: proto.String("true"),
+				},
+				NinjaWeightListSource: smpb.BuildConfig_NOT_USED.Enum(),
+			},
+		},
+		{
 			// RBE is only supported on linux.
 			name:    "use rbe",
 			environ: Environment{"USE_RBE=1"},

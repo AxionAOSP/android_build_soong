@@ -66,30 +66,30 @@ var (
 			armv85aFeatures,
 			armv87aFeatures,
 		},
+
+		// All of the Armv9 entries below should have "-C target-feature=+sve2",
+		// but a large subset of Rust code runs in VMs that are incompatible with SVE.
+		// TODO: b/409859765 - apply a solution similar to cc_baremetal_defaults.
 		"armv9-a": {
 			armv82aFeatures,
 			armv85aFeatures,
-			"-C target-feature=+sve2",
 		},
 		"armv9-2a": {
 			armv82aFeatures,
 			armv85aFeatures,
 			armv87aFeatures,
-			"-C target-feature=+sve2",
 		},
 		// ARMv9.3-A adds +hbc,+mops but they're both unstable
 		"armv9-3a": {
 			armv82aFeatures,
 			armv85aFeatures,
 			armv87aFeatures,
-			"-C target-feature=+sve2",
 		},
 		// ARMv9.4-A adds +cssc but it's unstable
 		"armv9-4a": {
 			armv82aFeatures,
 			armv85aFeatures,
 			armv87aFeatures,
-			"-C target-feature=+sve2",
 		},
 	}
 )
