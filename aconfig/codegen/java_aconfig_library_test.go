@@ -285,5 +285,5 @@ func TestMkEntriesMatchedContainer(t *testing.T) {
 	module := result.ModuleForTests(t, "my_module", "android_common").Module()
 	entry := android.AndroidMkEntriesForTest(t, result.TestContext, module)[0]
 	makeVar := entry.EntryMap["LOCAL_ACONFIG_FILES"]
-	android.EnsureListContainsSuffix(t, makeVar, "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, makeVar, "my_aconfig_declarations_foo/aconfig-cache.pb")
 }

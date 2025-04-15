@@ -1297,7 +1297,7 @@ func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
 	j.usesLibrary.deps(ctx, false)
 	j.deps(ctx)
 
-	if ctx.Config().GetBuildFlagBool("RELEASE_JAVA_HEADER_JAR_OVERRIDE") && j.properties.Header_jar_override != "" {
+	if j.properties.Header_jar_override != "" {
 		ctx.AddVariationDependencies(nil, headerJarOverrideTag, j.properties.Header_jar_override)
 	}
 	if j.SdkLibraryName() != nil && strings.HasSuffix(j.Name(), ".impl") {

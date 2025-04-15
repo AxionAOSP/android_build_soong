@@ -4575,7 +4575,7 @@ func TestAppFlagsPackages(t *testing.T) {
 	android.AssertStringDoesContain(t,
 		"aapt2 link command expected to pass feature flags arguments",
 		linkInFlags,
-		"--feature-flags @out/soong/.intermediates/bar/intermediate.txt --feature-flags @out/soong/.intermediates/baz/intermediate.txt",
+		"--feature-flags @out/soong/.intermediates/bar/aconfig-flags.txt --feature-flags @out/soong/.intermediates/baz/aconfig-flags.txt",
 	)
 
 	aapt2CompileRule := foo.Rule("android/soong/java.aapt2Compile")
@@ -4583,7 +4583,7 @@ func TestAppFlagsPackages(t *testing.T) {
 	android.AssertStringDoesContain(t,
 		"aapt2 compile command expected to pass feature flags arguments",
 		compileFlags,
-		"--feature-flags @out/soong/.intermediates/bar/intermediate.txt --feature-flags @out/soong/.intermediates/baz/intermediate.txt",
+		"--feature-flags @out/soong/.intermediates/bar/aconfig-flags.txt --feature-flags @out/soong/.intermediates/baz/aconfig-flags.txt",
 	)
 }
 
@@ -4655,12 +4655,12 @@ func TestAppFlagsPackagesPropagation(t *testing.T) {
 	android.AssertStringDoesContain(t,
 		"aapt2 link command expected to pass feature flags arguments of flags_packages and that of its static libs",
 		linkInFlags,
-		"--feature-flags @out/soong/.intermediates/bar/intermediate.txt --feature-flags @out/soong/.intermediates/baz/intermediate.txt",
+		"--feature-flags @out/soong/.intermediates/bar/aconfig-flags.txt --feature-flags @out/soong/.intermediates/baz/aconfig-flags.txt",
 	)
 	android.AssertStringDoesNotContain(t,
 		"aapt2 link command expected to not pass feature flags arguments of flags_packages of its libs",
 		linkInFlags,
-		"--feature-flags @out/soong/.intermediates/foo/intermediate.txt",
+		"--feature-flags @out/soong/.intermediates/foo/aconfig-flags.txt",
 	)
 }
 

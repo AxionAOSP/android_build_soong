@@ -523,6 +523,7 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 
 	// list of module names overridden
 	overridden := make(map[string]bool)
+	nativeBridgeOverridden := make(map[string]bool)
 
 	// all installed modules which are not overridden.
 	modulesToInstall := make(map[string]bool)
@@ -540,6 +541,11 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 			}
 		}
 		return false
+	}
+
+	isNativeBridgeVariant := func(m ModuleOrProxy) bool {
+		commonInfo := OtherModulePointerProviderOrDefault(ctx, m, CommonModuleInfoProvider)
+		return commonInfo.Target.NativeBridge == NativeBridgeEnabled
 	}
 
 	// find all overridden modules and packaging specs
@@ -571,7 +577,11 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 			}
 
 			for o := range ps.overrides.Iter() {
-				overridden[o] = true
+				if !isNativeBridgeVariant(child) {
+					overridden[o] = true
+				} else {
+					nativeBridgeOverridden[o] = true
+				}
 			}
 		}
 	})
@@ -584,8 +594,14 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 				owner = overriddenBy
 			}
 		}
-		if overridden[owner] {
-			return false
+		if !isNativeBridgeVariant(child) {
+			if overridden[owner] {
+				return false
+			}
+		} else {
+			if nativeBridgeOverridden[owner] {
+				return false
+			}
 		}
 		modulesToInstall[owner] = true
 		return true

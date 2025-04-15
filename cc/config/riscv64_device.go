@@ -41,8 +41,6 @@ var (
 		// This is already the driver's Android default, but duplicated here (and
 		// above) for ease of experimentation with additional extensions.
 		"-march=rv64gcv_zba_zbb_zbs",
-		// TODO: remove when clang default changed (https://github.com/google/android-riscv64/issues/124)
-		"-Wl,-mllvm -Wl,-jump-is-expensive=false",
 	}
 
 	riscv64Lldflags = append(riscv64Ldflags,

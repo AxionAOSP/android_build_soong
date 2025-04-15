@@ -15,6 +15,7 @@ package systemfeatures
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -44,8 +45,10 @@ type javaSystemFeaturesSrcs struct {
 		// Whether to generate only a simple metadata class with details about the full API surface.
 		// This is useful for tools that rely on the mapping from feature names to their generated
 		// method names, but don't want the fully generated API class (e.g., for linting).
-
 		Metadata_only *bool
+		// Whether to parse feature definitions from feature XML files for the
+		// target's PRODUCT_COPY_FILES. Defaults to false.
+		Use_product_copy_files *bool
 	}
 	outputFiles android.WritablePaths
 }
@@ -74,13 +77,18 @@ func (m *javaSystemFeaturesSrcs) GenerateAndroidBuildActions(ctx android.ModuleC
 	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.Command().Text("rm -rf").Text(outputDir.String())
 	rule.Command().Text("mkdir -p").Text(outputDir.String())
-	rule.Command().
+	ruleCmd := rule.Command().
 		BuiltTool("systemfeatures-gen-tool").
 		Flag(m.properties.Full_class_name).
 		FlagForEachArg("--feature=", features).
 		FlagWithArg("--readonly=", fmt.Sprint(ctx.Config().ReleaseUseSystemFeatureBuildFlags())).
-		FlagWithArg("--metadata-only=", fmt.Sprint(proptools.Bool(m.properties.Metadata_only))).
-		FlagWithOutput(" > ", outputFile)
+		FlagWithArg("--metadata-only=", fmt.Sprint(proptools.Bool(m.properties.Metadata_only)))
+	if proptools.Bool(m.properties.Use_product_copy_files) {
+		if featureXmlFiles := uniquePossibleFeatureXmlPaths(ctx); len(featureXmlFiles) > 0 {
+			ruleCmd.FlagWithInputList("--feature-xml-files=", featureXmlFiles, ",")
+		}
+	}
+	ruleCmd.FlagWithOutput(" > ", outputFile)
 	rule.Build(ctx.ModuleName(), "Generating systemfeatures srcs filegroup")
 
 	m.outputFiles = append(m.outputFiles, outputFile)
@@ -106,6 +114,49 @@ func JavaSystemFeaturesSrcsFactory() android.Module {
 	module := &javaSystemFeaturesSrcs{}
 	module.AddProperties(&module.properties)
 	module.properties.Metadata_only = proptools.BoolPtr(false)
+	module.properties.Use_product_copy_files = proptools.BoolPtr(false)
 	android.InitAndroidModule(module)
 	return module
+}
+
+// Generates a list of unique, existent src paths for potential feature XML
+// files, as contained in the configured PRODUCT_COPY_FILES listing.
+func uniquePossibleFeatureXmlPaths(ctx android.ModuleContext) android.Paths {
+	dstPathSeen := make(map[string]bool)
+	var possibleSrcPaths []android.Path
+	for _, copyFilePair := range ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.ProductCopyFiles {
+		srcDstList := strings.Split(copyFilePair, ":")
+		// The length may be >2 (e.g., "$src:$dst:$owner"), but we only care
+		// that it has at least "$src:$dst".
+		if len(srcDstList) < 2 {
+			ctx.ModuleErrorf("PRODUCT_COPY_FILES must follow the format \"src:dest\", got: %s", copyFilePair)
+			continue
+		}
+		src, dst := srcDstList[0], srcDstList[1]
+
+		// We're only interested in `.xml` files (case-insensitive).
+		if !strings.EqualFold(filepath.Ext(dst), ".xml") {
+			continue
+		}
+
+		// We only care about files directly in `*/etc/permissions/` or
+		// `*/etc/sysconfig` dirs, not any nested subdirs.
+		normalizedDstDir := filepath.ToSlash(filepath.Dir(filepath.Clean(dst)))
+		if !strings.HasSuffix(normalizedDstDir, "/etc/permissions") &&
+			!strings.HasSuffix(normalizedDstDir, "/etc/sysconfig") {
+			continue
+		}
+
+		// The first `dst` entry in the PRODUCT_COPY_FILES `src:dst` pairings
+		// always takes precedence over latter entries.
+		if _, ok := dstPathSeen[dst]; !ok {
+			relSrc := android.ToRelativeSourcePath(ctx, src)
+			if optionalPath := android.ExistentPathForSource(ctx, relSrc); optionalPath.Valid() {
+				dstPathSeen[dst] = true
+				possibleSrcPaths = append(possibleSrcPaths, optionalPath.Path())
+			}
+		}
+	}
+	// A sorted, unique list ensures stability of ninja build command outputs.
+	return android.SortedUniquePaths(possibleSrcPaths)
 }

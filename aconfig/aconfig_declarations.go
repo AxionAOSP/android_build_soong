@@ -170,7 +170,7 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 
 		// Intermediate format
 		declarationFiles := android.PathsForModuleSrc(ctx, module.properties.Srcs)
-		intermediateCacheFilePath := android.PathForModuleOut(ctx, assembleFileName(config, "intermediate.pb"))
+		intermediateCacheFilePath := android.PathForModuleOut(ctx, assembleFileName(config, "aconfig-cache.pb"))
 		var defaultPermission string
 		defaultPermission = ctx.Config().ReleaseAconfigFlagDefaultPermission()
 		if config != "" {
@@ -207,7 +207,7 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 			Args:        args,
 		})
 
-		intermediateDumpFilePath := android.PathForModuleOut(ctx, assembleFileName(config, "intermediate.txt"))
+		intermediateDumpFilePath := android.PathForModuleOut(ctx, assembleFileName(config, "aconfig-flags.txt"))
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        aconfigTextRule,
 			Output:      intermediateDumpFilePath,

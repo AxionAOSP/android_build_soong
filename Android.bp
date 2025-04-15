@@ -161,6 +161,22 @@ cc_defaults {
     defaults_visibility: ["//visibility:public"],
 }
 
+rust_defaults {
+    name: "rust_baremetal_defaults",
+    arch: {
+        arm64: {
+            flags: [
+                // There is no Rust flag that says "use baseline instruction set",
+                // so we disable SVE specifically. This can be extended with more
+                // problematic target features from rust/config/arm64_device.go
+                // as needed.
+                "-C target-feature=-sve2",
+            ],
+        },
+    },
+    defaults_visibility: ["//visibility:public"],
+}
+
 product_config {
     name: "product_config",
     visibility: [

@@ -70,6 +70,8 @@ type FsGenState struct {
 	generatedPrebuiltEtcModuleNames []string
 	// Mapping from a path to an avb key to the name of a filegroup module that contains it
 	avbKeyFilegroups map[string]string
+	// Name of all native bridge modules
+	nativeBridgeModules map[string]bool
 }
 
 type installationProperties struct {
@@ -189,6 +191,7 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 			moduleToInstallationProps:       map[string]installationProperties{},
 			generatedPrebuiltEtcModuleNames: generatedPrebuiltEtcModuleNames,
 			avbKeyFilegroups:                map[string]string{},
+			nativeBridgeModules:             map[string]bool{},
 		}
 
 		if avbpubkeyGenerated {
@@ -276,6 +279,10 @@ func collectDepsMutator(mctx android.BottomUpMutatorContext) {
 			Overrides: m.Overrides(),
 		}
 	}
+
+	if mctx.Target().NativeBridge == android.NativeBridgeEnabled {
+		fsGenState.nativeBridgeModules[mctx.ModuleName()] = true
+	}
 }
 
 type depsStruct struct {
@@ -356,6 +363,14 @@ func removeOverriddenDeps(mctx android.BottomUpMutatorContext) {
 			}
 			depName := allDeps[i]
 			for _, overrides := range fsGenState.moduleToInstallationProps[depName].Overrides {
+				if _, ok := fsGenState.nativeBridgeModules[depName]; ok {
+					// Do not remove automatically remove overrides of native bridge modules
+					// Some native_bridge_supported modules override the native_bridge variant
+					// of another module, but not the "main" variant.
+					// Determining this in fsgen requires additional information. Defer this to
+					// android_filesystem.
+					continue
+				}
 				overridden[overrides] = true
 			}
 			// add required dep to the queue.

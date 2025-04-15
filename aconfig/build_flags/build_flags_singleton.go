@@ -38,6 +38,10 @@ type allBuildFlagDeclarationsSingleton struct {
 	configsTextProtoPath   android.OutputPath
 }
 
+var buildFlagArtifactsDistGoals = []string{
+	"docs", "droid", "sdk", "release_config_metadata", "gms",
+}
+
 func (this *allBuildFlagDeclarationsSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	// Find all of the build_flag_declarations modules
 	var flagsFiles android.Paths
@@ -114,20 +118,19 @@ func (this *allBuildFlagDeclarationsSingleton) GenerateBuildActions(ctx android.
 	)
 
 	ctx.DistForGoal("droid", this.flagsBinaryProtoPath)
-	for _, goal := range []string{"docs", "droid", "sdk", "release_config_metadata"} {
-		ctx.DistForGoalWithFilename(goal, this.flagsBinaryProtoPath, "build_flags/all_flags.pb")
-		ctx.DistForGoalWithFilename(goal, this.flagsTextProtoPath, "build_flags/all_flags.textproto")
-		ctx.DistForGoalWithFilename(goal, this.configsBinaryProtoPath, "build_flags/all_release_config_contributions.pb")
-		ctx.DistForGoalWithFilename(goal, this.configsTextProtoPath, "build_flags/all_release_config_contributions.textproto")
-	}
+
+	ctx.DistForGoalsWithFilename(buildFlagArtifactsDistGoals, this.flagsBinaryProtoPath, "build_flags/all_flags.pb")
+	ctx.DistForGoalsWithFilename(buildFlagArtifactsDistGoals, this.flagsTextProtoPath, "build_flags/all_flags.textproto")
+	ctx.DistForGoalsWithFilename(buildFlagArtifactsDistGoals, this.configsBinaryProtoPath, "build_flags/all_release_config_contributions.pb")
+	ctx.DistForGoalsWithFilename(buildFlagArtifactsDistGoals, this.configsTextProtoPath, "build_flags/all_release_config_contributions.textproto")
 
 	if ctx.Config().HasDeviceProduct() {
 		flagsDir := android.PathForOutput(ctx, "release-config")
 		baseAllRelease := fmt.Sprintf("all_release_configs-%s", ctx.Config().DeviceProduct())
 
 		distAllReleaseConfigsArtifact := func(ext string) {
-			ctx.DistForGoalWithFilename(
-				"droid",
+			ctx.DistForGoalsWithFilename(
+				buildFlagArtifactsDistGoals,
 				flagsDir.Join(ctx, fmt.Sprintf("%s.%s", baseAllRelease, ext)),
 				fmt.Sprintf("build_flags/all_release_configs.%s", ext),
 			)

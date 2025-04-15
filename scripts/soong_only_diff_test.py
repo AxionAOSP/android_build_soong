@@ -37,6 +37,7 @@ def run_build_target_files_zip(product: Product, soong_only: bool) -> bool:
             'USE_RBE=true',
             'BUILD_DATETIME=1',
             'USE_FIXED_TIMESTAMP_IMG_FILES=true',
+            'DISABLE_NOTICE_XML_GENERATION=true',
             f'TARGET_PRODUCT={product.product}',
             f'TARGET_RELEASE={product.release}',
             f'TARGET_BUILD_VARIANT={product.variant}',
@@ -106,14 +107,7 @@ def find_build_id() -> str | None:
 
 SHA_DIFF_ALLOWLIST = {
     "IMAGES/init_boot.img",
-    "IMAGES/odm_dlkm.img",
-    "IMAGES/odm.img",
-    "IMAGES/product.img",
-    "IMAGES/product.map",
-    "IMAGES/system_dlkm.img",
-    "IMAGES/system_ext.img",
     "IMAGES/system.img",
-    "IMAGES/system.map",
     "IMAGES/system_other.img",
     "IMAGES/userdata.img",
     "IMAGES/vbmeta.img",
@@ -121,23 +115,11 @@ SHA_DIFF_ALLOWLIST = {
     "IMAGES/vbmeta_system.img",
     "IMAGES/vbmeta_vendor_dlkm.img",
     "IMAGES/vendor_boot.img",
-    "IMAGES/vendor_dlkm.img",
-    "IMAGES/vendor.img",
-    "IMAGES/vendor.map",
-    "META/care_map.pb",
     "META/file_contexts.bin",
     "META/kernel_version.txt",
     "META/misc_info.txt",
     "META/vbmeta_digest.txt",
-    "ODM_DLKM/etc/NOTICE.xml.gz",
-    "ODM/etc/NOTICE.xml.gz",
-    "PRODUCT/etc/NOTICE.xml.gz",
-    "SYSTEM_DLKM/etc/NOTICE.xml.gz",
-    "SYSTEM/etc/NOTICE.xml.gz",
-    "SYSTEM_EXT/etc/NOTICE.xml.gz",
-    "VENDOR_DLKM/etc/NOTICE.xml.gz",
-    "VENDOR/etc/NOTICE.xml.gz",
-    "SYSTEM_EXT/etc/vm/trusty_vm/trusty_security_vm.elf", # TODO: Make this hermetic
+    "SYSTEM_EXT/etc/vm/trusty_vm/trusty_security_vm.elf", # TODO: b/406045340 - Remove from the allowlist once it's fixed
 }
 
 def compare_sha_maps(soong_only_map: dict[str, bytes], soong_plus_make_map: dict[str, bytes]) -> bool:
@@ -151,10 +133,10 @@ def compare_sha_maps(soong_only_map: dict[str, bytes], soong_plus_make_map: dict
         if key not in soong_only_map:
             print(f'{key} not found in soong only build target_files.zip', file=sys.stderr)
             all_identical = False
-        if key not in soong_plus_make_map:
+        elif key not in soong_plus_make_map:
             print(f'{key} not found in soong plus make build target_files.zip', file=sys.stderr)
             all_identical = False
-        if soong_only_map[key] != soong_plus_make_map[key]:
+        elif soong_only_map[key] != soong_plus_make_map[key]:
             print(f'{key} sha value differ between soong only build and soong plus make build', file=sys.stderr)
             all_identical = False
 

@@ -1662,6 +1662,10 @@ func (c *config) katiPackageMkDir() string {
 	return filepath.Join(c.soongOutDir, "kati_packaging"+c.katiSuffix)
 }
 
+func (c *config) DisableNoticeXmlGeneration() bool {
+	return c.IsEnvTrue("DISABLE_NOTICE_XML_GENERATION")
+}
+
 func (c *deviceConfig) Arches() []Arch {
 	var arches []Arch
 	for _, target := range c.config.Targets[Android] {

@@ -212,7 +212,7 @@ func TestAndroidMkCcLibrary(t *testing.T) {
 	entry := android.AndroidMkInfoForTest(t, result.TestContext, module).PrimaryInfo
 
 	makeVar := entry.EntryMap["LOCAL_ACONFIG_FILES"]
-	android.EnsureListContainsSuffix(t, makeVar, "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, makeVar, "my_aconfig_declarations_foo/aconfig-cache.pb")
 }
 
 func TestForceReadOnly(t *testing.T) {
