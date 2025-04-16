@@ -22,10 +22,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/blueprint"
-	"github.com/google/blueprint/proptools"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/cmd/sbox/sbox_proto"
 	"android/soong/remoteexec"
@@ -47,25 +48,26 @@ type RuleBuilder struct {
 	pctx PackageContext
 	ctx  BuilderContext
 
-	commands         []*RuleBuilderCommand
-	installs         RuleBuilderInstalls
-	temporariesSet   map[WritablePath]bool
-	restat           bool
-	sbox             bool
-	highmem          bool
-	remoteable       RemoteRuleSupports
-	rbeParams        *remoteexec.REParams
-	outDir           WritablePath
-	sboxOutSubDir    string
-	sboxTools        bool
-	sboxInputs       bool
-	sboxManifestPath WritablePath
-	missingDeps      []string
-	args             map[string]string
-	nsjail           bool
-	nsjailKeepGendir bool
-	nsjailBasePath   WritablePath
-	nsjailImplicits  Paths
+	commands          []*RuleBuilderCommand
+	installs          RuleBuilderInstalls
+	temporariesSet    map[WritablePath]bool
+	restat            bool
+	sbox              bool
+	highmem           bool
+	remoteable        RemoteRuleSupports
+	rbeParams         *remoteexec.REParams
+	outDir            WritablePath
+	sboxOutSubDir     string
+	sboxTools         bool
+	sboxInputs        bool
+	sboxManifestPath  WritablePath
+	missingDeps       []string
+	args              map[string]string
+	nsjail            bool
+	nsjailKeepGendir  bool
+	nsjailBasePath    WritablePath
+	nsjailDirDepsFile WritablePath
+	nsjailImplicits   Paths
 }
 
 // NewRuleBuilder returns a newly created RuleBuilder.
@@ -185,7 +187,7 @@ func (r *RuleBuilder) Sbox(outputDir WritablePath, manifestPath WritablePath) *R
 // output directory that nsjail will mount to out/. It should not be written to by any other rule.
 // baseDir should point to a location where nsjail will mount to /nsjail_build_sandbox, which will
 // be the working directory of the command.
-func (r *RuleBuilder) Nsjail(outputDir WritablePath, baseDir WritablePath) *RuleBuilder {
+func (r *RuleBuilder) Nsjail(outputDir WritablePath, baseDir WritablePath, dirDepsFile WritablePath) *RuleBuilder {
 	if len(r.commands) > 0 {
 		panic("Nsjail() may not be called after Command()")
 	}
@@ -195,6 +197,7 @@ func (r *RuleBuilder) Nsjail(outputDir WritablePath, baseDir WritablePath) *Rule
 	r.nsjail = true
 	r.outDir = outputDir
 	r.nsjailBasePath = baseDir
+	r.nsjailDirDepsFile = dirDepsFile
 	return r
 }
 
@@ -476,6 +479,21 @@ func (r *RuleBuilder) rspFiles() []rspFileAndPaths {
 	return rspFiles
 }
 
+// implicitDirectories returns the list of paths that were passed to the RuleBuilderCommand.ImplicitDirectory method.
+// The list is sorted and duplicates removed.
+func (r *RuleBuilder) implicitDirectories() DirectoryPaths {
+	var dirsList DirectoryPaths
+	for _, c := range r.commands {
+		dirsList = append(dirsList, c.implicitDirectories...)
+	}
+
+	sort.Slice(dirsList, func(i, j int) bool {
+		return dirsList[i].String() < dirsList[j].String()
+	})
+
+	return dirsList
+}
+
 // Commands returns a slice containing the built command line for each call to RuleBuilder.Command.
 func (r *RuleBuilder) Commands() []string {
 	var commands []string
@@ -501,6 +519,14 @@ func (r *RuleBuilder) depFileMergerCmd(depFiles WritablePaths) *RuleBuilderComma
 		Inputs(depFiles.Paths())
 }
 
+func (r *RuleBuilder) dirsToDepFileCmd(dirs DirectoryPaths, target WritablePath) *RuleBuilderCommand {
+	return r.Command().
+		builtToolWithoutDeps("dir_to_depfile").
+		FlagWithDepFile("-o ", r.nsjailDirDepsFile).
+		FlagWithArg("-t ", target.String()).
+		Text(strings.Join(dirs.Strings(), " "))
+}
+
 // Build adds the built command line to the build graph, with dependencies on Inputs and Tools, and output files for
 // Outputs.
 func (r *RuleBuilder) Build(name string, desc string) {
@@ -524,22 +550,29 @@ func (r *RuleBuilder) build(name string, desc string) {
 		return
 	}
 
+	if dirs := r.implicitDirectories(); len(dirs) > 0 {
+		if !r.nsjail {
+			panic(fmt.Errorf("ImplicitDirectories are only supported for nsjail"))
+		}
+		r.dirsToDepFileCmd(dirs, r.Outputs()[0])
+	}
+
 	var depFile WritablePath
 	var depFormat blueprint.Deps
 	if depFiles := r.DepFiles(); len(depFiles) > 0 {
+		if r.sbox || r.nsjail {
+			// Check for Rel() errors, as all depfiles should be in the output dir.  Errors
+			// will be reported to the ctx.
+			for _, path := range depFiles {
+				Rel(r.ctx, r.outDir.String(), path.String())
+			}
+		}
+
 		depFile = depFiles[0]
 		depFormat = blueprint.DepsGCC
 		if len(depFiles) > 1 {
 			// Add a command locally that merges all depfiles together into the first depfile.
 			r.depFileMergerCmd(depFiles)
-
-			if r.sbox {
-				// Check for Rel() errors, as all depfiles should be in the output dir.  Errors
-				// will be reported to the ctx.
-				for _, path := range depFiles[1:] {
-					Rel(r.ctx, r.outDir.String(), path.String())
-				}
-			}
 		}
 	}
 
@@ -608,8 +641,6 @@ func (r *RuleBuilder) build(name string, desc string) {
 		for _, c := range r.commands {
 			for _, directory := range c.implicitDirectories {
 				addBindMount(directory.String(), directory.String())
-				// TODO(b/375551969): Add implicitDirectories to BuildParams, rather than relying on implicits
-				inputs = append(inputs, SourcePath{basePath: directory.base()})
 			}
 			for _, tool := range c.packagedTools {
 				addBindMount(tool.srcPath.String(), nsjailPathForPackagedToolRel(tool))

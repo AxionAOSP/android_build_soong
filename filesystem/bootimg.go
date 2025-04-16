@@ -227,6 +227,8 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Set the Filesystem info of the ramdisk dependency.
 	// `android_device` will use this info to package `target_files.zip`
+	// TODO: Move this under BootimgInfo, as is, it's easy to confuse the bootImg module for
+	// the underlying ramdisk module.
 	if ramdisk := proptools.String(b.properties.Ramdisk_module); ramdisk != "" {
 		ramdiskModule := ctx.GetDirectDepWithTag(ramdisk, bootimgRamdiskDep)
 		fsInfo, _ := android.OtherModuleProvider(ctx, ramdiskModule, FilesystemProvider)
@@ -238,11 +240,13 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Set BootimgInfo for building target_files.zip
 	dtbPath := b.getDtbPath(ctx)
 	android.SetProvider(ctx, BootimgInfoProvider, BootimgInfo{
+		Type:                b.bootImageType,
 		Cmdline:             b.properties.Cmdline,
 		Kernel:              kernelPath,
 		Dtb:                 dtbPath,
 		Bootconfig:          b.getBootconfigPath(ctx),
 		Output:              output,
+		SignedOutput:        b.SignedOutputPath(),
 		PropFileForMiscInfo: b.buildPropFileForMiscInfo(ctx),
 		HeaderVersion:       proptools.String(b.properties.Header_version),
 	})
@@ -287,11 +291,13 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 var BootimgInfoProvider = blueprint.NewProvider[BootimgInfo]()
 
 type BootimgInfo struct {
+	Type                bootImageType
 	Cmdline             []string
 	Kernel              android.Path
 	Dtb                 android.Path
 	Bootconfig          android.Path
 	Output              android.Path
+	SignedOutput        android.Path
 	PropFileForMiscInfo android.Path
 	HeaderVersion       string
 }

@@ -669,3 +669,38 @@ func TestPrebuiltEtcModuleGen(t *testing.T) {
 		}),
 	)
 }
+
+func TestPartitionOfOverrideModules(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		android.PrepareForIntegrationTestWithAndroid,
+		android.PrepareForTestWithAndroidBuildComponents,
+		android.PrepareForTestWithAllowMissingDependencies,
+		prepareForTestWithFsgenBuildComponents,
+		java.PrepareForTestWithJavaBuildComponents,
+		prepareMockRamdiksNodeList,
+		android.FixtureMergeMockFs(android.MockFS{
+			"external/avb/test/data/testkey_rsa4096.pem": nil,
+			"build/soong/fsgen/Android.bp": []byte(`
+			soong_filesystem_creator {
+				name: "foo",
+			}
+			`),
+		}),
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackages = []string{"system_ext_app", "system_ext_override_app"}
+		}),
+	).RunTestWithBp(t, `
+android_app {
+	name: "system_ext_app",
+	system_ext_specific: true,
+	platform_apis: true,
+}
+override_android_app {
+	name: "system_ext_override_app",
+	base: "system_ext_app",
+}
+`)
+	resolvedDeps := result.TestContext.Config().Get(fsGenStateOnceKey).(*FsGenState).fsDeps["system_ext"]
+	_, overrideAppInSystemExt := (*resolvedDeps)["system_ext_override_app"]
+	android.AssertBoolEquals(t, "Override app should be added to the same partition as the `base`", true, overrideAppInSystemExt)
+}

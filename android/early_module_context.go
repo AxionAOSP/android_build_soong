@@ -150,7 +150,7 @@ func (e *earlyModuleContext) Config() Config {
 	// If a module builds multiple image variations, provide the generic config only for the core
 	// variant which is installed in the system partition. Other image variant may still read the
 	// original configurations.
-	if e.Module().base().UseGenericConfig() && e.Module().base().commonProperties.ImageVariation == "" {
+	if e.Module().UseGenericConfig() && e.Module().base().commonProperties.ImageVariation == "" {
 		return e.EarlyModuleContext.Config().(Config).genericConfig()
 	}
 	return e.EarlyModuleContext.Config().(Config)

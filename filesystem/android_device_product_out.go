@@ -183,17 +183,6 @@ func (a *androidDevice) copyFilesToProductOutForSoongOnly(ctx android.ModuleCont
 		Implicits: deps,
 	})
 
-	emptyFile := android.PathForModuleOut(ctx, "empty_file")
-	android.WriteFileRule(ctx, emptyFile, "")
-
-	// TODO: We don't have these tests building in soong yet. Add phonies for them so that CI builds
-	// that try to build them don't error out.
-	ctx.Phony("continuous_instrumentation_tests", emptyFile)
-	ctx.Phony("continuous_native_tests", emptyFile)
-	ctx.Phony("device-tests", emptyFile)
-	ctx.Phony("device-platinum-tests", emptyFile)
-	ctx.Phony("platform_tests", emptyFile)
-
 	return copyToProductOutTimestamp
 }
 

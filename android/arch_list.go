@@ -115,7 +115,12 @@ var cpuVariants = map[ArchType][]string{
 	X86_64: {},
 }
 
+// Lists all possible optional features for each architecture.
 var archFeatures = map[ArchType][]string{
+	Arm: {
+		// Software implementation of ceil/floor is needed in libm
+		"soft_ceil_floor",
+	},
 	Arm64: {
 		"branchprot",
 		"dotprod",
@@ -145,7 +150,14 @@ var archFeatures = map[ArchType][]string{
 	},
 }
 
+// Lists which optional features are automatically enabled
+// for each value of TARGET_ARCH_VARIANT.
 var androidArchFeatureMap = map[ArchType]map[string][]string{
+	Arm: {
+		"armv7-a-neon": {
+			"soft_ceil_floor",
+		},
+	},
 	Arm64: {
 		"armv8-a-branchprot": {
 			"branchprot",

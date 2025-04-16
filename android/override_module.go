@@ -40,6 +40,8 @@ import (
 type OverrideModule interface {
 	Module
 
+	GetOverriddenModuleName() string
+
 	getOverridingProperties() []interface{}
 	setOverridingProperties(properties []interface{})
 

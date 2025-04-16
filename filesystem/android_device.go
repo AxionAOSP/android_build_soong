@@ -633,7 +633,10 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 	}
 	if a.partitionProps.Boot_partition_name != nil {
 		bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Boot_partition_name), filesystemDepTag)
-		bootImgInfo, _ := android.OtherModuleProvider(ctx, bootImg, BootimgInfoProvider)
+		bootImgInfo, ok := android.OtherModuleProvider(ctx, bootImg, BootimgInfoProvider)
+		if !ok {
+			ctx.PropertyErrorf("boot_partition_name", "Expected a BootimgInfoProvider")
+		}
 		builder.Command().Textf("echo %s > %s/BOOT/cmdline", proptools.ShellEscape(strings.Join(bootImgInfo.Cmdline, " ")), targetFilesDir)
 		if bootImgInfo.Dtb != nil {
 			builder.Command().Textf("cp ").Input(bootImgInfo.Dtb).Textf(" %s/BOOT/dtb", targetFilesDir)
@@ -653,7 +656,11 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		builder.Command().Textf("cp ").Input(android.PathForModuleSrc(ctx, *a.deviceProps.Android_info)).Textf(" %s/OTA/android-info.txt", targetFilesDir)
 	}
 
-	a.copyImagesToTargetZip(ctx, builder, targetFilesDir)
+	builder.Command().Textf("mkdir -p %s/IMAGES", targetFilesDir.String())
+	if a.deviceProps.Bootloader != nil {
+		builder.Command().Textf("cp ").Input(android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Bootloader))).Textf(" %s/IMAGES/bootloader", targetFilesDir.String())
+	}
+
 	a.copyMetadataToTargetZip(ctx, builder, targetFilesDir, allInstalledModules)
 
 	a.targetFilesZip = targetFilesZip
@@ -690,50 +697,6 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 	}
 
 	builder.Build("target_files_"+ctx.ModuleName(), "Build target_files.zip")
-}
-
-func (a *androidDevice) copyImagesToTargetZip(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir android.WritablePath) {
-	// Create an IMAGES/ subdirectory
-	builder.Command().Textf("mkdir -p %s/IMAGES", targetFilesDir.String())
-	if a.deviceProps.Bootloader != nil {
-		builder.Command().Textf("cp ").Input(android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Bootloader))).Textf(" %s/IMAGES/bootloader", targetFilesDir.String())
-	}
-	// Copy the filesystem ,boot and vbmeta img files to IMAGES/
-	ctx.VisitDirectDepsProxyWithTag(filesystemDepTag, func(child android.ModuleProxy) {
-		if strings.Contains(child.Name(), "recovery") {
-			return // skip recovery.img to match the make packaging behavior
-		}
-		if info, ok := android.OtherModuleProvider(ctx, child, BootimgInfoProvider); ok {
-			// Check Boot img first so that the boot.img is copied and not its dep ramdisk.img
-			builder.Command().Textf("cp ").Input(info.Output).Textf(" %s/IMAGES/", targetFilesDir.String())
-		} else if info, ok := android.OtherModuleProvider(ctx, child, FilesystemProvider); ok {
-			builder.Command().Textf("cp ").Input(info.Output).Textf(" %s/IMAGES/", targetFilesDir.String())
-		} else if info, ok := android.OtherModuleProvider(ctx, child, vbmetaPartitionProvider); ok {
-			builder.Command().Textf("cp ").Input(info.Output).Textf(" %s/IMAGES/", targetFilesDir.String())
-		} else {
-			ctx.ModuleErrorf("Module %s does not provide an .img file output for target_files.zip", child.Name())
-		}
-	})
-
-	if a.partitionProps.Super_partition_name != nil {
-		superPartition := ctx.GetDirectDepProxyWithTag(*a.partitionProps.Super_partition_name, superPartitionDepTag)
-		if info, ok := android.OtherModuleProvider(ctx, superPartition, SuperImageProvider); ok {
-			for _, partition := range android.SortedKeys(info.SubImageInfo) {
-				if info.SubImageInfo[partition].OutputHermetic != nil {
-					builder.Command().Textf("cp ").Input(info.SubImageInfo[partition].OutputHermetic).Textf(" %s/IMAGES/", targetFilesDir.String())
-				}
-				if info.SubImageInfo[partition].MapFile != nil {
-					builder.Command().Textf("cp ").Input(info.SubImageInfo[partition].MapFile).Textf(" %s/IMAGES/", targetFilesDir.String())
-				}
-			}
-			// super_empty.img
-			if info.SuperEmptyImage != nil {
-				builder.Command().Textf("cp ").Input(info.SuperEmptyImage).Textf(" %s/IMAGES/", targetFilesDir.String())
-			}
-		} else {
-			ctx.ModuleErrorf("Super partition %s does set SuperImageProvider\n", superPartition.Name())
-		}
-	}
 }
 
 func writeFileWithNewLines(ctx android.ModuleContext, path android.WritablePath, contents []string) {

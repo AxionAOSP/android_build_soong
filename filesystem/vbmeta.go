@@ -16,6 +16,7 @@ package filesystem
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -177,6 +178,30 @@ func (v *vbmeta) partitionName() string {
 // See external/avb/libavb/avb_slot_verify.c#VBMETA_MAX_SIZE
 const vbmetaMaxSize = 64 * 1024
 
+// This is the order that make listed the partitions in. The order is important because
+// it ends up being encoded in the output file. Maintain the order so that the resultant
+// files are easier to compare.
+// https://cs.android.com/android/platform/superproject/main/+/main:build/make/core/Makefile;l=4833;drc=a951ebf0198006f7fd38073a05c442d0eb92f97b
+var includeDescriptorsFromImgOrder = []string{
+	"boot",
+	"init_boot",
+	"vendor_boot",
+	"vendor_kernel_boot",
+	"system",
+	"vendor",
+	"product",
+	"system_ext",
+	"odm",
+	"vendor_dlkm",
+	"odm_dlkm",
+	"system_dlkm",
+	"dtbo",
+	"pvmfw",
+	"recovery",
+	"vbmeta_system",
+	"vbmeta_vendor",
+}
+
 func (v *vbmeta) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	builder := android.NewRuleBuilder(pctx, ctx)
 	cmd := builder.Command().BuiltTool("avbtool").Text("make_vbmeta_image")
@@ -210,20 +235,52 @@ func (v *vbmeta) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		cmd.FlagWithArg("--prop ", key+":"+value)
 	}
 
+	type partitionWithName struct {
+		Name   string
+		Output android.Path
+	}
+	var includeDescriptorsFromImages []partitionWithName
 	for _, p := range ctx.GetDirectDepsWithTag(vbmetaPartitionDep) {
-		f, ok := p.(Filesystem)
+		bootImgInfo, ok := android.OtherModuleProvider(ctx, p, BootimgInfoProvider)
+		if ok {
+			includeDescriptorsFromImages = append(includeDescriptorsFromImages, partitionWithName{
+				Name:   bootImgInfo.Type.String(),
+				Output: bootImgInfo.SignedOutput,
+			})
+			continue
+		}
+
+		fsInfo, ok := android.OtherModuleProvider(ctx, p, FilesystemProvider)
 		if !ok {
-			ctx.PropertyErrorf("partitions", "%q(type: %s) is not supported",
+			ctx.PropertyErrorf("partitions", "%q(type: %s) is not supported, must be a filesystem",
 				p.Name(), ctx.OtherModuleType(p))
 			continue
 		}
-		signedImage := f.SignedOutputPath()
-		if signedImage == nil {
-			ctx.PropertyErrorf("partitions", "%q(type: %s) is not signed. Use `use_avb: true`",
-				p.Name(), ctx.OtherModuleType(p))
-			continue
+		includeDescriptorsFromImages = append(includeDescriptorsFromImages, partitionWithName{
+			Name:   fsInfo.PartitionName,
+			Output: fsInfo.SignedOutputPath,
+		})
+	}
+
+	sort.SliceStable(includeDescriptorsFromImages, func(i, j int) bool {
+		iName := includeDescriptorsFromImages[i].Name
+		jName := includeDescriptorsFromImages[j].Name
+		iIndex := slices.Index(includeDescriptorsFromImgOrder, iName)
+		jIndex := slices.Index(includeDescriptorsFromImgOrder, jName)
+		if iIndex < 0 && jIndex < 0 {
+			return iName < jName
 		}
-		cmd.FlagWithInput("--include_descriptors_from_image ", signedImage)
+		if iIndex < 0 {
+			return false
+		}
+		if jIndex < 0 {
+			return true
+		}
+		return iIndex < jIndex
+	})
+
+	for _, partition := range includeDescriptorsFromImages {
+		cmd.FlagWithInput("--include_descriptors_from_image ", partition.Output)
 	}
 
 	seenRils := make(map[int]bool)

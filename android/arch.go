@@ -1371,40 +1371,6 @@ func getArchProperties(ctx BaseModuleContext, archProperties interface{}, arch A
 		if ok {
 			result = append(result, archStruct)
 
-			// Handle arch-variant-specific properties in the form:
-			// arch: {
-			//     arm: {
-			//         variant: {
-			//             key: value,
-			//         },
-			//     },
-			// },
-			v := variantReplacer.Replace(arch.ArchVariant)
-			if v != "" {
-				prefix := "arch." + archType.Name + "." + v
-				if variantProperties, ok := getChildPropertyStruct(ctx, archStruct, v, prefix); ok {
-					result = append(result, variantProperties)
-				}
-			}
-
-			// Handle cpu-variant-specific properties in the form:
-			// arch: {
-			//     arm: {
-			//         variant: {
-			//             key: value,
-			//         },
-			//     },
-			// },
-			if arch.CpuVariant != arch.ArchVariant {
-				c := variantReplacer.Replace(arch.CpuVariant)
-				if c != "" {
-					prefix := "arch." + archType.Name + "." + c
-					if cpuVariantProperties, ok := getChildPropertyStruct(ctx, archStruct, c, prefix); ok {
-						result = append(result, cpuVariantProperties)
-					}
-				}
-			}
-
 			// Handle arch-feature-specific properties in the form:
 			// arch: {
 			//     arm: {

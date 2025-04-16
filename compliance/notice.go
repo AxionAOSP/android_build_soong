@@ -72,6 +72,10 @@ type noticeXmlProperties struct {
 	Partition_name string
 }
 
+func (nx *NoticeXmlModule) UseGenericConfig() bool {
+	return false
+}
+
 func (nx *NoticeXmlModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// No build action needs to be done in notice_xml module type if notice xml generation is disabled
 	if ctx.Config().DisableNoticeXmlGeneration() {
@@ -79,8 +83,7 @@ func (nx *NoticeXmlModule) GenerateAndroidBuildActions(ctx android.ModuleContext
 		return
 	}
 
-	prodVars := ctx.Config().ProductVariables()
-	buildFingerprintFile := android.PathForArbitraryOutput(ctx, "target", "product", android.String(prodVars.DeviceName), "build_fingerprint.txt")
+	buildFingerprintFile := ctx.Config().BuildFingerprintFile(ctx)
 	implicits := []android.Path{buildFingerprintFile}
 
 	output := android.PathForModuleOut(ctx, "NOTICE.xml.gz")

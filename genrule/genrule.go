@@ -21,7 +21,6 @@ package genrule
 import (
 	"fmt"
 	"io"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -222,7 +221,7 @@ type generateTask struct {
 	in          android.Paths
 	out         android.WritablePaths
 	copyTo      android.WritablePaths // For gensrcs to set on gensrcsMerge rule.
-	genDir      android.WritablePath
+	genDir      android.ModuleGenPath
 	extraInputs map[string][]string
 
 	cmd string
@@ -457,7 +456,7 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 	srcFiles = append(srcFiles, addLabelsForInputs("device_first_srcs", g.properties.Device_first_srcs.GetOrDefault(ctx, nil), nil)...)
 	srcFiles = append(srcFiles, addLabelsForInputs("device_common_srcs", g.properties.Device_common_srcs.GetOrDefault(ctx, nil), nil)...)
 	srcFiles = append(srcFiles, addLabelsForInputs("common_os_srcs", g.properties.Common_os_srcs.GetOrDefault(ctx, nil), nil)...)
-	srcFiles = append(srcFiles, addLabelsForInputs("host_first_src",  g.properties.Host_first_src.GetOrDefault(ctx, nil), nil)...)
+	srcFiles = append(srcFiles, addLabelsForInputs("host_first_src", g.properties.Host_first_src.GetOrDefault(ctx, nil), nil)...)
 
 	var copyFrom android.Paths
 	var outputFiles android.WritablePaths
@@ -489,7 +488,9 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 		desc := "generate"
 		name := "generator"
 		if task.useNsjail {
-			rule = android.NewRuleBuilder(pctx, ctx).Nsjail(task.genDir, android.PathForModuleOut(ctx, "nsjail_build_sandbox"))
+			rule = android.NewRuleBuilder(pctx, ctx).
+				Nsjail(task.genDir, android.PathForModuleOut(ctx, "nsjail_build_sandbox"),
+					task.genDir.Join(ctx, "nsjail_dir_deps.d"))
 			if task.keepGendir {
 				rule.NsjailKeepGendir()
 			}
@@ -611,12 +612,6 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 		if task.useNsjail {
 			for _, input := range task.dirSrcs {
 				cmd.ImplicitDirectory(input)
-				// TODO(b/375551969): remove glob
-				if paths, err := ctx.GlobWithDeps(filepath.Join(input.String(), "**/*"), nil); err == nil {
-					rule.NsjailImplicits(android.PathsForSource(ctx, paths))
-				} else {
-					ctx.PropertyErrorf("dir_srcs", "can't glob %q", input.String())
-				}
 			}
 		}
 

@@ -600,6 +600,14 @@ var _ DirectoryPath = (*directoryPath)(nil)
 
 type DirectoryPaths []DirectoryPath
 
+func (paths DirectoryPaths) Strings() []string {
+	ret := make([]string, 0, len(paths))
+	for _, path := range paths {
+		ret = append(ret, path.String())
+	}
+	return ret
+}
+
 // DirectoryPathsForModuleSrcExcludes returns a Paths{} containing the resolved references in
 // directory paths. Elements of paths are resolved as:
 //   - filepath, relative to local module directory, resolves as a filepath relative to the local
