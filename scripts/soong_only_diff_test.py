@@ -16,7 +16,9 @@
 #
 
 import argparse
+import glob
 import os
+import shutil
 import struct
 import subprocess
 import sys
@@ -105,6 +107,39 @@ def find_build_id() -> str | None:
 
     return build_id
 
+def zip_ninja_files(subdistdir: str):
+    out_dir = os.getenv('OUT_DIR', 'out')
+    root_dir = os.path.dirname(out_dir)
+    files_to_zip = [
+        *glob.glob(os.path.join(out_dir, "*.ninja"), recursive=False),          # ninja files in out/
+        *glob.glob(os.path.join(out_dir, "soong", "*.ninja"), recursive=False), # ninja files in out/soong/
+    ]
+
+    zip_filename = os.path.join(subdistdir, "ninja_files.zip")
+    with zipfile.ZipFile(zip_filename, 'w', compression=zipfile.ZIP_DEFLATED) as zipf:
+        for file in files_to_zip:
+            zipf.write(filename=file, arcname=os.path.relpath(file, root_dir))
+
+def move_artifacts_to_subfolder(product: Product, soong_only: bool):
+    subdir = "soong_only" if soong_only else "soong_plus_make"
+
+    out_dir = os.getenv('OUT_DIR', 'out')
+    dist_dir = os.getenv('DIST_DIR', os.path.join(out_dir, 'dist'))
+    subdistdir = os.path.join(dist_dir, subdir)
+    if os.path.exists(subdistdir):
+        shutil.rmtree(subdistdir)
+    os.makedirs(subdistdir)
+    zip_ninja_files(subdistdir)
+
+    build_id = find_build_id()
+
+    files_to_move = [
+        os.path.join(dist_dir, f'{product.product}-target_files-{build_id}.zip'), # target_files.zip
+    ]
+
+    for file in files_to_move:
+        shutil.move(file, subdistdir)
+
 SHA_DIFF_ALLOWLIST = {
     "IMAGES/init_boot.img",
     "IMAGES/system.img",
@@ -180,8 +215,13 @@ def main():
       'userdebug',
     )
 
-    soong_only_zip_sha_map = get_zip_sha_map(product, True)
-    soong_plus_make_zip_sha_map = get_zip_sha_map(product, False)
+    soong_only = True
+    soong_only_zip_sha_map = get_zip_sha_map(product, soong_only)
+    move_artifacts_to_subfolder(product, soong_only)
+
+    soong_only = False
+    soong_plus_make_zip_sha_map = get_zip_sha_map(product, soong_only)
+    move_artifacts_to_subfolder(product, soong_only)
 
     if not compare_sha_maps(soong_only_zip_sha_map, soong_plus_make_zip_sha_map):
         sys.exit("target_files.zip differ between soong only build and soong plus make build")

@@ -59,8 +59,10 @@ func (this *allBuildFlagDeclarationsSingleton) GenerateBuildActions(ctx android.
 		}
 	})
 
+	basePath := android.PathForIntermediates(ctx, "release_configs")
+
 	// Generate build action for build_flag (binary proto output)
-	this.flagsBinaryProtoPath = android.PathForIntermediates(ctx, "all_build_flag_declarations.pb")
+	this.flagsBinaryProtoPath = basePath.Join(ctx, "all_build_flag_declarations.pb")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        allDeclarationsRule,
 		Inputs:      flagsFiles,
@@ -73,7 +75,7 @@ func (this *allBuildFlagDeclarationsSingleton) GenerateBuildActions(ctx android.
 	ctx.Phony("all_build_flag_declarations", this.flagsBinaryProtoPath)
 
 	// Generate build action for build_flag (text proto output)
-	this.flagsTextProtoPath = android.PathForIntermediates(ctx, "all_build_flag_declarations.textproto")
+	this.flagsTextProtoPath = basePath.Join(ctx, "all_build_flag_declarations.textproto")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        allDeclarationsRuleTextProto,
 		Input:       this.flagsBinaryProtoPath,
@@ -83,7 +85,7 @@ func (this *allBuildFlagDeclarationsSingleton) GenerateBuildActions(ctx android.
 	ctx.Phony("all_build_flag_declarations_textproto", this.flagsTextProtoPath)
 
 	// Generate build action for release_configs (binary proto output)
-	this.configsBinaryProtoPath = android.PathForIntermediates(ctx, "all_release_config_contributions.pb")
+	this.configsBinaryProtoPath = basePath.Join(ctx, "all_release_config_contributions.pb")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        allReleaseConfigContributionsRule,
 		Inputs:      contributionDirs,
@@ -96,7 +98,7 @@ func (this *allBuildFlagDeclarationsSingleton) GenerateBuildActions(ctx android.
 	})
 	ctx.Phony("all_release_config_contributions", this.configsBinaryProtoPath)
 
-	this.configsTextProtoPath = android.PathForIntermediates(ctx, "all_release_config_contributions.textproto")
+	this.configsTextProtoPath = basePath.Join(ctx, "all_release_config_contributions.textproto")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        allReleaseConfigContributionsRule,
 		Inputs:      contributionDirs,
@@ -109,12 +111,41 @@ func (this *allBuildFlagDeclarationsSingleton) GenerateBuildActions(ctx android.
 	})
 	ctx.Phony("all_release_config_contributions_textproto", this.configsTextProtoPath)
 
+	// Validator to ensure that there are no duplicate flag declarations.
+	// The Validator timestamp file.
+	mapsListPath := basePath.Join(ctx, "release_config_map.list")
+	duplicatesPath := basePath.Join(ctx, "duplicate_allowlist.list")
+	validatorPath := basePath.Join(ctx, "release_config_map.timestamp")
+
+	// The file containing the list of all `release_config_map.textproto` files in the source tree.
+	ctx.Build(pctx, android.BuildParams{
+		Rule:       android.CpIfChanged,
+		Input:      android.PathForArbitraryOutput(ctx, ".module_paths", "release_config_map.list"),
+		Output:     mapsListPath,
+		Validation: validatorPath,
+	})
+	ctx.Build(pctx, android.BuildParams{
+		Rule:       android.CpIfChanged,
+		Input:      android.PathForArbitraryOutput(ctx, ".module_paths", "duplicate_allowlist.list"),
+		Output:     duplicatesPath,
+		Validation: validatorPath,
+	})
+	ctx.Build(pctx, android.BuildParams{
+		Rule:      flagDeclarationsValidationRule,
+		Input:     mapsListPath,
+		Implicits: append(android.Paths{duplicatesPath}, flagsFiles...),
+		Output:    validatorPath,
+	})
+	// Make sure that this is at least built on CI machines.
+	ctx.Phony("droid", mapsListPath)
+
 	// Add a simple target for ci/build_metadata to use.
 	ctx.Phony("release_config_metadata",
 		this.flagsBinaryProtoPath,
 		this.flagsTextProtoPath,
 		this.configsBinaryProtoPath,
 		this.configsTextProtoPath,
+		mapsListPath,
 	)
 
 	ctx.DistForGoal("droid", this.flagsBinaryProtoPath)

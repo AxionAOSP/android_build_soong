@@ -15,6 +15,7 @@
 package build_flags
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"android/soong/android"
@@ -27,6 +28,12 @@ type ReleaseConfigContributionsProviderData struct {
 }
 
 var ReleaseConfigContributionsProviderKey = blueprint.NewProvider[ReleaseConfigContributionsProviderData]()
+
+type AllReleaseConfigsProviderData struct {
+	AllReleaseConfigsPath android.Path
+}
+
+var AllReleaseConfigsProviderKey = blueprint.NewProvider[AllReleaseConfigsProviderData]()
 
 // Soong uses `release_config_contributions` modules to produce the
 // `build_flags/all_release_config_contributions.*` artifacts, listing *all* of
@@ -75,4 +82,49 @@ func (module *ReleaseConfigContributionsModule) GenerateAndroidBuildActions(ctx 
 		ContributionDir: android.PathForSource(ctx, contributionDir),
 	})
 
+}
+
+// Soong provides release config informamtion via an `all_release_configs` module.
+//
+// This module can be used by test modules that need to inspect release configs.
+type AllReleaseConfigsModule struct {
+	android.ModuleBase
+	android.DefaultableModuleBase
+
+	// There are no extra properties for "all_release_configs".
+	properties struct{}
+}
+
+func AllReleaseConfigsFactory() android.Module {
+	module := &AllReleaseConfigsModule{}
+
+	android.InitAndroidModule(module)
+	android.InitDefaultableModule(module)
+	module.AddProperties(&module.properties)
+
+	return module
+}
+
+func (module *AllReleaseConfigsModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	if !ctx.Config().HasDeviceProduct() {
+		return
+	}
+	// The 'release-config' command is called for every build, and generates the
+	// all_release_configs-${TARGET_PRODUCT}.pb file.
+	srcPath := android.PathForOutput(ctx, "release-config", fmt.Sprintf("all_release_configs-%s.pb", ctx.Config().DeviceProduct()))
+	outputPath := android.PathForModuleOut(ctx, "all_release_configs.pb")
+
+	ctx.Phony("droid", outputPath)
+	ctx.Phony("all_release_configs", outputPath)
+
+	// Update the output file only if the source file is changed.
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.CpIfChanged,
+		Input:  srcPath,
+		Output: outputPath,
+	})
+
+	android.SetProvider(ctx, AllReleaseConfigsProviderKey, AllReleaseConfigsProviderData{
+		AllReleaseConfigsPath: outputPath,
+	})
 }

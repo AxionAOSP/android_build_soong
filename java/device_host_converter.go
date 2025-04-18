@@ -158,6 +158,14 @@ func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleCont
 	setExtraJavaInfo(ctx, d, javaInfo)
 	android.SetProvider(ctx, JavaInfoProvider, javaInfo)
 
+	if ctx.Os() != android.Windows { // Make does not support Windows Java modules
+		if d.combinedImplementationJar != nil {
+			ctx.CheckbuildFile(d.combinedImplementationJar)
+		}
+		if d.combinedHeaderJar != nil {
+			ctx.CheckbuildFile(d.combinedHeaderJar)
+		}
+	}
 }
 
 func (d *DeviceHostConverter) HeaderJars() android.Paths {

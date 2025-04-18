@@ -2501,3 +2501,7 @@ func (c *config) DeviceManifestFiles() []string {
 func (c *config) OdmManifestFiles() []string {
 	return c.productVariables.OdmManifestFiles
 }
+
+func (c *config) EnforceSELinuxTrebleLabeling() bool {
+	return Bool(c.productVariables.EnforceSELinuxTrebleLabeling)
+}

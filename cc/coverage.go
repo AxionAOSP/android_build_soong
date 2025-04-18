@@ -38,6 +38,14 @@ var (
 		"-fcoverage-mapping",
 		"-Wno-pass-failed",
 		"-D__ANDROID_CLANG_COVERAGE__",
+
+		// Bug: http://b/408093589, http://b/396515430: LLVM change 4089763883 to
+		// global merge regressed code coverage, marking previously covered lines
+		// as uncovered.  Disable global merge until the regression is fixed.
+		// -Wunused-command-line-argument needs to be disabled because
+		// -mno-global-merge is reported as unused in LTO mode.
+		"-mno-global-merge",
+		"-Wno-unused-command-line-argument",
 	}
 	clangCoverageHWASanFlags = []string{
 		"-mllvm",

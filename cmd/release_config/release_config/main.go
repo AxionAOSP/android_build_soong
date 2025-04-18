@@ -66,7 +66,7 @@ func main() {
 	if err = os.Chdir(top); err != nil {
 		panic(err)
 	}
-	configs, err = rc_lib.ReadReleaseConfigMaps(releaseConfigMapPaths, targetRelease, useBuildVar, allowMissing)
+	configs, err = rc_lib.ReadReleaseConfigMaps(releaseConfigMapPaths, targetRelease, useBuildVar, allowMissing, false)
 	if err != nil {
 		panic(err)
 	}

@@ -18,6 +18,7 @@ import (
 	"cmp"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -100,6 +101,9 @@ type DeviceProperties struct {
 	// when dexpreopting apps. So setting this doesn't really do anything except enforce that the
 	// actual kernel version is as specified here.
 	Kernel_version *string
+
+	// Precompiled sepolicy only with system + system_ext + product. Used for SELinux tests.
+	Precompiled_sepolicy_without_vendor *string `android:"path"`
 }
 
 type androidDevice struct {
@@ -280,6 +284,10 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx.Phony("droidcore-unbundled", allImagesStamp)
 
 		deps = append(deps, a.copyFilesToProductOutForSoongOnly(ctx))
+	}
+	trebleLabelingTestTimestamp := a.buildTrebleLabelingTest(ctx)
+	if ctx.Config().EnforceSELinuxTrebleLabeling() {
+		validations = append(validations, trebleLabelingTestTimestamp)
 	}
 
 	ctx.Build(pctx, android.BuildParams{
@@ -1239,3 +1247,136 @@ type ApkCertsInfo struct {
 }
 
 var ApkCertsInfoProvider = blueprint.NewProvider[ApkCertsInfo]()
+
+func findAllPreinstalledApps(partitions []string, fsInfos map[string]FilesystemInfo) android.Paths {
+	var ret android.Paths
+	for _, partition := range partitions {
+		info, ok := fsInfos[partition]
+		if !ok {
+			continue
+		}
+		// use MustCompile, because if `partition` is invalid, then we already did something wrong
+		apkPattern := regexp.MustCompile(partition + `/(app|priv-app)/[^/]+/[^/]+\.apk$`)
+		for _, path := range info.FullInstallPaths {
+			if !path.IsDir && path.SymlinkTarget == "" &&
+				apkPattern.FindString(path.FullInstallPath.String()) != "" {
+				ret = append(ret, path.SourcePath)
+			}
+		}
+	}
+	return android.SortedUniquePaths(ret)
+}
+
+func findInstalledFile(rel string, info FilesystemInfo) android.Path {
+	for _, path := range info.FullInstallPaths {
+		if !path.IsDir && path.SymlinkTarget == "" &&
+			strings.HasSuffix(path.FullInstallPath.String(), rel) {
+			return path.SourcePath
+		}
+	}
+	return nil
+}
+
+func findFilesInPartitions(paths map[string]string, fsInfos map[string]FilesystemInfo) android.Paths {
+	var ret android.Paths
+	for partition, rel := range paths {
+		info, ok := fsInfos[partition]
+		if !ok {
+			continue
+		}
+
+		if path := findInstalledFile(rel, info); path != nil {
+			ret = append(ret, path)
+		}
+	}
+	return android.SortedUniquePaths(ret)
+}
+
+func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) android.Path {
+	platformPartitions := []string{
+		"system",
+		"system_ext",
+		"product",
+	}
+
+	vendorPartitions := []string{
+		"vendor",
+		"odm",
+	}
+
+	fsInfos := a.getFsInfos(ctx)
+
+	platformApps := findAllPreinstalledApps(platformPartitions, fsInfos)
+	vendorApps := findAllPreinstalledApps(vendorPartitions, fsInfos)
+
+	platformSeappContextsPaths := map[string]string{
+		"system":     "system/etc/selinux/plat_seapp_contexts",
+		"system_ext": "system_ext/etc/selinux/plat_seapp_contexts",
+		"product":    "product/etc/selinux/plat_seapp_contexts",
+	}
+	platformSeappContexts := findFilesInPartitions(platformSeappContextsPaths, fsInfos)
+
+	vendorSeappContextsPaths := map[string]string{
+		"vendor": "vendor/etc/selinux/vendor_seapp_contexts",
+		"odm":    "odm/etc/selinux/odm_seapp_contexts",
+	}
+	vendorSeappContexts := findFilesInPartitions(vendorSeappContextsPaths, fsInfos)
+
+	vendorFileContextsPaths := map[string]string{
+		"vendor": "vendor/etc/selinux/vendor_file_contexts",
+		"odm":    "odm/etc/selinux/odm_file_contexts",
+	}
+	vendorFileContexts := findFilesInPartitions(vendorFileContextsPaths, fsInfos)
+
+	precompiledSepolicyPaths := map[string]string{
+		"odm":    "odm/etc/selinux/precompiled_sepolicy",
+		"vendor": "vendor/etc/selinux/precompiled_sepolicy",
+	}
+	precompiledSepolicies := findFilesInPartitions(precompiledSepolicyPaths, fsInfos)
+
+	testTimestamp := android.PathForModuleOut(ctx, "treble_labeling_test.timestamp")
+
+	platformAppsList := android.PathForModuleOut(ctx, "platform_apps.txt")
+	android.WriteFileRule(ctx, platformAppsList, strings.Join(platformApps.Strings(), "\n"))
+	vendorAppsList := android.PathForModuleOut(ctx, "vendor_apps.txt")
+	android.WriteFileRule(ctx, vendorAppsList, strings.Join(vendorApps.Strings(), "\n"))
+
+	rule := android.NewRuleBuilder(pctx, ctx)
+
+	if len(precompiledSepolicies) != 1 {
+		errorMessage := fmt.Sprintf("number of precompiled_sepolicy must be one but was %q", precompiledSepolicies.Strings())
+		rule.Command().
+			Text("echo").
+			Text(proptools.ShellEscape(errorMessage)).
+			Text(" && exit 1").
+			ImplicitOutput(testTimestamp)
+	} else if proptools.String(a.deviceProps.Precompiled_sepolicy_without_vendor) == "" {
+		rule.Command().
+			Text("echo").
+			Text("cannot find precompiled_sepolicy_without_vendor").
+			Text(" && exit 1").
+			ImplicitOutput(testTimestamp)
+	} else {
+		precompiledSepolicyWithoutVendor := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Precompiled_sepolicy_without_vendor))
+		rule.Command().BuiltTool("treble_labeling_tests").
+			FlagWithInput("--platform_apks ", platformAppsList).
+			FlagWithInput("--vendor_apks ", vendorAppsList).
+			FlagWithInput("--precompiled_sepolicy_without_vendor ", precompiledSepolicyWithoutVendor).
+			FlagWithInput("--precompiled_sepolicy ", precompiledSepolicies[0]). // len(precompiledSepolicies) == 1
+			FlagWithInputList("--platform_seapp_contexts ", platformSeappContexts, " ").
+			FlagWithInputList("--vendor_seapp_contexts ", vendorSeappContexts, " ").
+			FlagWithInputList("--vendor_file_contexts ", vendorFileContexts, " ").
+			FlagWithInput("--aapt2_path ", ctx.Config().HostToolPath(ctx, "aapt2")).
+			Implicits(platformApps).
+			Implicits(vendorApps).
+			FlagWithOutput("> ", testTimestamp)
+	}
+
+	rule.Build("treble_labeling_test", "SELinux Treble Labeling Test")
+
+	if !ctx.Config().KatiEnabled() && proptools.Bool(a.deviceProps.Main_device) {
+		ctx.Phony("check-selinux-treble-labeling", testTimestamp)
+	}
+
+	return testTimestamp
+}

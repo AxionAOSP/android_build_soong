@@ -649,7 +649,7 @@ func (m *moduleContext) setAconfigPaths(paths Paths) {
 
 func (m *moduleContext) getOwnerAndOverrides() (string, []string) {
 	owner := m.ModuleName()
-	overrides := slices.Clone(m.Module().base().commonProperties.Overrides)
+	overrides := slices.Clone(m.Module().base().baseProperties.Overrides)
 	if b, ok := m.Module().(OverridableModule); ok {
 		if b.GetOverriddenBy() != "" {
 			// overriding variant of base module

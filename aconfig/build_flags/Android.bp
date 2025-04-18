@@ -23,3 +23,7 @@ bootstrap_go_package {
     ],
     pluginFor: ["soong_build"],
 }
+
+all_release_configs {
+    name: "all_release_configs",
+}

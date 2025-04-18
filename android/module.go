@@ -424,12 +424,6 @@ type commonProperties struct {
 	// Whether this module is built for non-native architectures (also known as native bridge binary)
 	Native_bridge_supported *bool `android:"arch_variant"`
 
-	// init.rc files to be installed if this module is installed
-	Init_rc proptools.Configurable[[]string] `android:"arch_variant,path"`
-
-	// VINTF manifest fragments to be installed if this module is installed
-	Vintf_fragments proptools.Configurable[[]string] `android:"path"`
-
 	// The OsType of artifacts that this module variant is responsible for creating.
 	//
 	// Set by osMutator
@@ -523,13 +517,6 @@ type commonProperties struct {
 	// The team (defined by the owner/vendor) who owns the property.
 	Team *string `android:"path"`
 
-	// vintf_fragment Modules required from this module.
-	Vintf_fragment_modules proptools.Configurable[[]string] `android:"path"`
-
-	// List of module names that are prevented from being installed when this module gets
-	// installed.
-	Overrides []string
-
 	// Set to true if this module must be generic and does not require product-specific information.
 	// To be included in the system image, this property must be set to true.
 	Use_generic_config *bool
@@ -551,6 +538,19 @@ type baseProperties struct {
 	// module type. This is used by neverallow to ensure you can't bypass a ModuleType() matcher
 	// just by creating a soong config module type.
 	Soong_config_base_module_type *string `blueprint:"mutated"`
+
+	// init.rc files to be installed if this module is installed
+	Init_rc proptools.Configurable[[]string] `android:"arch_variant,path"`
+
+	// VINTF manifest fragments to be installed if this module is installed
+	Vintf_fragments proptools.Configurable[[]string] `android:"path"`
+
+	// vintf_fragment Modules required from this module.
+	Vintf_fragment_modules proptools.Configurable[[]string] `android:"path"`
+
+	// List of module names that are prevented from being installed when this module gets
+	// installed.
+	Overrides []string
 }
 
 type distProperties struct {
@@ -1677,11 +1677,11 @@ func (m *ModuleBase) TargetRequiredModuleNames() []string {
 }
 
 func (m *ModuleBase) VintfFragmentModuleNames(ctx ConfigurableEvaluatorContext) []string {
-	return m.base().commonProperties.Vintf_fragment_modules.GetOrDefault(m.ConfigurableEvaluator(ctx), nil)
+	return m.base().baseProperties.Vintf_fragment_modules.GetOrDefault(m.ConfigurableEvaluator(ctx), nil)
 }
 
 func (m *ModuleBase) VintfFragments(ctx ConfigurableEvaluatorContext) []string {
-	return m.base().commonProperties.Vintf_fragments.GetOrDefault(m.ConfigurableEvaluator(ctx), nil)
+	return m.base().baseProperties.Vintf_fragments.GetOrDefault(m.ConfigurableEvaluator(ctx), nil)
 }
 
 func (m *ModuleBase) generateVariantTarget(ctx *moduleContext) {
@@ -2102,7 +2102,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			// so only a single rule is created for each init.rc or vintf fragment file.
 
 			if !m.InVendorRamdisk() {
-				ctx.initRcPaths = PathsForModuleSrc(ctx, m.commonProperties.Init_rc.GetOrDefault(ctx, nil))
+				ctx.initRcPaths = PathsForModuleSrc(ctx, m.baseProperties.Init_rc.GetOrDefault(ctx, nil))
 				rcDir := PathForModuleInstall(ctx, "etc", "init")
 				for _, src := range ctx.initRcPaths {
 					installedInitRc := rcDir.Join(ctx, src.Base())
@@ -2118,7 +2118,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 				installFiles.InstalledInitRcPaths = ctx.installedInitRcPaths
 			}
 
-			ctx.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.commonProperties.Vintf_fragments.GetOrDefault(ctx, nil))
+			ctx.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.baseProperties.Vintf_fragments.GetOrDefault(ctx, nil))
 			vintfDir := PathForModuleInstall(ctx, "etc", "vintf", "manifest")
 			for _, src := range ctx.vintfFragmentsPaths {
 				installedVintfFragment := vintfDir.Join(ctx, src.Base())
@@ -2821,7 +2821,7 @@ func (m *ModuleBase) DecodeMultilib(ctx ConfigContext) (string, string) {
 }
 
 func (m *ModuleBase) Overrides() []string {
-	return m.commonProperties.Overrides
+	return m.baseProperties.Overrides
 }
 
 func (m *ModuleBase) UseGenericConfig() bool {

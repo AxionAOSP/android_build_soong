@@ -16,6 +16,7 @@ package release_config_lib
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -294,7 +295,7 @@ func EnumerateReleaseConfigs(dir string) ([]string, error) {
 	return ret, err
 }
 
-func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex int) error {
+func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex int, declarationsOnly bool) error {
 	if _, err := os.Stat(path); err != nil {
 		return fmt.Errorf("%s does not exist\n", path)
 	}
@@ -327,6 +328,7 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 			DuplicateDeclarationAllowlist[flag] = true
 		}
 	}
+	var declarationErrors []error
 	err = WalkTextprotoFiles(dir, "flag_declarations", func(path string, d fs.DirEntry, err error) error {
 		flagDeclaration, err := FlagDeclarationFactory(path)
 		if err != nil {
@@ -342,7 +344,10 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 		if def, ok := configs.FlagArtifacts[name]; !ok {
 			configs.FlagArtifacts[name] = &FlagArtifact{FlagDeclaration: flagDeclaration, DeclarationIndex: ConfigDirIndex}
 		} else if !proto.Equal(def.FlagDeclaration, flagDeclaration) || !DuplicateDeclarationAllowlist[name] {
-			return fmt.Errorf("Duplicate definition of %s in %s", *flagDeclaration.Name, path)
+			err = fmt.Errorf("Duplicate definition of %s in %s", *flagDeclaration.Name, path)
+			declarationErrors = append(declarationErrors, err)
+			// We will gather up all of the errors after the walk is done.
+			return nil
 		}
 		// Set the initial value in the flag artifact.
 		configs.FilesUsedMap[path] = true
@@ -354,8 +359,8 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 		}
 		return nil
 	})
-	if err != nil {
-		return err
+	if len(declarationErrors) > 0 {
+		return errors.Join(declarationErrors...)
 	}
 
 	subDirs := func(subdir string) (ret []string) {
@@ -401,18 +406,20 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 			}
 		}
 
-		// Only walk flag_values/{RELEASE} for defined releases.
-		err2 := WalkTextprotoFiles(dir, filepath.Join("flag_values", name), func(path string, d fs.DirEntry, err error) error {
-			flagValue, err := FlagValueFactory(path)
-			if err != nil {
-				return err
+		if !declarationsOnly {
+			// Only walk flag_values/{RELEASE} for defined releases.
+			err2 := WalkTextprotoFiles(dir, filepath.Join("flag_values", name), func(path string, d fs.DirEntry, err error) error {
+				flagValue, err := FlagValueFactory(path)
+				if err != nil {
+					return err
+				}
+				config.FilesUsedMap[path] = true
+				rcc.FlagValues = append(rcc.FlagValues, flagValue)
+				return nil
+			})
+			if err2 != nil {
+				return err2
 			}
-			config.FilesUsedMap[path] = true
-			rcc.FlagValues = append(rcc.FlagValues, flagValue)
-			return nil
-		})
-		if err2 != nil {
-			return err2
 		}
 		if rcc.proto.GetAconfigFlagsOnly() {
 			config.AconfigFlagsOnly = true
@@ -537,7 +544,7 @@ func (configs *ReleaseConfigs) GenerateReleaseConfigs(targetRelease string) erro
 	return nil
 }
 
-func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease string, useBuildVar, allowMissing bool) (*ReleaseConfigs, error) {
+func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease string, useBuildVar, allowMissing, declarationsOnly bool) (*ReleaseConfigs, error) {
 	var err error
 
 	if len(releaseConfigMapPaths) == 0 {
@@ -557,6 +564,7 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease strin
 	configs.allowMissing = allowMissing
 	mapsRead := make(map[string]bool)
 	var idx int
+	var loadErrors []error
 	for _, releaseConfigMapPath := range releaseConfigMapPaths {
 		// Maintain an ordered list of release config directories.
 		configDir := filepath.Dir(releaseConfigMapPath)
@@ -568,11 +576,14 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease strin
 		configs.configDirs = append(configs.configDirs, configDir)
 		// Force the path to be the textproto path, so that both the scl and textproto formats can coexist.
 		releaseConfigMapPath = filepath.Join(configDir, "release_config_map.textproto")
-		err = configs.LoadReleaseConfigMap(releaseConfigMapPath, idx)
+		err = configs.LoadReleaseConfigMap(releaseConfigMapPath, idx, declarationsOnly)
 		if err != nil {
-			return nil, err
+			loadErrors = append(loadErrors, err)
 		}
 		idx += 1
+	}
+	if len(loadErrors) > 0 {
+		return nil, errors.Join(loadErrors...)
 	}
 
 	// Now that we have all of the release config maps, can meld them and generate the artifacts.

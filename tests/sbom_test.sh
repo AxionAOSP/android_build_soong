@@ -267,19 +267,17 @@ function test_sbom_unbundled_apex {
   out_dir="$(setup)"
 
   # run_soong to build com.android.adbd.apex
-  run_soong "${out_dir}" "sbom deapexer" "com.android.adbd"
+  run_soong "${out_dir}" "sbom apex-ls" "com.android.adbd"
 
-  deapexer=${out_dir}/host/linux-x86/bin/deapexer
-  debugfs=${out_dir}/host/linux-x86/bin/debugfs_static
+  apex_ls=${out_dir}/host/linux-x86/bin/apex-ls
   apex_file=${out_dir}/target/product/module_arm64/system/apex/com.android.adbd.apex
   echo "============ Diffing files in $apex_file and SBOM"
   set +e
-  # deapexer prints the list of all files and directories
-  # sed extracts the file/directory names
+  # apex-ls prints the list of all files and directories
   # grep removes directories
   # sed removes leading ./ in file names
   diff -I /system/apex/com.android.adbd.apex -I apex_manifest.pb \
-      <($deapexer --debugfs_path=$debugfs list --extents ${apex_file} | sed -E 's#(.*) \[.*\]$#\1#' | grep -v "/$" | sed -E 's#^\./(.*)#\1#' | sort -n) \
+      <(${apex_ls} ${apex_file} | grep -v "/$" | sed -E 's#^\./(.*)#\1#' | sort -n) \
       <(grep '"fileName": ' ${apex_file}.spdx.json | sed -E 's/.*"fileName": "(.*)",/\1/' | sort -n )
 
   if [ $? != "0" ]; then
