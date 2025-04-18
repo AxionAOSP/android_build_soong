@@ -212,7 +212,7 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 					"-D_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS=",
 					"-D_LIBCXXABI_DISABLE_VISIBILITY_ANNOTATIONS=",
 					// Use Win32 threads in libc++.
-					"-D_LIBCPP_HAS_THREAD_API_WIN32=1")
+					"-D_LIBCPP_HAS_THREAD_API_WIN32=")
 			}
 		}
 	case "libstdc++":
