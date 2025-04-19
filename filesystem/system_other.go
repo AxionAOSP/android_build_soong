@@ -161,26 +161,8 @@ func (m *systemOtherImage) GenerateAndroidBuildActions(ctx android.ModuleContext
 
 	builder.Build("build_system_other", "build system other")
 
-	// Create a hermetic system_other.img with pinned timestamps
-	builder = android.NewRuleBuilder(pctx, ctx)
-	outputHermetic := android.PathForModuleOut(ctx, "for_target_files", "system_other.img")
-	outputHermeticPropFile := m.propFileForHermeticImg(ctx, builder, propFile)
-	builder.Command().
-		Textf("PATH=%s:$PATH", strings.Join(pathToolDirs, ":")).
-		BuiltTool("build_image").
-		Text(stagingDir.String()). // input directory
-		Input(outputHermeticPropFile).
-		Implicits(systemInfo.BuildImagePropFileDeps).
-		Implicit(fec).
-		Implicit(stagingDirTimestamp).
-		Output(outputHermetic).
-		Text(stagingDir.String())
-
-	builder.Build("build_system_other_hermetic", "build system other")
-
 	fsInfo := FilesystemInfo{
 		Output:              output,
-		OutputHermetic:      outputHermetic,
 		RootDir:             stagingDir,
 		FilesystemConfig:    m.generateFilesystemConfig(ctx, stagingDir, stagingDirTimestamp),
 		PropFileForMiscInfo: m.buildPropFileForMiscInfo(ctx),
@@ -214,13 +196,6 @@ func (s *systemOtherImage) generateFilesystemConfig(ctx android.ModuleContext, s
 		},
 	})
 	return out
-}
-
-func (f *systemOtherImage) propFileForHermeticImg(ctx android.ModuleContext, builder *android.RuleBuilder, inputPropFile android.Path) android.Path {
-	propFilePinnedTimestamp := android.PathForModuleOut(ctx, "for_target_files", "prop")
-	builder.Command().Textf("cat").Input(inputPropFile).Flag(">").Output(propFilePinnedTimestamp).
-		Textf(" && echo use_fixed_timestamp=true >> %s", propFilePinnedTimestamp)
-	return propFilePinnedTimestamp
 }
 
 func (f *systemOtherImage) buildPropFileForMiscInfo(ctx android.ModuleContext) android.Path {

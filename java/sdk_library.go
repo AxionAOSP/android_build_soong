@@ -1644,6 +1644,13 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	android.SetProvider(ctx, JavaLibraryInfoProvider, JavaLibraryInfo{
 		PermittedPackages: module.PermittedPackagesForUpdatableBootJars(),
 	})
+
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"JAVA_LIBRARIES"}
+	if module.implementationAndResourcesJar != nil {
+		moduleInfoJSON.ClassesJar = []string{module.implementationAndResourcesJar.String()}
+	}
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
 }
 
 func setOutputFilesFromJavaInfo(ctx android.ModuleContext, info *JavaInfo) {

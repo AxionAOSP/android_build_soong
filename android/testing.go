@@ -324,6 +324,10 @@ func (ctx *TestContext) VisitDirectDepsProxies(module ModuleOrProxy, visit func(
 	})
 }
 
+func (ctx *TestContext) ModuleToProxy(module ModuleOrProxy) ModuleProxy {
+	return ModuleProxy{ctx.Context.ModuleToProxy(module)}
+}
+
 // registeredComponentOrder defines the order in which a sortableComponent type is registered at
 // runtime and provides support for reordering the components registered for a test in the same
 // way.
@@ -638,7 +642,7 @@ func (ctx *TestContext) ModuleVariantForTests(t *testing.T, name string, matchVa
 			name, matchVariations, strings.Join(moduleStrings, "\n  "))
 	}
 
-	return newTestingModule(t, ctx.config, modules[0])
+	return newTestingModule(t, ctx.config, modules[0], ctx.ModuleToProxy(modules[0]))
 }
 
 func (ctx *TestContext) ModuleForTests(t *testing.T, name, variant string) TestingModule {
@@ -671,7 +675,7 @@ func (ctx *TestContext) ModuleForTests(t *testing.T, name, variant string) Testi
 		}
 	}
 
-	return newTestingModule(t, ctx.config, module)
+	return newTestingModule(t, ctx.config, module, ctx.ModuleToProxy(module))
 }
 
 func (ctx *TestContext) ModuleVariantsForTests(name string) []string {
@@ -1109,18 +1113,25 @@ func (b baseTestingComponent) AllOutputs() []string {
 type TestingModule struct {
 	baseTestingComponent
 	module Module
+	proxy  ModuleProxy
 }
 
-func newTestingModule(t *testing.T, config Config, module Module) TestingModule {
+func newTestingModule(t *testing.T, config Config, module Module, proxy ModuleProxy) TestingModule {
 	return TestingModule{
 		newBaseTestingComponent(t, config, module),
 		module,
+		proxy,
 	}
 }
 
 // Module returns the Module wrapped by the TestingModule.
 func (m TestingModule) Module() Module {
 	return m.module
+}
+
+// ModuleProxy returns the ModuleProxy wrapped by the TestingModule.
+func (m TestingModule) ModuleProxy() ModuleProxy {
+	return m.proxy
 }
 
 // VariablesForTestsRelativeToTop returns a copy of the Module.VariablesForTests() with every value

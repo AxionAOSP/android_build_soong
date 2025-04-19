@@ -637,7 +637,7 @@ func (p *prebuiltCommon) provideApexExportsInfo(ctx android.ModuleContext, di *a
 // Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file
 // with information about whether source or prebuilt of an apex was used during the build.
 func (p *prebuiltCommon) providePrebuiltInfo(ctx android.ModuleContext) {
-	info := android.PrebuiltInfo{
+	info := android.PrebuiltJsonInfo{
 		Name:        p.BaseModuleName(),
 		Is_prebuilt: true,
 	}
@@ -645,7 +645,7 @@ func (p *prebuiltCommon) providePrebuiltInfo(ctx android.ModuleContext) {
 	if p.prebuiltCommonProperties.Prebuilt_info != nil {
 		info.Prebuilt_info_file_path = android.PathForModuleSrc(ctx, *p.prebuiltCommonProperties.Prebuilt_info).String()
 	}
-	android.SetProvider(ctx, android.PrebuiltInfoProvider, info)
+	android.SetProvider(ctx, android.PrebuiltJsonInfoProvider, info)
 }
 
 // Uses an object provided by its deps to validate that the contents of bcpf have been added to the global

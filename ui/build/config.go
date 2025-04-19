@@ -106,6 +106,7 @@ type configImpl struct {
 	buildFromSourceStub       bool
 	incrementalBuildActions   bool
 	ensureAllowlistIntegrity  bool // For CI builds - make sure modules are mixed-built
+	runCIPDProxyServer        bool
 
 	// From the product config
 	katiArgs        []string
@@ -988,6 +989,8 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			}
 		} else if arg == "--ensure-allowlist-integrity" {
 			c.ensureAllowlistIntegrity = true
+		} else if arg == "--run-cipd-proxy-server" {
+			c.runCIPDProxyServer = true
 		} else if len(arg) > 0 && arg[0] == '-' {
 			parseArgNum := func(def int) int {
 				if len(arg) > 2 {
@@ -1902,6 +1905,10 @@ func (c *configImpl) SkipMetricsUpload() bool {
 
 func (c *configImpl) EnsureAllowlistIntegrity() bool {
 	return c.ensureAllowlistIntegrity
+}
+
+func (c *configImpl) RunCIPDProxyServer() bool {
+	return c.runCIPDProxyServer
 }
 
 // Returns a Time object if one was passed via a command-line flag.

@@ -178,6 +178,12 @@ func (j *GenruleCombiner) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	ctx.SetOutputFiles(javaInfo.HeaderJars, ".hjar")
 	android.SetProvider(ctx, JavaInfoProvider, javaInfo)
 
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"JAVA_LIBRARIES"}
+	if j.combinedImplementationJar != nil {
+		moduleInfoJSON.ClassesJar = []string{j.combinedImplementationJar.String()}
+	}
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
 }
 
 func (j *GenruleCombiner) GeneratedSourceFiles() android.Paths {

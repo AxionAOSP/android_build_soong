@@ -536,6 +536,10 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 	// Generate classpaths.proto config
 	b.generateClasspathProtoBuildActions(ctx)
 
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"FAKE"}
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
+
 	// Gather the bootclasspath fragment's contents.
 	var contents []android.Module
 	ctx.VisitDirectDeps(func(module android.Module) {

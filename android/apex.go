@@ -796,10 +796,10 @@ type ApexExportsInfo struct {
 	LibraryNameToDexJarPathOnHost map[string]Path
 }
 
-var PrebuiltInfoProvider = blueprint.NewProvider[PrebuiltInfo]()
+var PrebuiltJsonInfoProvider = blueprint.NewProvider[PrebuiltJsonInfo]()
 
 // contents of prebuilt_info.json
-type PrebuiltInfo struct {
+type PrebuiltJsonInfo struct {
 	// Name of the apex, without the prebuilt_ prefix
 	Name string
 

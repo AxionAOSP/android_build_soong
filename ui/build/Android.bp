@@ -51,6 +51,7 @@ bootstrap_go_package {
     srcs: [
         "androidmk_denylist.go",
         "build.go",
+        "cipd.go",
         "cleanbuild.go",
         "config.go",
         "context.go",

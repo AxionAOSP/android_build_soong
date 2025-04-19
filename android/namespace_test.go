@@ -691,7 +691,7 @@ func findModuleById(result *TestResult, id string) (module TestingModule) {
 		testModule, ok := candidate.(*testModule)
 		if ok {
 			if testModule.properties.Id == id {
-				module = newTestingModule(result.fixture.t, result.config, testModule)
+				module = newTestingModule(result.fixture.t, result.config, testModule, result.ModuleToProxy(testModule))
 			}
 		}
 	}

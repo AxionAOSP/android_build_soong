@@ -329,6 +329,11 @@ func Build(ctx Context, config Config) {
 		close(rbeCh)
 	}
 
+	if config.RunCIPDProxyServer() {
+		cipdProxy := startCIPDProxyServer(ctx, config)
+		defer cipdProxy.Stop()
+	}
+
 	if what&RunProductConfig != 0 {
 		runMakeProductConfig(ctx, config)
 

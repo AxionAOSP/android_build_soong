@@ -78,6 +78,7 @@ type FsGenState struct {
 type installationProperties struct {
 	Required  []string
 	Overrides []string
+	Partition string
 }
 
 func defaultDepCandidateProps(config android.Config) *depCandidateProps {
@@ -277,6 +278,7 @@ func collectDepsMutator(mctx android.BottomUpMutatorContext) {
 		fsGenState.moduleToInstallationProps[mctx.ModuleName()] = installationProperties{
 			Required:  m.RequiredModuleNames(mctx),
 			Overrides: m.Overrides(),
+			Partition: m.PartitionTag(mctx.DeviceConfig()),
 		}
 	}
 
@@ -349,18 +351,20 @@ func setDepsMutator(mctx android.BottomUpMutatorContext) {
 // Adds override apps (override_android_app, override_apex, ...) to the partition of their `base` apps.
 func updatePartitionsOfOverrideModules(mctx android.BottomUpMutatorContext) {
 	if override, ok := mctx.Module().(android.OverrideModule); ok {
-		fsDeps := mctx.Config().Get(fsGenStateOnceKey).(*FsGenState).fsDeps
+		fsGenState := mctx.Config().Get(fsGenStateOnceKey).(*FsGenState)
+		fsDeps := fsGenState.fsDeps
 		overridePartition := mctx.Module().PartitionTag(mctx.DeviceConfig())
 		if _, ok := (*fsDeps[overridePartition])[mctx.Module().Name()]; !ok {
 			// The override module is not in PRODUCT_PACKAGES
 			return
 		}
 		base := override.GetOverriddenModuleName()
-		for partition, _ := range fsDeps {
-			if _, ok := (*fsDeps[partition])[base]; ok {
-				appendDepIfAppropriate(mctx, fsDeps[partition], partition, android.NativeBridgeDisabled, mctx.Module().Name())
-				break
-			}
+		if strings.HasPrefix(base, "//") { // Inside a soong namespace
+			base = strings.Split(base, ":")[1]
+		}
+		if baseModuleProps, ok := fsGenState.moduleToInstallationProps[base]; ok && mctx.Module().Enabled(mctx) && mctx.Module().ExportedToMake() {
+			partition := baseModuleProps.Partition
+			appendDepIfAppropriate(mctx, fsDeps[partition], partition, android.NativeBridgeDisabled, mctx.Module().Name())
 		}
 	}
 }

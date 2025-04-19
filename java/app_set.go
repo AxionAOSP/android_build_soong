@@ -131,7 +131,7 @@ type prebuiltInfoProps struct {
 // Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file
 // with information about whether source or prebuilt of an apex was used during the build.
 func providePrebuiltInfo(ctx android.ModuleContext, p prebuiltInfoProps) {
-	info := android.PrebuiltInfo{
+	info := android.PrebuiltJsonInfo{
 		Name:        p.baseModuleName,
 		Is_prebuilt: p.isPrebuilt,
 	}
@@ -140,7 +140,7 @@ func providePrebuiltInfo(ctx android.ModuleContext, p prebuiltInfoProps) {
 		prebuiltInfoFile := android.PathForModuleSrc(ctx, *p.prebuiltInfo)
 		info.Prebuilt_info_file_path = prebuiltInfoFile.String()
 	}
-	android.SetProvider(ctx, android.PrebuiltInfoProvider, info)
+	android.SetProvider(ctx, android.PrebuiltJsonInfoProvider, info)
 }
 
 func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {

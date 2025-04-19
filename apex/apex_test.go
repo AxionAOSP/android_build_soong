@@ -9325,34 +9325,6 @@ func TestCompressedApex_NonUpdatable(t *testing.T) {
 	`)
 }
 
-func TestCompressedApexIsDisabledWhenUsingErofs(t *testing.T) {
-	t.Parallel()
-	ctx := testApex(t, `
-		apex {
-			name: "myapex",
-			key: "myapex.key",
-			compressible: true,
-			updatable: true,
-			min_sdk_version: "29",
-			payload_fs_type: "erofs",
-		}
-		apex_key {
-			name: "myapex.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-		}
-	`,
-		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
-			variables.CompressedApex = proptools.BoolPtr(true)
-		}),
-	)
-
-	compressRule := ctx.ModuleForTests(t, "myapex", "android_common_myapex").MaybeRule("compressRule")
-	if compressRule.Rule != nil {
-		t.Error("erofs apex should not be compressed")
-	}
-}
-
 func TestApexSet_ShouldRespectCompressedApexFlag(t *testing.T) {
 	t.Parallel()
 	for _, compressionEnabled := range []bool{true, false} {
@@ -10811,7 +10783,7 @@ func TestAconfigFilesJavaAndCcDeps(t *testing.T) {
 
 	inputs := []string{
 		"my_aconfig_declarations_foo/aconfig-cache.pb",
-		"my_cc_library_bar/android_arm64_armv8-a_shared_apex10000/myapex/aconfig_merged.pb",
+		"my_cc_library_bar/android_arm64_armv8-a_shared_apex10000/merged_aconfig_files/myapex/aconfig_merged.pb",
 		"my_aconfig_declarations_baz/aconfig-cache.pb",
 	}
 	VerifyAconfigRule(t, &mod, "combine_aconfig_declarations", inputs, "android_common_myapex/aconfig_flags.pb", "", "")
@@ -10975,7 +10947,7 @@ func TestAconfigFilesRustDeps(t *testing.T) {
 		"my_aconfig_declarations_foo/aconfig-cache.pb",
 		"my_aconfig_declarations_bar/aconfig-cache.pb",
 		"my_aconfig_declarations_baz/aconfig-cache.pb",
-		"my_rust_binary/android_arm64_armv8-a_apex10000/myapex/aconfig_merged.pb",
+		"my_rust_binary/android_arm64_armv8-a_apex10000/merged_aconfig_files/myapex/aconfig_merged.pb",
 	}
 	VerifyAconfigRule(t, &mod, "combine_aconfig_declarations", inputs, "android_common_myapex/aconfig_flags.pb", "", "")
 	VerifyAconfigRule(t, &mod, "create_aconfig_package_map_file", inputs, "android_common_myapex/package.map", "myapex", "package_map")

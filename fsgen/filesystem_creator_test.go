@@ -678,16 +678,25 @@ func TestPartitionOfOverrideModules(t *testing.T) {
 		prepareForTestWithFsgenBuildComponents,
 		java.PrepareForTestWithJavaBuildComponents,
 		prepareMockRamdiksNodeList,
+		android.PrepareForTestWithNamespace,
 		android.FixtureMergeMockFs(android.MockFS{
 			"external/avb/test/data/testkey_rsa4096.pem": nil,
 			"build/soong/fsgen/Android.bp": []byte(`
 			soong_filesystem_creator {
 				name: "foo",
+			}`),
+			"mynamespace/Android.bp": []byte(`
+			soong_namespace{
 			}
-			`),
+			android_app {
+				name: "system_ext_app_in_namespace",
+				system_ext_specific: true,
+				platform_apis: true,
+			}`),
 		}),
 		android.FixtureModifyConfig(func(config android.Config) {
-			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackages = []string{"system_ext_app", "system_ext_override_app"}
+			config.TestProductVariables.NamespacesToExport = []string{"mynamespace"}
+			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackages = []string{"system_ext_override_app", "system_ext_override_app_in_namespace"}
 		}),
 	).RunTestWithBp(t, `
 android_app {
@@ -699,8 +708,14 @@ override_android_app {
 	name: "system_ext_override_app",
 	base: "system_ext_app",
 }
+override_android_app {
+	name: "system_ext_override_app_in_namespace",
+	base: "//mynamespace:system_ext_app_in_namespace",
+}
 `)
 	resolvedDeps := result.TestContext.Config().Get(fsGenStateOnceKey).(*FsGenState).fsDeps["system_ext"]
 	_, overrideAppInSystemExt := (*resolvedDeps)["system_ext_override_app"]
+	android.AssertBoolEquals(t, "Override app should be added to the same partition as the `base`", true, overrideAppInSystemExt)
+	_, overrideAppInSystemExt = (*resolvedDeps)["system_ext_override_app_in_namespace"]
 	android.AssertBoolEquals(t, "Override app should be added to the same partition as the `base`", true, overrideAppInSystemExt)
 }

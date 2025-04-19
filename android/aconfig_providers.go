@@ -213,7 +213,7 @@ func mergeAconfigFiles(ctx ModuleContext, container string, inputs Paths, genera
 		return Paths{inputs[0]}
 	}
 
-	output := PathForModuleOut(ctx, container, "aconfig_merged.pb")
+	output := PathForModuleOut(ctx, "merged_aconfig_files", container, "aconfig_merged.pb")
 
 	if generateRule {
 		ctx.Build(pctx, BuildParams{
