@@ -399,10 +399,12 @@ var (
 		blueprint.RuleParams{
 			Command: `${aconfig} dump-cache --dedup --format=protobuf ` +
 				`--out ${out} ` +
-				`${flags_path} ` +
+				`@$out.rsp ` +
 				`${filter_args} `,
-			CommandDeps: []string{"${aconfig}"},
-			Description: "aconfig_bool",
+			CommandDeps:    []string{"${aconfig}"},
+			Description:    "aconfig_bool",
+			Rspfile:        "$out.rsp",
+			RspfileContent: "${flags_path}",
 		}, "flags_path", "filter_args")
 
 	generateMetalavaRevertAnnotationsRule = pctx.AndroidStaticRule("generateMetalavaRevertAnnotationsRule",

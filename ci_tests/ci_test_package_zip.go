@@ -184,9 +184,9 @@ func (p *testPackageZip) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	ctx.SetOutputFiles(android.Paths{p.output}, "")
 }
 
-func getAllTestModules(ctx android.ModuleContext) []android.ModuleProxy {
-	var ret []android.ModuleProxy
-	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
+func getAllTestModules(ctx android.ModuleContext) []android.ModuleOrProxy {
+	var ret []android.ModuleOrProxy
+	ctx.WalkDeps(func(child, parent android.Module) bool {
 		if info, ok := android.OtherModuleProvider(ctx, child, android.CommonModuleInfoProvider); !ok || !info.Enabled {
 			return false
 		}
@@ -203,7 +203,7 @@ func getAllTestModules(ctx android.ModuleContext) []android.ModuleProxy {
 		}
 	})
 	ret = android.FirstUniqueInPlace(ret)
-	slices.SortFunc(ret, func(a, b android.ModuleProxy) int {
+	slices.SortFunc(ret, func(a, b android.ModuleOrProxy) int {
 		return cmp.Compare(a.String(), b.String())
 	})
 	return ret
@@ -239,7 +239,7 @@ func createOutput(ctx android.ModuleContext, pctx android.PackageContext) androi
 	return output
 }
 
-func createSymbolsZip(ctx android.ModuleContext, allModules []android.ModuleProxy) {
+func createSymbolsZip(ctx android.ModuleContext, allModules []android.ModuleOrProxy) {
 	symbolsZipFile := android.PathForModuleOut(ctx, "symbols.zip")
 	symbolsMappingFile := android.PathForModuleOut(ctx, "symbols-mapping.textproto")
 	android.BuildSymbolsZip(ctx, allModules, ctx.ModuleName(), symbolsZipFile, symbolsMappingFile)

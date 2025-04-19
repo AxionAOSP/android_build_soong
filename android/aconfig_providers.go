@@ -191,7 +191,7 @@ func aconfigUpdateAndroidMkEntries(ctx fillInEntriesContext, mod Module, entries
 
 // TODO(b/397766191): Change the signature to take ModuleProxy
 // Please only access the module's internal data through providers.
-func aconfigUpdateAndroidMkInfos(ctx fillInEntriesContext, mod Module, infos *AndroidMkProviderInfo) {
+func aconfigUpdateAndroidMkInfos(ctx fillInEntriesContext, mod ModuleOrProxy, infos *AndroidMkProviderInfo) {
 	info, ok := OtherModuleProvider(ctx, mod, AconfigPropagatingProviderKey)
 	if !ok || len(info.AconfigFiles) == 0 {
 		return
@@ -246,7 +246,7 @@ func getContainer(m Module) string {
 
 // TODO(b/397766191): Change the signature to take ModuleProxy
 // Please only access the module's internal data through providers.
-func getContainerUsingProviders(ctx OtherModuleProviderContext, m Module) string {
+func getContainerUsingProviders(ctx OtherModuleProviderContext, m ModuleOrProxy) string {
 	container := "system"
 	commonInfo := OtherModulePointerProviderOrDefault(ctx, m, CommonModuleInfoProvider)
 	if commonInfo.Vendor || commonInfo.Proprietary || commonInfo.SocSpecific {

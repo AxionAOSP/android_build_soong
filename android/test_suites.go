@@ -128,9 +128,9 @@ type testSuiteInstallsInfo struct {
 
 var testSuiteInstallsInfoProvider = blueprint.NewProvider[testSuiteInstallsInfo]()
 
-type testModulesInstallsMap map[ModuleProxy]InstallPaths
+type testModulesInstallsMap map[ModuleOrProxy]InstallPaths
 
-func (t testModulesInstallsMap) testModules() []ModuleProxy {
+func (t testModulesInstallsMap) testModules() []ModuleOrProxy {
 	return slices.Collect(maps.Keys(t))
 }
 

@@ -141,20 +141,14 @@ def move_artifacts_to_subfolder(product: Product, soong_only: bool):
         shutil.move(file, subdistdir)
 
 SHA_DIFF_ALLOWLIST = {
-    "IMAGES/init_boot.img",
     "IMAGES/system.img",
-    "IMAGES/system_other.img",
     "IMAGES/userdata.img",
-    "IMAGES/vbmeta.img",
-    "IMAGES/vbmeta_system_dlkm.img",
     "IMAGES/vbmeta_system.img",
-    "IMAGES/vbmeta_vendor_dlkm.img",
-    "IMAGES/vendor_boot.img",
-    "META/file_contexts.bin",
     "META/kernel_version.txt",
     "META/misc_info.txt",
     "META/vbmeta_digest.txt",
     "SYSTEM_EXT/etc/vm/trusty_vm/trusty_security_vm.elf", # TODO: b/406045340 - Remove from the allowlist once it's fixed
+    "SYSTEM/apex/com.android.resolv.capex", # TODO: b/411514418 - Remove once nondeterminism is fixed
 }
 
 def compare_sha_maps(soong_only_map: dict[str, bytes], soong_plus_make_map: dict[str, bytes]) -> bool:

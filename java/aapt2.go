@@ -55,7 +55,7 @@ func pathToAapt2Path(ctx android.ModuleContext, res android.Path) android.Writab
 	var flag string
 	if isFlagsPath(lastDir) {
 		flag = "." + strings.TrimPrefix(lastDir, "flag")
-		subDir, lastDir = filepath.Split(subDir)
+		subDir, lastDir = filepath.Split(filepath.Dir(subDir))
 	} else if isFlagsPath(subDir) {
 		subDir, flag = filepath.Split(filepath.Dir(subDir))
 		flag = "." + strings.TrimPrefix(flag, "flag")

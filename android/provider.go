@@ -22,9 +22,10 @@ type ConfigAndOtherModuleProviderContext interface {
 	ConfigContext
 }
 
-// OtherModuleProvider reads the provider for the given module.  If the provider has been set the value is
-// returned and the boolean is true.  If it has not been set the zero value of the provider's type  is returned
-// and the boolean is false.  The value returned may be a deep copy of the value originally passed to SetProvider.
+// OtherModuleProvider reads the provider for the given module.  If the provider has been set the
+// value is returned and the boolean is true.  If it has not been set or the module is nil, the zero
+// value of the provider's type  is returned and the boolean is false.  The value returned may be a
+// deep copy of the value originally passed to SetProvider.
 //
 // OtherModuleProviderContext is a helper interface that accepts ModuleContext or BottomUpMutatorContext.
 func OtherModuleProvider[K any](ctx OtherModuleProviderContext, module ModuleOrProxy, provider blueprint.ProviderKey[K]) (K, bool) {

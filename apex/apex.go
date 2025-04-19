@@ -632,8 +632,8 @@ func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, androidM
 		module:              module,
 	}
 	if !module.IsNil() {
-		if installFilesInfo, ok := android.OtherModuleProvider(ctx, module, android.InstallFilesProvider); ok {
-			ret.checkbuildTarget = installFilesInfo.CheckbuildTarget
+		if buildTargetsInfo, ok := android.OtherModuleProvider(ctx, module, android.ModuleBuildTargetsProvider); ok {
+			ret.checkbuildTarget = buildTargetsInfo.CheckbuildTarget
 		}
 		ret.moduleDir = ctx.OtherModuleDir(module)
 		commonInfo := android.OtherModulePointerProviderOrDefault(ctx, module, android.CommonModuleInfoProvider)

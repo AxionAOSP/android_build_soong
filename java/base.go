@@ -2625,6 +2625,8 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			case staticLibTag:
 				deps.aconfigProtoFiles = append(deps.aconfigProtoFiles, dep.IntermediateCacheOutputPaths...)
 			}
+		} else if dep, ok := android.OtherModuleProvider(ctx, module, DroidStubsInfoProvider); ok {
+			deps.aconfigProtoFiles = append(deps.aconfigProtoFiles, dep.AconfigProtoFiles...)
 		} else {
 			switch tag {
 			case bootClasspathTag:

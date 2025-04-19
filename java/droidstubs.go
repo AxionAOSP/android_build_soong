@@ -36,6 +36,7 @@ type StubsInfo struct {
 }
 
 type DroidStubsInfo struct {
+	AconfigProtoFiles   android.Paths
 	CurrentApiTimestamp android.Path
 	EverythingStubsInfo StubsInfo
 	ExportableStubsInfo StubsInfo
@@ -1416,6 +1417,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	droidInfo := DroidStubsInfo{
+		AconfigProtoFiles:   deps.aconfigProtoFiles,
 		CurrentApiTimestamp: d.CurrentApiTimestamp(),
 		EverythingStubsInfo: StubsInfo{},
 		ExportableStubsInfo: StubsInfo{},

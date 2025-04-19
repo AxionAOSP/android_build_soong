@@ -76,11 +76,7 @@ type SingletonContext interface {
 	VisitDirectDeps(module Module, visit func(Module))
 	VisitDirectDepsIf(module Module, pred func(Module) bool, visit func(Module))
 
-	// Deprecated: use WalkDeps instead to support multiple dependency tags on the same module
-	VisitDepsDepthFirst(module Module, visit func(Module))
-	// Deprecated: use WalkDeps instead to support multiple dependency tags on the same module
-	VisitDepsDepthFirstIf(module Module, pred func(Module) bool,
-		visit func(Module))
+	VisitDirectDepsProxies(module ModuleProxy, visit func(ModuleProxy))
 
 	VisitAllModuleVariants(module Module, visit func(Module))
 
@@ -130,6 +126,11 @@ type SingletonContext interface {
 	// directory on the build server with the given filename when any of the
 	// specified goals are built.
 	DistForGoalsWithFilename(goals []string, path Path, filename string)
+
+	// OtherModuleDependencyTag returns the dependency tag used to depend on a module, or nil if there is no dependency
+	// on the module.  When called inside a Visit* method with current module being visited, and there are multiple
+	// dependencies on the module being visited, it returns the dependency tag used for the current dependency.
+	OtherModuleDependencyTag(module ModuleOrProxy) blueprint.DependencyTag
 
 	GetIncrementalAnalysis() bool
 }
@@ -337,12 +338,12 @@ func (s *singletonContextAdaptor) VisitDirectDepsIf(module Module, pred func(Mod
 	s.SingletonContext.VisitDirectDepsIf(module, predAdaptor(pred), visitAdaptor(visit))
 }
 
-func (s *singletonContextAdaptor) VisitDepsDepthFirst(module Module, visit func(Module)) {
-	s.SingletonContext.VisitDepsDepthFirst(module, visitAdaptor(visit))
+func (s *singletonContextAdaptor) VisitDirectDepsProxies(module ModuleProxy, visit func(ModuleProxy)) {
+	s.SingletonContext.VisitDirectDepsProxies(module.ModuleProxy, visitProxyAdaptor(visit))
 }
 
-func (s *singletonContextAdaptor) VisitDepsDepthFirstIf(module Module, pred func(Module) bool, visit func(Module)) {
-	s.SingletonContext.VisitDepsDepthFirstIf(module, predAdaptor(pred), visitAdaptor(visit))
+func (s *singletonContextAdaptor) OtherModuleDependencyTag(module ModuleOrProxy) blueprint.DependencyTag {
+	return s.SingletonContext.OtherModuleDependencyTag(module)
 }
 
 func (s *singletonContextAdaptor) VisitAllModuleVariants(module Module, visit func(Module)) {

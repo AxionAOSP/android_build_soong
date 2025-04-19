@@ -64,7 +64,7 @@ type symbolsContext interface {
 // Defines the build rules to generate the symbols.zip file and the merged elf mapping textproto
 // file. Modules in depModules that provide [SymbolInfosProvider] and are exported to make
 // will be listed in the symbols.zip and the merged proto file.
-func BuildSymbolsZip(ctx symbolsContext, depModules []ModuleProxy, iden string, symbolsZipFile, mergedMappingProtoFile WritablePath) {
+func BuildSymbolsZip(ctx symbolsContext, depModules []ModuleOrProxy, iden string, symbolsZipFile, mergedMappingProtoFile WritablePath) {
 	var allSymbolicOutputPaths, allElfMappingProtoPaths Paths
 	for _, mod := range depModules {
 		if commonInfo, _ := OtherModuleProvider(ctx, mod, CommonModuleInfoProvider); commonInfo.SkipAndroidMkProcessing {

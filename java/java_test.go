@@ -2911,6 +2911,59 @@ func TestApiLibraryAconfigDeclarations(t *testing.T) {
 	android.AssertStringDoesContain(t, "flagged api hide command not included", cmdline, "flags-config-exportable.xml")
 }
 
+func TestDroidstubsAconfigPropagation(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		android.FixtureMergeMockFs(map[string][]byte{
+			"a/A.java":      nil,
+			"a/current.txt": nil,
+			"a/removed.txt": nil,
+		}),
+	).RunTestWithBp(t, `
+	aconfig_declarations {
+		name: "bar",
+		package: "com.example.package",
+		container: "com.android.foo",
+		srcs: [
+			"bar.aconfig",
+		],
+	}
+	droidstubs {
+		name: "foo",
+		srcs: ["a/A.java"],
+		api_surface: "public",
+		check_api: {
+			current: {
+				api_file: "a/current.txt",
+				removed_api_file: "a/removed.txt",
+			}
+		},
+		aconfig_declarations: [
+			"bar",
+		],
+	}
+
+	java_library {
+		name: "baz",
+		srcs: [
+			":foo",
+		],
+	}
+	`)
+
+	bazModule := result.ModuleForTests(t, "baz", "android_common").Module()
+	javaInfo, _ := android.OtherModuleProvider(result, bazModule, JavaInfoProvider)
+	aconfigProtos := javaInfo.AconfigIntermediateCacheOutputPaths
+
+	android.AssertIntEquals(t, "Expected to provide one aconfig proto file", 1, len(aconfigProtos))
+	android.AssertStringDoesContain(
+		t,
+		"Expected to provide bar/aconfig-cache.pb",
+		strings.Join(aconfigProtos.Strings(), " "),
+		"bar/aconfig-cache.pb",
+	)
+}
+
 func TestTestOnly(t *testing.T) {
 	t.Parallel()
 	ctx := android.GroupFixturePreparers(

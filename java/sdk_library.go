@@ -1561,9 +1561,9 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 			module.hostdexInstallFile = module.implLibraryInfo.HostdexInstallFile
 		}
 
-		if installFilesInfo, ok := android.OtherModuleProvider(ctx, implLib, android.InstallFilesProvider); ok {
-			if installFilesInfo.CheckbuildTarget != nil {
-				ctx.CheckbuildFile(installFilesInfo.CheckbuildTarget)
+		if buildTargetsInfo, ok := android.OtherModuleProvider(ctx, implLib, android.ModuleBuildTargetsProvider); ok {
+			if buildTargetsInfo.CheckbuildTarget != nil {
+				ctx.CheckbuildFile(buildTargetsInfo.CheckbuildTarget)
 			}
 		}
 	}

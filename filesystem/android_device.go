@@ -363,7 +363,7 @@ type installedOwnerInfo struct {
 
 // Returns a list of modules that are installed, which are collected from the dependency
 // filesystem and super_image modules.
-func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android.ModuleProxy {
+func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android.ModuleOrProxy {
 	fsInfoMap := a.getFsInfos(ctx)
 	allOwners := make(map[string][]installedOwnerInfo)
 
@@ -377,13 +377,17 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 		}
 	}
 
-	ret := []android.ModuleProxy{}
-	ctx.WalkDepsProxy(func(mod, _ android.ModuleProxy) bool {
+	ret := []android.ModuleOrProxy{}
+	ctx.WalkDeps(func(mod, _ android.Module) bool {
 		commonInfo, ok := android.OtherModuleProvider(ctx, mod, android.CommonModuleInfoProvider)
 		if !(ok && commonInfo.ExportedToMake) {
 			return false
 		}
-		if variations, ok := allOwners[ctx.OtherModuleName(mod)]; ok &&
+		name := ctx.OtherModuleName(mod)
+		if o, ok := mod.(android.OverridableModule); ok && o.GetOverriddenBy() != "" {
+			name = o.GetOverriddenBy()
+		}
+		if variations, ok := allOwners[name]; ok &&
 			android.InList(installedOwnerInfo{
 				Variation: ctx.OtherModuleSubDir(mod),
 				Prebuilt:  commonInfo.IsPrebuilt,
@@ -397,7 +401,7 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 	ret = android.FirstUniqueInPlace(ret)
 
 	// Sort the modules by their names and variants
-	slices.SortFunc(ret, func(a, b android.ModuleProxy) int {
+	slices.SortFunc(ret, func(a, b android.ModuleOrProxy) int {
 		return cmp.Compare(a.String(), b.String())
 	})
 	return ret
@@ -408,7 +412,7 @@ type symbolicOutputInfo struct {
 	symbolicOutputPath   android.InstallPath
 }
 
-func (a *androidDevice) buildSymbolsZip(ctx android.ModuleContext, allInstalledModules []android.ModuleProxy) {
+func (a *androidDevice) buildSymbolsZip(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) {
 	a.symbolsZipFile = android.PathForModuleOut(ctx, "symbols.zip")
 	a.symbolsMappingFile = android.PathForModuleOut(ctx, "symbols-mapping.textproto")
 	android.BuildSymbolsZip(ctx, allInstalledModules, ctx.ModuleName(), a.symbolsZipFile, a.symbolsMappingFile)
@@ -488,7 +492,7 @@ func (a *androidDevice) MakeVars(_ android.MakeVarsModuleContext) []android.Modu
 	return nil
 }
 
-func (a *androidDevice) buildProguardZips(ctx android.ModuleContext, allInstalledModules []android.ModuleProxy) {
+func (a *androidDevice) buildProguardZips(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) {
 	dictZip := android.PathForModuleOut(ctx, "proguard-dict.zip")
 	dictZipBuilder := android.NewRuleBuilder(pctx, ctx)
 	dictZipCmd := dictZipBuilder.Command().BuiltTool("soong_zip").Flag("-d").FlagWithOutput("-o ", dictZip)
@@ -549,7 +553,7 @@ type targetFilesystemZipCopy struct {
 	destSubdir string
 }
 
-func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstalledModules []android.ModuleProxy) {
+func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) {
 	targetFilesDir := android.PathForModuleOut(ctx, "target_files_dir")
 	targetFilesZip := android.PathForModuleOut(ctx, "target_files.zip")
 	otaFilesZip := android.PathForModuleOut(ctx, "ota.zip")
@@ -724,7 +728,7 @@ func writeFileWithNewLines(ctx android.ModuleContext, path android.WritablePath,
 	android.WriteFileRule(ctx, path, builder.String())
 }
 
-func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir android.ModuleOutPath, allInstalledModules []android.ModuleProxy) {
+func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir android.ModuleOutPath, allInstalledModules []android.ModuleOrProxy) {
 	// Create a META/ subdirectory
 	builder.Command().Textf("mkdir -p %s/META", targetFilesDir.String())
 	if proptools.Bool(a.deviceProps.Ab_ota_updater) {
@@ -1193,7 +1197,7 @@ func (a *androidDevice) extractKernelVersionAndConfigs(ctx android.ModuleContext
 	return extractedVersionFile, extractedConfigsFile
 }
 
-func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalledModules []android.ModuleProxy) android.Path {
+func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) android.Path {
 	// TODO (spandandas): Add compressed
 	formatLine := func(cert java.Certificate, name, partition string) string {
 		pem := cert.AndroidMkString()

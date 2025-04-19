@@ -340,7 +340,7 @@ func getLicenses(ctx BaseModuleContext, module Module) []string {
 }
 
 // Returns whether a module is an allowed list of modules that do not have or need applicable licenses.
-func exemptFromRequiredApplicableLicensesProperty(module Module) bool {
+func exemptFromRequiredApplicableLicensesProperty(module ModuleOrProxy) bool {
 	switch reflect.TypeOf(module).String() {
 	case "*android.licenseModule": // is a license, doesn't need one
 	case "*android.licenseKindModule": // is a license, doesn't need one
