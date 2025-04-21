@@ -383,6 +383,7 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 		if !(ok && commonInfo.ExportedToMake) {
 			return false
 		}
+		prebuiltInfo := android.OtherModuleProviderOrDefault(ctx, mod, android.PrebuiltInfoProvider)
 		name := ctx.OtherModuleName(mod)
 		if o, ok := mod.(android.OverridableModule); ok && o.GetOverriddenBy() != "" {
 			name = o.GetOverriddenBy()
@@ -390,7 +391,7 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 		if variations, ok := allOwners[name]; ok &&
 			android.InList(installedOwnerInfo{
 				Variation: ctx.OtherModuleSubDir(mod),
-				Prebuilt:  commonInfo.IsPrebuilt,
+				Prebuilt:  prebuiltInfo.IsPrebuilt,
 			}, variations) {
 			ret = append(ret, mod)
 		}

@@ -257,8 +257,10 @@ func isValidSharedDependency(ctx android.ModuleContext, dependency android.Modul
 	// If the same library is present both as source and a prebuilt we must pick
 	// only one to avoid a conflict. Always prefer the source since the prebuilt
 	// probably won't be built with sanitizers enabled.
-	if commonInfo, ok := android.OtherModuleProvider(ctx, dependency, android.CommonModuleInfoProvider); ok && commonInfo.IsPrebuilt && commonInfo.PrebuiltSourceExists {
-		return false
+	if info, ok := android.OtherModuleProvider(ctx, dependency, android.PrebuiltInfoProvider); ok {
+		if info.IsPrebuilt && info.PrebuiltSourceExists {
+			return false
+		}
 	}
 
 	return true

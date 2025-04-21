@@ -1931,8 +1931,6 @@ var ModuleBuildTargetsProvider = blueprint.NewProvider[ModuleBuildTargetsInfo]()
 
 type CommonModuleInfo struct {
 	Enabled bool
-	// Whether the module has been replaced by a prebuilt
-	ReplacedByPrebuilt bool
 	// The Target of artifacts that this module variant is responsible for creating.
 	Target                  Target
 	SkipAndroidMkProcessing bool
@@ -1981,9 +1979,6 @@ type CommonModuleInfo struct {
 	ExportedToMake                               bool
 	Team                                         string
 	PartitionTag                                 string
-	IsPrebuilt                                   bool
-	PrebuiltSourceExists                         bool
-	UsePrebuilt                                  bool
 	ApexAvailable                                []string
 	// This field is different from the above one as it can have different values
 	// for cc, java library and sdkLibraryXml.
@@ -2336,7 +2331,6 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 	commonData := CommonModuleInfo{
 		Enabled:                          m.Enabled(ctx),
-		ReplacedByPrebuilt:               m.commonProperties.ReplacedByPrebuilt,
 		Target:                           m.commonProperties.CompileTarget,
 		SkipAndroidMkProcessing:          shouldSkipAndroidMkProcessing(ctx, m),
 		UninstallableApexPlatformVariant: m.commonProperties.UninstallableApexPlatformVariant,
@@ -2410,11 +2404,6 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	}
 	if mm, ok := m.module.(interface{ BaseModuleName() string }); ok {
 		commonData.BaseModuleName = mm.BaseModuleName()
-	}
-	if p, ok := m.module.(PrebuiltInterface); ok && p.Prebuilt() != nil {
-		commonData.IsPrebuilt = true
-		commonData.PrebuiltSourceExists = p.Prebuilt().SourceExists()
-		commonData.UsePrebuilt = p.Prebuilt().UsePrebuilt()
 	}
 	SetProvider(ctx, CommonModuleInfoProvider, &commonData)
 

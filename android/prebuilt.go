@@ -357,13 +357,15 @@ func IsModulePreferred(module Module) bool {
 	return true
 }
 
-func IsModulePreferredProxy(ctx OtherModuleProviderContext, module ModuleProxy) bool {
-	if OtherModulePointerProviderOrDefault(ctx, module, CommonModuleInfoProvider).ReplacedByPrebuilt {
-		// A source module that has been replaced by a prebuilt counterpart.
-		return false
-	}
-	if commonInfo, ok := OtherModuleProvider(ctx, module, CommonModuleInfoProvider); ok && commonInfo.IsPrebuilt {
-		return commonInfo.UsePrebuilt
+func IsModulePreferredProxy(ctx OtherModuleProviderContext, module ModuleOrProxy) bool {
+	if info, ok := OtherModuleProvider(ctx, module, PrebuiltInfoProvider); ok {
+		if info.ReplacedByPrebuilt {
+			// A source module that has been replaced by a prebuilt counterpart.
+			return false
+		}
+		if info.IsPrebuilt {
+			return info.UsePrebuilt
+		}
 	}
 	return true
 }
@@ -371,8 +373,13 @@ func IsModulePreferredProxy(ctx OtherModuleProviderContext, module ModuleProxy) 
 // IsModulePrebuilt returns true if the module implements PrebuiltInterface and
 // has been initialized as a prebuilt and so returns a non-nil value from the
 // PrebuiltInterface.Prebuilt() method.
-func IsModulePrebuilt(module Module) bool {
-	return GetEmbeddedPrebuilt(module) != nil
+func IsModulePrebuilt(ctx BaseModuleContext, module ModuleOrProxy) bool {
+	if EqualModules(ctx.Module(), module) {
+		return GetEmbeddedPrebuilt(ctx.Module()) != nil
+	} else {
+		info := OtherModuleProviderOrDefault(ctx, module, PrebuiltInfoProvider)
+		return info.IsPrebuilt
+	}
 }
 
 // GetEmbeddedPrebuilt returns a pointer to the embedded Prebuilt structure or
@@ -397,12 +404,14 @@ func GetEmbeddedPrebuilt(module Module) *Prebuilt {
 // the right module. This function is only safe to call after all TransitionMutators
 // have run, e.g. in GenerateAndroidBuildActions.
 func PrebuiltGetPreferred(ctx BaseModuleContext, module ModuleProxy) ModuleProxy {
-	if !OtherModulePointerProviderOrDefault(ctx, module, CommonModuleInfoProvider).ReplacedByPrebuilt {
-		return module
-	}
-	if commonInfo, ok := OtherModuleProvider(ctx, module, CommonModuleInfoProvider); ok && commonInfo.IsPrebuilt {
-		// If we're given a prebuilt then assume there's no source module around.
-		return module
+	if info, ok := OtherModuleProvider(ctx, module, PrebuiltInfoProvider); ok {
+		if !info.ReplacedByPrebuilt {
+			return module
+		}
+		if info.IsPrebuilt {
+			// If we're given a prebuilt then assume there's no source module around.
+			return module
+		}
 	}
 
 	sourceModDepFound := false
@@ -444,6 +453,7 @@ func RegisterPrebuiltsPreDepsMutators(ctx RegisterMutatorsContext) {
 }
 
 func RegisterPrebuiltsPostDepsMutators(ctx RegisterMutatorsContext) {
+	ctx.BottomUp("prebuilt_provider", prebuiltProviderMutator)
 	ctx.BottomUp("prebuilt_postdeps", PrebuiltPostDepsMutator).UsesReplaceDependencies()
 }
 
@@ -570,6 +580,31 @@ func PrebuiltSelectModuleMutator(ctx BottomUpMutatorContext) {
 	if am, ok := m.(*allApexContributions); ok {
 		am.SetPrebuiltSelectionInfoProvider(ctx)
 	}
+}
+
+var PrebuiltInfoProvider = blueprint.NewMutatorProvider[PrebuiltInfo]("prebuilt_provider")
+
+type PrebuiltInfo struct {
+	IsPrebuilt           bool
+	PrebuiltSourceExists bool
+	UsePrebuilt          bool
+	// Whether the module has been replaced by a prebuilt
+	ReplacedByPrebuilt bool
+}
+
+// prebuiltProviderMutator sets the PrebuiltInfoProvider.
+func prebuiltProviderMutator(ctx BottomUpMutatorContext) {
+	m := ctx.Module()
+
+	info := PrebuiltInfo{}
+
+	if p, ok := m.(PrebuiltInterface); ok && p.Prebuilt() != nil {
+		info.IsPrebuilt = true
+		info.PrebuiltSourceExists = p.Prebuilt().SourceExists()
+		info.UsePrebuilt = p.Prebuilt().UsePrebuilt()
+	}
+	info.ReplacedByPrebuilt = m.IsReplacedByPrebuilt()
+	SetProvider(ctx, PrebuiltInfoProvider, info)
 }
 
 // If any module in this mainline module family has been flagged using apex_contributions, disable every other module in that family

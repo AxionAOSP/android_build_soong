@@ -1423,7 +1423,7 @@ func deferReportingMissingBootDexJar(ctx android.ModuleContext, module android.M
 	// a prebuilt modules that has other variants which are part of an APEX.
 	//
 	// TODO(b/187910671): Remove this once platform variants are no longer created unnecessarily.
-	if android.IsModulePrebuilt(module) {
+	if android.IsModulePrebuilt(ctx, module) {
 		// An inactive source module can still contribute to the APEX but an inactive prebuilt module
 		// should not contribute to anything. So, rather than have a missing dex jar cause a Soong
 		// failure defer the error reporting to Ninja. Unless the prebuilt build target is explicitly

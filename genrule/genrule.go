@@ -111,8 +111,8 @@ func (t hostToolDependencyTag) AllowDisabledModuleDependency(target android.Modu
 
 func (t hostToolDependencyTag) AllowDisabledModuleDependencyProxy(
 	ctx android.OtherModuleProviderContext, target android.ModuleProxy) bool {
-	return android.OtherModulePointerProviderOrDefault(
-		ctx, target, android.CommonModuleInfoProvider).ReplacedByPrebuilt
+	return android.OtherModuleProviderOrDefault(
+		ctx, target, android.PrebuiltInfoProvider).ReplacedByPrebuilt
 }
 
 var _ android.AllowDisabledModuleDependency = (*hostToolDependencyTag)(nil)

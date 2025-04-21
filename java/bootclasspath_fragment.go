@@ -554,7 +554,7 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 	// Perform hidden API processing.
 	hiddenAPIOutput := b.generateHiddenAPIBuildActions(ctx, contents, fragments)
 
-	if android.IsModulePrebuilt(ctx.Module()) {
+	if android.IsModulePrebuilt(ctx, ctx.Module()) {
 		b.profilePath = ctx.Module().(*PrebuiltBootclasspathFragmentModule).produceBootImageProfile(ctx)
 	} else {
 		b.profilePath = b.produceBootImageProfileFromSource(ctx, contents, hiddenAPIOutput.EncodedBootDexFilesByModule)
@@ -662,7 +662,7 @@ func (b *BootclasspathFragmentModule) configuredJars(ctx android.ModuleContext) 
 		// TODO(b/202896428): Add better way to handle this.
 		_, unknown = android.RemoveFromList("android.car-module", unknown)
 		if isApexVariant(ctx) && len(unknown) > 0 {
-			if android.IsModulePrebuilt(ctx.Module()) {
+			if android.IsModulePrebuilt(ctx, ctx.Module()) {
 				// prebuilt bcpf. the validation of this will be done at the top-level apex
 				providerClasspathFragmentValidationInfoProvider(ctx, unknown)
 			} else if !disableSourceApexVariant(ctx) && android.IsModulePreferred(ctx.Module()) {

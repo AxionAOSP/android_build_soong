@@ -469,8 +469,8 @@ func (d dex2oatDependencyTag) AllowDisabledModuleDependency(target android.Modul
 
 func (d dex2oatDependencyTag) AllowDisabledModuleDependencyProxy(
 	ctx android.OtherModuleProviderContext, target android.ModuleProxy) bool {
-	return android.OtherModulePointerProviderOrDefault(
-		ctx, target, android.CommonModuleInfoProvider).ReplacedByPrebuilt
+	return android.OtherModuleProviderOrDefault(
+		ctx, target, android.PrebuiltInfoProvider).ReplacedByPrebuilt
 }
 
 // Dex2oatDepTag represents the dependency onto the dex2oatd module. It is added to any module that
@@ -515,9 +515,9 @@ func dex2oatPathFromDep(ctx android.ModuleContext) android.Path {
 	var dex2oatModule android.ModuleProxy
 	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
 		var isPrebuilt, usePrebuilt bool
-		if commonInfo, ok := android.OtherModuleProvider(ctx, child, android.CommonModuleInfoProvider); ok {
-			isPrebuilt = commonInfo.IsPrebuilt
-			usePrebuilt = commonInfo.UsePrebuilt
+		if prebuiltInfo, ok := android.OtherModuleProvider(ctx, child, android.PrebuiltInfoProvider); ok {
+			isPrebuilt = prebuiltInfo.IsPrebuilt
+			usePrebuilt = prebuiltInfo.UsePrebuilt
 		}
 		if android.EqualModules(parent, ctx.Module()) && ctx.OtherModuleDependencyTag(child) == Dex2oatDepTag {
 			// Found the source module, or prebuilt module that has replaced the source.

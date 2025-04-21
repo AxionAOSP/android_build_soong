@@ -938,7 +938,7 @@ func getDexJarForApex(ctx android.ModuleContext, pair apexJarModulePair, apexNam
 		return dex
 	}
 	// TODO: b/308174306 - Remove the legacy mechanism
-	if android.IsConfiguredJarForPlatform(pair.apex) || android.IsModulePrebuilt(pair.jarModule) {
+	if android.IsConfiguredJarForPlatform(pair.apex) || android.IsModulePrebuilt(ctx, pair.jarModule) {
 		// This gives us the dex jar with the hidden API flags encoded from the monolithic hidden API
 		// files or the dex jar extracted from a prebuilt APEX. We can't use this for a boot jar for
 		// a source APEX because there is no guarantee that it is the same as the jar packed into the

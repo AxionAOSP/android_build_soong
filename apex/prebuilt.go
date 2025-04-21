@@ -345,14 +345,14 @@ func (m ApexPrebuiltDepInSameApexChecker) OutgoingDepIsInSameApex(tag blueprint.
 }
 
 func (p *prebuiltCommon) checkExportedDependenciesArePrebuilts(ctx android.ModuleContext) {
-	ctx.VisitDirectDeps(func(dep android.Module) {
+	ctx.VisitDirectDepsProxy(func(dep android.ModuleProxy) {
 		tag := ctx.OtherModuleDependencyTag(dep)
 		depName := ctx.OtherModuleName(dep)
 		if exportedTag, ok := tag.(exportedDependencyTag); ok {
 			propertyName := exportedTag.name
 
 			// It is an error if the other module is not a prebuilt.
-			if !android.IsModulePrebuilt(dep) {
+			if !android.IsModulePrebuilt(ctx, dep) {
 				ctx.PropertyErrorf(propertyName, "%q is not a prebuilt module", depName)
 			}
 
