@@ -1168,12 +1168,11 @@ func (a *androidDevice) extractKernelVersionAndConfigs(ctx android.ModuleContext
 		Flag("--tools lz4:"+lz4tool.String()).Implicit(lz4tool).
 		FlagWithInput("--input ", kernel).
 		FlagWithOutput("--output-release ", extractedVersionFile).
-		FlagWithOutput("--output-configs ", extractedConfigsFile).
-		Textf(`&& printf "\n" >> %s`, extractedVersionFile)
+		FlagWithOutput("--output-configs ", extractedConfigsFile)
 
 	if specifiedVersion := proptools.String(a.deviceProps.Kernel_version); specifiedVersion != "" {
 		specifiedVersionFile := android.PathForModuleOut(ctx, "specified_kernel_version.txt")
-		android.WriteFileRule(ctx, specifiedVersionFile, specifiedVersion)
+		android.WriteFileRuleVerbatim(ctx, specifiedVersionFile, specifiedVersion)
 		builder.Command().Text("diff -q").
 			Input(specifiedVersionFile).
 			Input(extractedVersionFile).

@@ -135,6 +135,7 @@ def move_artifacts_to_subfolder(product: Product, soong_only: bool):
 
     files_to_move = [
         os.path.join(dist_dir, f'{product.product}-target_files-{build_id}.zip'), # target_files.zip
+        os.path.join(out_dir, 'build.log'),
     ]
 
     for file in files_to_move:

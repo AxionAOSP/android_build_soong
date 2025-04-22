@@ -98,7 +98,7 @@ type AllReleaseConfigsModule struct {
 func AllReleaseConfigsFactory() android.Module {
 	module := &AllReleaseConfigsModule{}
 
-	android.InitAndroidModule(module)
+	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	module.AddProperties(&module.properties)
 
@@ -123,6 +123,7 @@ func (module *AllReleaseConfigsModule) GenerateAndroidBuildActions(ctx android.M
 		Input:  srcPath,
 		Output: outputPath,
 	})
+	ctx.SetOutputFiles(android.Paths{outputPath}, "")
 
 	android.SetProvider(ctx, AllReleaseConfigsProviderKey, AllReleaseConfigsProviderData{
 		AllReleaseConfigsPath: outputPath,
