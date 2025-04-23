@@ -186,7 +186,7 @@ func (p *testPackageZip) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 
 func getAllTestModules(ctx android.ModuleContext) []android.ModuleOrProxy {
 	var ret []android.ModuleOrProxy
-	ctx.WalkDeps(func(child, parent android.Module) bool {
+	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
 		if info, ok := android.OtherModuleProvider(ctx, child, android.CommonModuleInfoProvider); !ok || !info.Enabled {
 			return false
 		}

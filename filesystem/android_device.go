@@ -378,15 +378,15 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 	}
 
 	ret := []android.ModuleOrProxy{}
-	ctx.WalkDeps(func(mod, _ android.Module) bool {
+	ctx.WalkDepsProxy(func(mod, _ android.ModuleProxy) bool {
 		commonInfo, ok := android.OtherModuleProvider(ctx, mod, android.CommonModuleInfoProvider)
 		if !(ok && commonInfo.ExportedToMake) {
 			return false
 		}
 		prebuiltInfo := android.OtherModuleProviderOrDefault(ctx, mod, android.PrebuiltInfoProvider)
 		name := ctx.OtherModuleName(mod)
-		if o, ok := mod.(android.OverridableModule); ok && o.GetOverriddenBy() != "" {
-			name = o.GetOverriddenBy()
+		if info, ok := android.OtherModuleProvider(ctx, mod, android.OverrideInfoProvider); ok && info.OverriddenBy != "" {
+			name = info.OverriddenBy
 		}
 		if variations, ok := allOwners[name]; ok &&
 			android.InList(installedOwnerInfo{
@@ -758,7 +758,7 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 		writeFileWithNewLines(ctx, abOtaPostInstallConfigFilePath, a.deviceProps.Ab_ota_postinstall_config)
 		builder.Command().Textf("cp").Input(abOtaPostInstallConfigFilePath).Textf(" %s/META/", targetFilesDir)
 		// selinuxfc
-		fileContextsModule := ctx.GetDirectDepWithTag("file_contexts_bin_gen", fileContextsDepTag)
+		fileContextsModule := ctx.GetDirectDepProxyWithTag("file_contexts_bin_gen", fileContextsDepTag)
 		outputFiles, ok := android.OtherModuleProvider(ctx, fileContextsModule, android.OutputFilesProvider)
 		if !ok || len(outputFiles.DefaultOutputFiles) != 1 {
 			ctx.ModuleErrorf("Expected exactly 1 output file from file_contexts_bin_gen")

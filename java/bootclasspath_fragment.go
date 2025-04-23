@@ -47,6 +47,7 @@ type BootclasspathFragmentInfo struct {
 	ApiStubLibs             []string
 	CorePlatformApiStubLibs []string
 	Fragments               []ApexVariantReference
+	ProfilePathOnHost       android.Path
 }
 
 var BootclasspathFragmentInfoProvider = blueprint.NewProvider[BootclasspathFragmentInfo]()
@@ -273,7 +274,8 @@ type commonBootclasspathFragment interface {
 	// Returns a *HiddenAPIOutput containing the paths for the generated files. Returns nil if the
 	// module cannot contribute to hidden API processing, e.g. because it is a prebuilt module in a
 	// versioned sdk.
-	produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, fragments []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput
+	produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.ModuleProxy, fragments []android.ModuleProxy,
+		input HiddenAPIFlagInput) *HiddenAPIOutput
 
 	// getProfilePath returns the path to the boot image profile.
 	getProfilePath() android.Path
@@ -541,8 +543,8 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 	moduleInfoJSON.SystemSharedLibs = []string{"none"}
 
 	// Gather the bootclasspath fragment's contents.
-	var contents []android.Module
-	ctx.VisitDirectDeps(func(module android.Module) {
+	var contents []android.ModuleProxy
+	ctx.VisitDirectDepsProxy(func(module android.ModuleProxy) {
 		tag := ctx.OtherModuleDependencyTag(module)
 		if IsBootclasspathFragmentContentDepTag(tag) {
 			contents = append(contents, module)
@@ -578,6 +580,7 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 		ApiStubLibs:             b.properties.Api.Stub_libs.GetOrDefault(ctx, nil),
 		CorePlatformApiStubLibs: b.properties.Core_platform_api.Stub_libs.GetOrDefault(ctx, nil),
 		Fragments:               b.properties.Fragments,
+		ProfilePathOnHost:       b.profilePath,
 	})
 }
 
@@ -585,7 +588,7 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 // empty string if this module should not provide a boot image profile.
 func (b *BootclasspathFragmentModule) getProfileProviderApex(ctx android.BaseModuleContext) string {
 	// Only use the profile from the module that is preferred.
-	if !isActiveModule(ctx, ctx.Module()) {
+	if !android.IsModulePreferredProxy(ctx, ctx.Module()) {
 		return ""
 	}
 
@@ -692,7 +695,8 @@ func providerClasspathFragmentValidationInfoProvider(ctx android.ModuleContext, 
 }
 
 // generateHiddenAPIBuildActions generates all the hidden API related build rules.
-func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, contents []android.Module, fragments []android.Module) *HiddenAPIOutput {
+func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, contents []android.ModuleProxy,
+	fragments []android.ModuleProxy) *HiddenAPIOutput {
 
 	// Create hidden API input structure.
 	input := b.createHiddenAPIFlagInput(ctx, contents, fragments)
@@ -736,7 +740,8 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 
 // createHiddenAPIFlagInput creates a HiddenAPIFlagInput struct and initializes it with information derived
 // from the properties on this module and its dependencies.
-func (b *BootclasspathFragmentModule) createHiddenAPIFlagInput(ctx android.ModuleContext, contents []android.Module, fragments []android.Module) HiddenAPIFlagInput {
+func (b *BootclasspathFragmentModule) createHiddenAPIFlagInput(ctx android.ModuleContext, contents []android.ModuleProxy,
+	fragments []android.ModuleProxy) HiddenAPIFlagInput {
 	// Merge the HiddenAPIInfo from all the fragment dependencies.
 	dependencyHiddenApiInfo := newHiddenAPIInfo()
 	dependencyHiddenApiInfo.mergeFromFragmentDeps(ctx, fragments)
@@ -768,7 +773,7 @@ func (b *BootclasspathFragmentModule) isTestFragment() bool {
 
 // generateHiddenApiFlagRules generates rules to generate hidden API flags and compute the signature
 // patterns file.
-func (b *BootclasspathFragmentModule) generateHiddenApiFlagRules(ctx android.ModuleContext, contents []android.Module, input HiddenAPIFlagInput, bootDexInfoByModule bootDexInfoByModule, suffix string) HiddenAPIFlagOutput {
+func (b *BootclasspathFragmentModule) generateHiddenApiFlagRules(ctx android.ModuleContext, contents []android.ModuleProxy, input HiddenAPIFlagInput, bootDexInfoByModule bootDexInfoByModule, suffix string) HiddenAPIFlagOutput {
 	// Generate the rules to create the hidden API flags and update the supplied hiddenAPIInfo with the
 	// paths to the created files.
 	flagOutput := hiddenAPIFlagRulesForBootclasspathFragment(ctx, bootDexInfoByModule, contents, input, suffix)
@@ -797,7 +802,8 @@ func (b *BootclasspathFragmentModule) generateHiddenApiFlagRules(ctx android.Mod
 
 // produceHiddenAPIOutput produces the hidden API all-flags.csv file (and supporting files)
 // for the fragment as well as encoding the flags in the boot dex jars.
-func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, fragments []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput {
+func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.ModuleProxy,
+	fragments []android.ModuleProxy, input HiddenAPIFlagInput) *HiddenAPIOutput {
 	// Gather information about the boot dex files for the boot libraries provided by this fragment.
 	bootDexInfoByModule := extractBootDexInfoFromModules(ctx, contents)
 
@@ -821,7 +827,7 @@ func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleC
 
 	// Filter the contents list to remove any modules that do not support the target build release.
 	// The current build release supports all the modules.
-	contentsForSdkSnapshot := []android.Module{}
+	contentsForSdkSnapshot := []android.ModuleProxy{}
 	for _, module := range contents {
 		// If the module has a min_sdk_version that is higher than the target build release then it will
 		// not work on the target build release and so must not be included in the sdk snapshot.
@@ -860,7 +866,8 @@ func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleC
 }
 
 // produceBootImageProfileFromSource builds the boot image profile from the source if it is required.
-func (b *BootclasspathFragmentModule) produceBootImageProfileFromSource(ctx android.ModuleContext, contents []android.Module, modules bootDexJarByModule) android.WritablePath {
+func (b *BootclasspathFragmentModule) produceBootImageProfileFromSource(ctx android.ModuleContext,
+	contents []android.ModuleProxy, modules bootDexJarByModule) android.WritablePath {
 	apex := b.getProfileProviderApex(ctx)
 	if apex == "" {
 		return nil
@@ -1125,7 +1132,8 @@ func (module *PrebuiltBootclasspathFragmentModule) Name() string {
 }
 
 // produceHiddenAPIOutput returns a path to the prebuilt all-flags.csv or nil if none is specified.
-func (module *PrebuiltBootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleContext, contents []android.Module, fragments []android.Module, input HiddenAPIFlagInput) *HiddenAPIOutput {
+func (module *PrebuiltBootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleContext,
+	contents []android.ModuleProxy, fragments []android.ModuleProxy, input HiddenAPIFlagInput) *HiddenAPIOutput {
 	pathForOptionalSrc := func(src *string, defaultPath android.Path) android.Path {
 		if src == nil {
 			return defaultPath

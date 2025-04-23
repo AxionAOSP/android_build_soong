@@ -290,6 +290,7 @@ func (c Config) ReleaseUseSystemFeatureBuildFlags() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_USE_SYSTEM_FEATURE_BUILD_FLAGS")
 }
 
+// TODO: b/409598478 - Remove FINGERPRINT build flag.
 func (c Config) ReleaseFingerprintAconfigPackages() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_FINGERPRINT_ACONFIG_PACKAGES")
 }
@@ -300,6 +301,15 @@ func (c Config) ReleaseRustUseArmTargetArchVariant() bool {
 
 func (c Config) ReleaseUseSparseEncoding() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_SOONG_SPARSE_ENCODING")
+}
+
+func (c Config) ReleaseAconfigStorageVersion() string {
+	if val, exists := c.GetBuildFlag("RELEASE_ACONFIG_STORAGE_VERSION"); exists {
+		return val
+	} else {
+		// Default value is 2.
+		return "2"
+	}
 }
 
 // A DeviceConfig object represents the configuration for a particular device
@@ -1074,6 +1084,15 @@ func (c *config) BuildHostnameFile(ctx PathContext) Path {
 // don't rebuild on every incremental build when the build thumbprint changes.
 func (c *config) BuildThumbprintFile(ctx PathContext) Path {
 	return PathForArbitraryOutput(ctx, "target", "product", *c.deviceNameToInstall, String(c.productVariables.BuildThumbprintFile))
+}
+
+func (c *config) BuildDateFile(ctx PathContext) Path {
+	buildDateFile := c.Getenv("BUILD_DATETIME_FILE")
+	relPath, err := filepath.Rel(ctx.Config().OutDir(), buildDateFile)
+	if err != nil {
+		panic("build_date.txt is outside of OUT_DIR")
+	}
+	return PathForArbitraryOutput(ctx, relPath)
 }
 
 // DeviceName returns the name of the current device target.
@@ -2416,15 +2435,17 @@ func (c *config) OemProperties() []string {
 }
 
 func (c *config) UseDebugArt() bool {
-	// If the ArtTargetIncludeDebugBuild product variable is set then return its value.
-	if c.productVariables.ArtTargetIncludeDebugBuild != nil {
-		return Bool(c.productVariables.ArtTargetIncludeDebugBuild)
-	}
-
 	// If the RELEASE_APEX_CONTRIBUTIONS_ART build flag is set to use a prebuilt ART apex
 	// then don't use the debug apex.
 	if val, ok := c.GetBuildFlag("RELEASE_APEX_CONTRIBUTIONS_ART"); ok && val != "" {
 		return false
+	}
+
+	// If the ArtTargetIncludeDebugBuild product variable is set then return its value.
+	// The prebuilt APEX check overrides this to be tolerant wrt build logic
+	// that sets PRODUCT_ART_TARGET_INCLUDE_DEBUG_BUILD regardless of module source.
+	if c.productVariables.ArtTargetIncludeDebugBuild != nil {
+		return Bool(c.productVariables.ArtTargetIncludeDebugBuild)
 	}
 
 	// Default to the debug apex for eng builds.

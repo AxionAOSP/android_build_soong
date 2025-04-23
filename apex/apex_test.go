@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"android/soong/aconfig/codegen"
+	"android/soong/provenance"
 
 	"github.com/google/blueprint/proptools"
 
@@ -5196,8 +5197,9 @@ func TestPrebuilt(t *testing.T) {
 	if prebuilt.inputApex.String() != expectedInput {
 		t.Errorf("inputApex invalid. expected: %q, actual: %q", expectedInput, prebuilt.inputApex.String())
 	}
+	provenanceInfo, _ := android.OtherModuleProvider(ctx, prebuilt, provenance.ProvenanceMetadataInfoProvider)
 	android.AssertStringDoesContain(t, "Invalid provenance metadata file",
-		prebuilt.ProvenanceMetaDataFile().String(), "soong/.intermediates/provenance_metadata/myapex/provenance_metadata.textproto")
+		provenanceInfo.ProvenanceMetaDataFile.String(), "soong/.intermediates/provenance_metadata/myapex/provenance_metadata.textproto")
 	rule := testingModule.Rule("genProvenanceMetaData")
 	android.AssertStringEquals(t, "Invalid input", "myapex-arm64.apex", rule.Inputs[0].String())
 	android.AssertStringEquals(t, "Invalid output", "out/soong/.intermediates/provenance_metadata/myapex/provenance_metadata.textproto", rule.Output.String())

@@ -148,7 +148,7 @@ func getTransformProperties(ctx ModuleContext, crateType string) transformProper
 		inRecovery:      module.InRecovery(),
 		inRamdisk:       module.InRamdisk(),
 		inVendorRamdisk: module.InVendorRamdisk(),
-		cargoOutDir:     module.compiler.cargoOutDir(),
+		cargoOutDir:     module.compiler.cargoOutDir(ctx),
 
 		// crateType indicates what type of crate to build
 		crateType: crateType,
@@ -606,7 +606,7 @@ func Rustdoc(ctx ModuleContext, main android.Path, deps PathDeps,
 		Args: map[string]string{
 			"rustdocFlags": strings.Join(rustdocFlags, " "),
 			"outDir":       docDir.String(),
-			"envVars":      strings.Join(rustEnvVars(ctx, deps, crateName, ctx.RustModule().compiler.cargoOutDir()), " "),
+			"envVars":      strings.Join(rustEnvVars(ctx, deps, crateName, ctx.RustModule().compiler.cargoOutDir(ctx)), " "),
 		},
 	})
 

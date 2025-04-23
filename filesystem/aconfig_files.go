@@ -16,7 +16,6 @@ package filesystem
 
 import (
 	"android/soong/android"
-	"strconv"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -97,12 +96,7 @@ func (f *filesystem) buildAconfigFlagsFiles(
 		f.appendToEntry(ctx, installAconfigFlagsPath)
 		*platformGeneratedFiles = append(*platformGeneratedFiles, installPath.String())
 
-		// To enable fingerprint, we need to have v2 storage files. The default version is 1.
-		storageFilesVersion := 1
-		if ctx.Config().ReleaseFingerprintAconfigPackages() {
-			storageFilesVersion = 2
-		}
-
+		storageFilesVersion := ctx.Config().ReleaseAconfigStorageVersion()
 		installAconfigStorageDir := installEtcDir.Join(ctx, "aconfig")
 		builder.Command().Text("mkdir -p").Text(installAconfigStorageDir.String())
 
@@ -116,7 +110,7 @@ func (f *filesystem) buildAconfigFlagsFiles(
 				Args: map[string]string{
 					"container": container,
 					"fileType":  fileType,
-					"version":   strconv.Itoa(storageFilesVersion),
+					"version":   storageFilesVersion,
 				},
 			})
 			builder.Command().

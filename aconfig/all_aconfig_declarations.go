@@ -17,7 +17,6 @@ package aconfig
 import (
 	"fmt"
 	"slices"
-	"strconv"
 
 	"android/soong/android"
 
@@ -237,10 +236,7 @@ func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx a
 		})
 		ctx.Phony("all_aconfig_declarations_textproto", this.releaseMap[rcName].intermediateTextProtoPath)
 
-		storageFilesVersion := 1
-		if ctx.Config().ReleaseFingerprintAconfigPackages() {
-			storageFilesVersion = 2
-		}
+		storageFilesVersion := ctx.Config().ReleaseAconfigStorageVersion()
 		const container = "all_aconfig_declarations"
 
 		ctx.Build(pctx, android.BuildParams{
@@ -251,7 +247,7 @@ func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx a
 			Args: map[string]string{
 				"container":   container,
 				"cache_files": android.JoinPathsWithPrefix(cacheFiles, "--cache "),
-				"version":     strconv.Itoa(storageFilesVersion),
+				"version":     storageFilesVersion,
 			},
 		})
 		ctx.Phony(allAconfigDeclarationsStorage, this.releaseMap[rcName].intermediateStoragePackageMap)
@@ -264,7 +260,7 @@ func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx a
 			Args: map[string]string{
 				"container":   container,
 				"cache_files": android.JoinPathsWithPrefix(cacheFiles, "--cache "),
-				"version":     strconv.Itoa(storageFilesVersion),
+				"version":     storageFilesVersion,
 			},
 		})
 		ctx.Phony(allAconfigDeclarationsStorage, this.releaseMap[rcName].intermediateStorageFlagMap)
@@ -277,7 +273,7 @@ func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx a
 			Args: map[string]string{
 				"container":   container,
 				"cache_files": android.JoinPathsWithPrefix(cacheFiles, "--cache "),
-				"version":     strconv.Itoa(storageFilesVersion),
+				"version":     storageFilesVersion,
 			},
 		})
 		ctx.Phony(allAconfigDeclarationsStorage, this.releaseMap[rcName].intermediateStorageFlagInfo)
@@ -290,7 +286,7 @@ func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx a
 			Args: map[string]string{
 				"container":   container,
 				"cache_files": android.JoinPathsWithPrefix(cacheFiles, "--cache "),
-				"version":     strconv.Itoa(storageFilesVersion),
+				"version":     storageFilesVersion,
 			},
 		})
 		ctx.Phony(allAconfigDeclarationsStorage, this.releaseMap[rcName].intermediateStorageFlagVal)

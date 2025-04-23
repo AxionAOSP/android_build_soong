@@ -2435,6 +2435,14 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			})
 		}
 	}
+
+	if mm, ok := m.module.(RequiredFilesFromPrebuiltApex); ok {
+		SetProvider(ctx, RequiredFilesFromPrebuiltApexInfoProvider, RequiredFilesFromPrebuiltApexInfo{
+			RequiredFilesFromPrebuiltApex: mm.RequiredFilesFromPrebuiltApex(ctx),
+			UseProfileGuidedDexpreopt:     mm.UseProfileGuidedDexpreopt(),
+		})
+	}
+
 	m.module.CleanupAfterBuildActions()
 }
 
@@ -3376,9 +3384,10 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 		hostCross bool
 	}
 	osDeps := map[osAndCross]Paths{}
-	ctx.VisitAllModules(func(module Module) {
-		if module.Enabled(ctx) {
-			key := osAndCross{os: module.Target().Os, hostCross: module.Target().HostCross}
+	ctx.VisitAllModuleProxies(func(module ModuleProxy) {
+		info := OtherModuleProviderOrDefault(ctx, module, CommonModuleInfoProvider)
+		if info.Enabled {
+			key := osAndCross{os: info.Target.Os, hostCross: info.Target.HostCross}
 			osDeps[key] = append(osDeps[key], OtherModuleProviderOrDefault(ctx, module, InstallFilesProvider).CheckbuildFiles...)
 		}
 	})

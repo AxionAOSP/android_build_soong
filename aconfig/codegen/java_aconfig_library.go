@@ -77,7 +77,7 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) DepsMutator(module *ja
 
 func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuildActions(module *java.GeneratedJavaLibraryModule, ctx android.ModuleContext) (android.Path, android.Path) {
 	// Get the values that came from the global RELEASE_ACONFIG_VALUE_SETS flag
-	declarationsModules := ctx.GetDirectDepsWithTag(declarationsTag)
+	declarationsModules := ctx.GetDirectDepsProxyWithTag(declarationsTag)
 	if len(declarationsModules) != 1 {
 		panic("Exactly one aconfig_declarations property required")
 	}

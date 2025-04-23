@@ -173,11 +173,13 @@ type CcInfo struct {
 	VendorAvailable        bool
 	OdmAvailable           bool
 	ProductAvailable       bool
+	IsVendorPublicLibrary  bool
 	// Allowable SdkMemberTypes of this module type.
 	SdkMemberTypes     []android.SdkMemberType
 	LocalFlags         LocalOrGlobalFlagsInfo
 	GlobalFlags        LocalOrGlobalFlagsInfo
 	SystemIncludeFlags []string
+	NoOverrideFlags    []string
 	CompilerInfo       *CompilerInfo
 	LinkerInfo         *LinkerInfo
 	SnapshotInfo       *SnapshotInfo
@@ -2582,6 +2584,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		OdmAvailable:           c.OdmAvailable(),
 		ProductAvailable:       c.ProductAvailable(),
 		SdkMemberTypes:         c.sdkMemberTypes,
+		IsVendorPublicLibrary:  c.IsVendorPublicLibrary(),
 		LocalFlags: LocalOrGlobalFlagsInfo{
 			CommonFlags: c.flags.Local.CommonFlags,
 			CFlags:      c.flags.Local.CFlags,
@@ -2595,6 +2598,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			CppFlags:    c.flags.Global.CppFlags,
 		},
 		SystemIncludeFlags: c.flags.SystemIncludeFlags,
+		NoOverrideFlags:    c.flags.NoOverrideFlags,
 	}
 	if c.compiler != nil {
 		cflags := c.compiler.baseCompilerProps().Cflags

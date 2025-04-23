@@ -105,8 +105,6 @@ type AndroidAppImport struct {
 	installPath android.InstallPath
 
 	hideApexVariantFromMake bool
-
-	provenanceMetaDataFile android.Path
 }
 
 type AndroidAppImportProperties struct {
@@ -528,7 +526,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	if apexInfo.IsForPlatform() {
 		a.installPath = ctx.InstallFile(installDir, apkFilename, a.outputFile)
 		artifactPath := android.PathForModuleSrc(ctx, a.properties.Apk.GetOrDefault(ctx, ""))
-		a.provenanceMetaDataFile = provenance.GenerateArtifactProvenanceMetaData(ctx, artifactPath, a.installPath)
+		provenance.GenerateArtifactProvenanceMetaData(ctx, artifactPath, a.installPath)
 	}
 
 	providePrebuiltInfo(ctx,
@@ -591,10 +589,6 @@ func (a *AndroidAppImport) JacocoReportClassesFile() android.Path {
 
 func (a *AndroidAppImport) Certificate() Certificate {
 	return a.certificate
-}
-
-func (a *AndroidAppImport) ProvenanceMetaDataFile() android.Path {
-	return a.provenanceMetaDataFile
 }
 
 func (a *AndroidAppImport) PrivAppAllowlist() android.OptionalPath {

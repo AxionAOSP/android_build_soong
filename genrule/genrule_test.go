@@ -1252,6 +1252,66 @@ genrule {
 	}
 }
 
+func TestGenruleUsesOrderOnlyBuildDateFile(t *testing.T) {
+	testCases := []struct {
+		name            string
+		bp              string
+		fs              android.MockFS
+		expectedError   string
+		expectedCommand string
+	}{
+		{
+			name: "not allowed when not in allowlist",
+			fs: android.MockFS{
+				"foo/Android.bp": []byte(`
+				genrule {
+					name: "gen",
+					uses_order_only_build_date_file: true,
+					cmd: "cp $(build_date_file) $(out)",
+					out: ["out.txt"],
+				}
+				`),
+			},
+			expectedError: `Only allowlisted modules may use uses_order_only_build_date_file: true`,
+		},
+		{
+			name: "normal",
+			fs: android.MockFS{
+				"build/soong/tests/Android.bp": []byte(`
+				genrule {
+					name: "gen",
+					uses_order_only_build_date_file: true,
+					cmd: "cp $(build_date_file) $(out)",
+					out: ["out.txt"],
+				}
+				`),
+			},
+			expectedCommand: `cp BUILD_DATE_FILE __SBOX_SANDBOX_DIR__/out/out.txt`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fixtures := android.GroupFixturePreparers(
+				prepareForGenRuleTest,
+				android.PrepareForTestWithVisibility,
+				android.FixtureMergeMockFs(tc.fs),
+				android.SetBuildDateFileEnvVarForTests(),
+			)
+			if tc.expectedError != "" {
+				fixtures = fixtures.ExtendWithErrorHandler(android.FixtureExpectsOneErrorPattern(tc.expectedError))
+			}
+			result := fixtures.RunTest(t)
+
+			if tc.expectedError == "" {
+				tc.expectedCommand = strings.ReplaceAll(tc.expectedCommand, "BUILD_DATE_FILE", result.Config.OutDir()+"/build_date.txt")
+				gen := result.Module("gen", "").(*Module)
+				android.AssertStringEquals(t, "raw commands", tc.expectedCommand, gen.rawCommands[0])
+			}
+		})
+	}
+}
+
 type testTool struct {
 	android.ModuleBase
 	outputFile android.Path

@@ -155,7 +155,7 @@ func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps Path
 	fileName := binary.getStem(ctx) + ctx.toolchain().ExecutableSuffix()
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	ret := buildOutput{outputFile: outputFile}
-	crateRootPath := crateRootPath(ctx, binary)
+	crateRootPath := binary.crateRootPath(ctx)
 
 	// Ensure link dirs are not duplicated
 	deps.linkDirs = android.FirstUniqueStrings(deps.linkDirs)

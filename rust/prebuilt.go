@@ -197,6 +197,14 @@ func (prebuilt *prebuiltLibraryDecorator) prebuilt() *android.Prebuilt {
 	return &prebuilt.Prebuilt
 }
 
+func (prebuilt *prebuiltLibraryDecorator) crateRootPath(ctx ModuleContext) android.Path {
+	if prebuilt.baseCompiler.Properties.Crate_root == nil {
+		return srcPathFromModuleSrcs(ctx, prebuilt.prebuiltSrcs())
+	} else {
+		return android.PathForModuleSrc(ctx, *prebuilt.baseCompiler.Properties.Crate_root)
+	}
+}
+
 func (prebuilt *prebuiltProcMacroDecorator) prebuiltSrcs() []string {
 	srcs := prebuilt.Properties.Srcs
 	return srcs
@@ -232,4 +240,12 @@ func (prebuilt *prebuiltProcMacroDecorator) compilerDeps(ctx DepsContext, deps D
 
 func (prebuilt *prebuiltProcMacroDecorator) nativeCoverage() bool {
 	return false
+}
+
+func (prebuilt *prebuiltProcMacroDecorator) crateRootPath(ctx ModuleContext) android.Path {
+	if prebuilt.baseCompiler.Properties.Crate_root == nil {
+		return srcPathFromModuleSrcs(ctx, prebuilt.prebuiltSrcs())
+	} else {
+		return android.PathForModuleSrc(ctx, *prebuilt.baseCompiler.Properties.Crate_root)
+	}
 }

@@ -44,6 +44,11 @@ type CompilerInfo struct {
 	StdLinkageForDevice    RustLinkage
 	StdLinkageForNonDevice RustLinkage
 	NoStdlibs              bool
+	CrateName              string
+	Edition                string
+	CargoOutDir            android.OptionalPath
+	Features               []string
+	CrateRootPath          android.Path
 	LibraryInfo            *LibraryInfo
 }
 
@@ -54,6 +59,10 @@ type SourceProviderInfo struct {
 	ProtobufDecoratorInfo *ProtobufDecoratorInfo
 }
 
+type ProcMacroInfo struct {
+	Dylib android.Path
+}
+
 type RustInfo struct {
 	AndroidMkSuffix               string
 	RustSubName                   string
@@ -61,6 +70,7 @@ type RustInfo struct {
 	CompilerInfo                  *CompilerInfo
 	SnapshotInfo                  *cc.SnapshotInfo
 	SourceProviderInfo            *SourceProviderInfo
+	ProcMacroInfo                 *ProcMacroInfo
 	XrefRustFiles                 android.Paths
 	DocTimestampFile              android.OptionalPath
 }
@@ -1089,7 +1099,7 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if mod.compiler != nil {
 		flags = mod.compiler.compilerFlags(ctx, flags)
 		flags = mod.compiler.cfgFlags(ctx, flags)
-		flags = mod.compiler.featureFlags(ctx, mod, flags)
+		flags = mod.compiler.featureFlags(ctx, flags)
 	}
 	if mod.coverage != nil {
 		flags, deps = mod.coverage.flags(ctx, flags, deps)
@@ -1119,7 +1129,6 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 
 	if mod.compiler != nil && !mod.compiler.Disabled() {
-		mod.compiler.initialize(ctx)
 		buildOutput := mod.compiler.compile(ctx, flags, deps)
 		if ctx.Failed() {
 			return
@@ -1193,6 +1202,11 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if mod.compiler != nil {
 		rustInfo.CompilerInfo = &CompilerInfo{
 			NoStdlibs:              mod.compiler.noStdlibs(),
+			CrateName:              mod.compiler.crateName(),
+			Edition:                mod.compiler.edition(),
+			CargoOutDir:            mod.compiler.cargoOutDir(ctx),
+			Features:               mod.compiler.features(ctx),
+			CrateRootPath:          mod.compiler.crateRootPath(ctx),
 			StdLinkageForDevice:    mod.compiler.stdLinkage(true),
 			StdLinkageForNonDevice: mod.compiler.stdLinkage(false),
 		}
@@ -1214,6 +1228,11 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		}
 		if _, ok := mod.sourceProvider.(*protobufDecorator); ok {
 			rustInfo.SourceProviderInfo.ProtobufDecoratorInfo = &ProtobufDecoratorInfo{}
+		}
+	}
+	if _, ok := mod.compiler.(*procMacroDecorator); ok {
+		rustInfo.ProcMacroInfo = &ProcMacroInfo{
+			Dylib: mod.compiler.unstrippedOutputFilePath(),
 		}
 	}
 	android.SetProvider(ctx, RustInfoProvider, rustInfo)

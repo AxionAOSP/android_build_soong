@@ -266,6 +266,8 @@ type UsesLibraryDependencyInfo struct {
 type SdkLibraryComponentDependencyInfo struct {
 	// The name of the implementation library for the optional SDK library or nil, if there isn't one.
 	OptionalSdkLibraryImplementation *string
+	// The name of the java_sdk_library/_import module if this module was created by one.
+	SdkLibraryName *string
 }
 
 type ProvidesUsesLibInfo struct {
@@ -400,6 +402,11 @@ type JavaInfo struct {
 	// this file so using the encoded dex jar here would result in a cycle in the ninja rules.
 	BootDexJarPath OptionalDexJarPath
 
+	// The paths to the classes jars that contain classes and class members annotated with
+	// the UnsupportedAppUsage annotation that need to be extracted as part of the hidden API
+	// processing.
+	HiddenapiClassesJarPaths android.Paths
+
 	// The compressed state of the dex file being encoded. This is used to ensure that the encoded
 	// dex file has the same state.
 	UncompressDexState *bool
@@ -448,6 +455,8 @@ type JavaInfo struct {
 	SystemModules         string
 	Installable           bool
 	ApexDependencyInfo    *ApexDependencyInfo
+
+	MaxSdkVersion android.ApiLevel
 }
 
 var JavaInfoProvider = blueprint.NewProvider[*JavaInfo]()
@@ -1171,8 +1180,6 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		javaInfo.ExtraOutputFiles = j.extraOutputFiles
 		javaInfo.DexJarFile = j.dexJarFile
 		javaInfo.InstallFile = j.installFile
-		javaInfo.BootDexJarPath = j.bootDexJarPath
-		javaInfo.UncompressDexState = j.uncompressDexState
 		javaInfo.Active = j.active
 		javaInfo.BuiltInstalled = j.builtInstalled
 		javaInfo.ConfigPath = j.configPath
@@ -1243,7 +1250,7 @@ func buildComplianceMetadata(ctx android.ModuleContext) {
 	// Static deps
 	staticDepNames := make([]string, 0)
 	staticDepFiles := android.Paths{}
-	ctx.VisitDirectDepsWithTag(staticLibTag, func(module android.Module) {
+	ctx.VisitDirectDepsProxyWithTag(staticLibTag, func(module android.ModuleProxy) {
 		if dep, ok := android.OtherModuleProvider(ctx, module, JavaInfoProvider); ok {
 			staticDepNames = append(staticDepNames, module.Name())
 			staticDepFiles = append(staticDepFiles, dep.ImplementationJars...)
@@ -3598,6 +3605,8 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	javaInfo := &JavaInfo{}
 	setExtraJavaInfo(ctx, j, javaInfo)
+	javaInfo.BootDexJarPath = j.dexJarFile
+
 	android.SetProvider(ctx, JavaInfoProvider, javaInfo)
 
 	android.SetProvider(ctx, JavaDexImportInfoProvider, JavaDexImportInfo{})
@@ -3880,6 +3889,7 @@ func setExtraJavaInfo(ctx android.ModuleContext, module android.Module, javaInfo
 	if slcDep, ok := module.(SdkLibraryComponentDependency); ok {
 		javaInfo.SdkLibraryComponentDependencyInfo = &SdkLibraryComponentDependencyInfo{
 			OptionalSdkLibraryImplementation: slcDep.OptionalSdkLibraryImplementation(),
+			SdkLibraryName:                   slcDep.SdkLibraryName(),
 		}
 	}
 
@@ -3909,6 +3919,18 @@ func setExtraJavaInfo(ctx android.ModuleContext, module android.Module, javaInfo
 		DexJarBuildPath(ctx android.ModuleErrorfContext) OptionalDexJarPath
 	}); ok {
 		javaInfo.DexJarBuildPath = mm.DexJarBuildPath(ctx)
+	}
+
+	if ham, ok := module.(hiddenAPIModule); ok {
+		javaInfo.BootDexJarPath = ham.bootDexJar()
+		javaInfo.HiddenapiClassesJarPaths = ham.classesJars()
+		javaInfo.UncompressDexState = ham.uncompressDex()
+	}
+
+	if mm, ok := module.(interface {
+		MaxSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel
+	}); ok {
+		javaInfo.MaxSdkVersion = mm.MaxSdkVersion(ctx)
 	}
 
 	if di, ok := module.(DexpreopterInterface); ok {

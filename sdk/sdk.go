@@ -186,6 +186,9 @@ func (s *sdk) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx.SetOutputFiles([]android.Path{s.snapshotFile.Path()}, "")
 		ctx.SetOutputFiles([]android.Path{s.snapshotFile.Path(), s.infoFile.Path()}, android.DefaultDistTag)
 	}
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"FAKE"}
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
 }
 
 func (s *sdk) AndroidMkEntries() []android.AndroidMkEntries {

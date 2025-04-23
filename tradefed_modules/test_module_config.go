@@ -328,6 +328,15 @@ func (m *testModuleConfigHostModule) DepsMutator(ctx android.BottomUpMutatorCont
 func (m *testModuleConfigHostModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	m.validateBase(ctx, &testModuleConfigHostTag, "java_test_host", true)
 	m.generateManifestAndConfig(ctx)
+
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"JAVA_LIBRARIES"}
+	moduleInfoJSON.Tags = append(moduleInfoJSON.Tags, "tests")
+	moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, m.tradefedProperties.Test_suites...)
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
+	moduleInfoJSON.TestConfig = []string{m.testConfig.String()}
+	moduleInfoJSON.AutoTestConfig = []string{"true"}
+	moduleInfoJSON.TestModuleConfigBase = proptools.String(m.Base)
 }
 
 // Ensure the base listed is the right type by checking that we get the expected provider data.

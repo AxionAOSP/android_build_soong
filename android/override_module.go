@@ -258,6 +258,12 @@ func overrideModuleDepsMutator(ctx BottomUpMutatorContext) {
 
 var overrideModuleDefaultInfoProvider = blueprint.NewMutatorProvider[overrideTransitionMutatorInfo]("override_deps")
 
+var OverrideInfoProvider = blueprint.NewMutatorProvider[OverrideInfo]("override_mutate")
+
+type OverrideInfo struct {
+	OverriddenBy string
+}
+
 // Now, goes through all overridable modules, finds all modules overriding them, creates a local
 // variant for each of them, and performs the actual overriding operation by calling override().
 type overrideTransitionMutator struct{}
@@ -321,6 +327,9 @@ func (overrideTransitionMutator) Mutate(ctx BottomUpMutatorContext, info overrid
 
 			checkPrebuiltReplacesOverride(ctx, b, info)
 		}
+		SetProvider(ctx, OverrideInfoProvider, OverrideInfo{
+			OverriddenBy: info.name,
+		})
 	}
 }
 

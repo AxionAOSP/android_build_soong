@@ -101,7 +101,7 @@ func (object *objectDecorator) compile(ctx ModuleContext, flags Flags, deps Path
 	fileName := object.getStem(ctx) + ".o"
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	ret := buildOutput{outputFile: outputFile}
-	crateRootPath := crateRootPath(ctx, object)
+	crateRootPath := object.crateRootPath(ctx)
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 	object.baseCompiler.unstrippedOutputFile = outputFile

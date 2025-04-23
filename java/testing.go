@@ -583,7 +583,7 @@ func getModuleDependencies(t *testing.T, ctx *android.TestContext, name, variant
 	t.Helper()
 	module := ctx.ModuleForTests(t, name, variant).Module()
 	deps := []string{}
-	ctx.VisitDirectDeps(module, func(m android.Module) {
+	ctx.VisitDirectDepsProxies(module, func(m android.ModuleProxy) {
 		deps = append(deps, m.Name())
 	})
 	return android.SortedUniqueStrings(deps)
@@ -649,9 +649,9 @@ func CheckClasspathFragmentProtoContentInfoProvider(t *testing.T, result *androi
 func CheckPlatformBootclasspathDependencies(t *testing.T, ctx *android.TestContext, name, variant string, expected []string) {
 	t.Helper()
 	platformBootclasspath := ctx.ModuleForTests(t, name, variant).Module().(*platformBootclasspathModule)
-	modules := []android.Module{}
-	ctx.VisitDirectDeps(platformBootclasspath, func(m android.Module) {
-		modules = append(modules, m.(android.Module))
+	modules := []android.ModuleProxy{}
+	ctx.VisitDirectDepsProxies(platformBootclasspath, func(m android.ModuleProxy) {
+		modules = append(modules, m)
 	})
 
 	pairs := apexNamePairsFromModules(ctx, modules, platformBootclasspath.libraryToApex)
@@ -659,7 +659,7 @@ func CheckPlatformBootclasspathDependencies(t *testing.T, ctx *android.TestConte
 }
 
 // apexNamePairsFromModules returns the apex:module pair for the supplied modules.
-func apexNamePairsFromModules(ctx *android.TestContext, modules []android.Module, modulesToApex map[android.Module]string) []string {
+func apexNamePairsFromModules(ctx *android.TestContext, modules []android.ModuleProxy, modulesToApex map[android.ModuleProxy]string) []string {
 	pairs := []string{}
 	for _, module := range modules {
 		pairs = append(pairs, apexNamePairFromModule(ctx, module, modulesToApex))
@@ -668,7 +668,7 @@ func apexNamePairsFromModules(ctx *android.TestContext, modules []android.Module
 }
 
 // ApexFragmentPairsFromModules returns the apex:fragment pair for the supplied fragments.
-func ApexFragmentPairsFromModules(ctx *android.TestContext, fragments []android.Module, apexNameToFragment map[string]android.Module) []string {
+func ApexFragmentPairsFromModules(ctx *android.TestContext, fragments []android.ModuleProxy, apexNameToFragment map[string]android.ModuleProxy) []string {
 	pairs := []string{}
 	for _, fragment := range fragments {
 		found := false
@@ -685,7 +685,7 @@ func ApexFragmentPairsFromModules(ctx *android.TestContext, fragments []android.
 	return pairs
 }
 
-func apexNamePairFromModule(ctx *android.TestContext, module android.Module, modulesToApex map[android.Module]string) string {
+func apexNamePairFromModule(ctx *android.TestContext, module android.ModuleProxy, modulesToApex map[android.ModuleProxy]string) string {
 	name := module.Name()
 	apex := modulesToApex[module]
 	if apex == "" {

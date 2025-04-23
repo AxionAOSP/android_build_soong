@@ -1234,6 +1234,12 @@ func SetKatiEnabledForTests(config Config) {
 	config.katiEnabled = true
 }
 
+func SetBuildDateFileEnvVarForTests() FixturePreparer {
+	return FixtureModifyConfig(func(config Config) {
+		config.env["BUILD_DATETIME_FILE"] = filepath.Join(config.outDir, "build_date.txt")
+	})
+}
+
 func AndroidMkEntriesForTest(t *testing.T, ctx *TestContext, mod Module) []AndroidMkEntries {
 	t.Helper()
 	var p AndroidMkEntriesProvider

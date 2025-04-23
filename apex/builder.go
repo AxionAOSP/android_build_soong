@@ -278,12 +278,7 @@ func (a *apexBundle) buildAconfigFiles(ctx android.ModuleContext) []apexFile {
 		})
 		files = append(files, newApexFile(ctx, apexAconfigFile, "aconfig_flags", "etc", etc, android.ModuleProxy{}))
 
-		// To enable fingerprint, we need to have v2 storage files. The default version is 1.
-		storageFilesVersion := 1
-		if ctx.Config().ReleaseFingerprintAconfigPackages() {
-			storageFilesVersion = 2
-		}
-
+		storageFilesVersion := ctx.Config().ReleaseAconfigStorageVersion()
 		for _, info := range createStorageInfo {
 			outputFile := android.PathForModuleOut(ctx, info.Output_file)
 			ctx.Build(pctx, android.BuildParams{
@@ -295,7 +290,7 @@ func (a *apexBundle) buildAconfigFiles(ctx android.ModuleContext) []apexFile {
 					"container":   ctx.ModuleName(),
 					"file_type":   info.File_type,
 					"cache_files": android.JoinPathsWithPrefix(aconfigFiles, "--cache "),
-					"version":     strconv.Itoa(storageFilesVersion),
+					"version":     storageFilesVersion,
 				},
 			})
 			files = append(files, newApexFile(ctx, outputFile, info.File_type, "etc", etc, android.ModuleProxy{}))
@@ -579,7 +574,10 @@ func (a *apexBundle) installApexSystemServerFiles(ctx android.ModuleContext) {
 	for _, fi := range a.filesInfo {
 		for _, install := range fi.systemServerDexpreoptInstalls {
 			var installedFile android.InstallPath
-			if performInstalls {
+			if performInstalls && ctx.Config().KatiEnabled() {
+				// android_device will create the install rule in soong-only builds.
+				// Skip creating the installation rule from the base variant
+				// in soong-only builds to prevent duplicate installation rules.
 				installedFile = ctx.InstallFile(install.InstallDirOnDevice, install.InstallFileOnDevice, install.OutputPathOnHost)
 			} else {
 				// Another module created the install rules, but this module should still depend on

@@ -117,7 +117,7 @@ func (a *androidDevice) copyFilesToProductOutForSoongOnly(ctx android.ModuleCont
 
 	copyBootImg := func(prop *string, type_ string) {
 		if proptools.String(prop) != "" {
-			partition := ctx.GetDirectDepWithTag(*prop, filesystemDepTag)
+			partition := ctx.GetDirectDepProxyWithTag(*prop, filesystemDepTag)
 			if info, ok := android.OtherModuleProvider(ctx, partition, BootimgInfoProvider); ok {
 				installPath := android.PathForModuleInPartitionInstall(ctx, "", type_+".img")
 				ctx.Build(pctx, android.BuildParams{
@@ -137,7 +137,7 @@ func (a *androidDevice) copyFilesToProductOutForSoongOnly(ctx android.ModuleCont
 	copyBootImg(a.partitionProps.Vendor_boot_partition_name, "vendor_boot")
 
 	for _, vbmetaModName := range a.partitionProps.Vbmeta_partitions {
-		partition := ctx.GetDirectDepWithTag(vbmetaModName, filesystemDepTag)
+		partition := ctx.GetDirectDepProxyWithTag(vbmetaModName, filesystemDepTag)
 		if info, ok := android.OtherModuleProvider(ctx, partition, vbmetaPartitionProvider); ok {
 			installPath := android.PathForModuleInPartitionInstall(ctx, "", info.Name+".img")
 			ctx.Build(pctx, android.BuildParams{
@@ -152,7 +152,7 @@ func (a *androidDevice) copyFilesToProductOutForSoongOnly(ctx android.ModuleCont
 	}
 
 	if proptools.String(a.partitionProps.Super_partition_name) != "" {
-		partition := ctx.GetDirectDepWithTag(*a.partitionProps.Super_partition_name, superPartitionDepTag)
+		partition := ctx.GetDirectDepProxyWithTag(*a.partitionProps.Super_partition_name, superPartitionDepTag)
 		if info, ok := android.OtherModuleProvider(ctx, partition, SuperImageProvider); ok {
 			installPath := android.PathForModuleInPartitionInstall(ctx, "", "super.img")
 			ctx.Build(pctx, android.BuildParams{
@@ -226,7 +226,7 @@ func (a *androidDevice) getFsInfos(ctx android.ModuleContext) map[string]Filesys
 	}
 	for _, partitionDefinition := range partitionDefinitions {
 		if proptools.String(partitionDefinition.prop) != "" {
-			partition := ctx.GetDirectDepWithTag(*partitionDefinition.prop, filesystemDepTag)
+			partition := ctx.GetDirectDepProxyWithTag(*partitionDefinition.prop, filesystemDepTag)
 			if info, ok := android.OtherModuleProvider(ctx, partition, FilesystemProvider); ok {
 				filesystemInfos[partitionDefinition.ty] = info
 			} else {
@@ -235,7 +235,7 @@ func (a *androidDevice) getFsInfos(ctx android.ModuleContext) map[string]Filesys
 		}
 	}
 	if a.partitionProps.Super_partition_name != nil {
-		superPartition := ctx.GetDirectDepWithTag(*a.partitionProps.Super_partition_name, superPartitionDepTag)
+		superPartition := ctx.GetDirectDepProxyWithTag(*a.partitionProps.Super_partition_name, superPartitionDepTag)
 		if info, ok := android.OtherModuleProvider(ctx, superPartition, SuperImageProvider); ok {
 			for partition := range info.SubImageInfo {
 				filesystemInfos[partition] = info.SubImageInfo[partition]
