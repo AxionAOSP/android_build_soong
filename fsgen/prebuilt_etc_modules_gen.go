@@ -157,6 +157,8 @@ func processProductCopyFiles(ctx android.LoadHookContext) map[string]*prebuiltSr
 type prebuiltModuleProperties struct {
 	Name *string
 
+	From_product_copy_files *bool
+
 	Soc_specific        *bool
 	Product_specific    *bool
 	System_ext_specific *bool
@@ -283,6 +285,7 @@ func prebuiltEtcModuleProps(ctx android.LoadHookContext, moduleName, partition, 
 		}
 	}
 
+	moduleProps.From_product_copy_files = proptools.BoolPtr(true)
 	moduleProps.No_full_install = proptools.BoolPtr(true)
 	moduleProps.NamespaceExportedToMake = true
 	moduleProps.Visibility = []string{"//visibility:public"}

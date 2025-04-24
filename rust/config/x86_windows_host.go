@@ -102,6 +102,10 @@ func (toolchainWindowsX86) Supported() bool {
 	return true
 }
 
+func (toolchainWindowsX86) Bionic() bool {
+	return false
+}
+
 func (toolchainWindowsX86) StaticLibSuffix() string {
 	return ".a"
 }
@@ -162,6 +166,10 @@ func windowsX8664ToolchainFactory(arch android.Arch) Toolchain {
 
 func (toolchainWindowsX8664) Supported() bool {
 	return true
+}
+
+func (toolchainWindowsX8664) Bionic() bool {
+	return false
 }
 
 func (toolchainWindowsX8664) StaticLibSuffix() string {

@@ -40,7 +40,7 @@ type UsageMap struct {
 	GeneratedClasses []string
 }
 
-func GenerateIncrementalInput(srcs, deps, javacTarget, srcDeps, localHeaderJars string) (err error) {
+func GenerateIncrementalInput(classDir, srcs, deps, javacTarget, srcDeps, localHeaderJars string) (err error) {
 	incInputPath := javacTarget + ".inc.rsp"
 	removedClassesPath := javacTarget + ".rem.rsp"
 	inputPcState := javacTarget + ".input.pc_state"
@@ -70,6 +70,11 @@ func GenerateIncrementalInput(srcs, deps, javacTarget, srcDeps, localHeaderJars 
 	// inputs we require if the partialCompile is switched on again.
 	if !usePartialCompile() {
 		return writeOutput(incInputPath, removedClassesPath, srcList, classesForRemoval)
+	}
+
+	// if the output directory of javac which will contain .class files is not present, include all sources
+	if !dirExists(classDir) {
+		incAllSources = true
 	}
 
 	// if javacTarget does not exist, we can include all sources
@@ -225,6 +230,13 @@ func fileExists(filePath string) bool {
 		file.Close()
 	}
 	return true
+}
+
+func dirExists(dirPath string) bool {
+	if _, err := os.Stat(dirPath); err == nil || !os.IsNotExist(err) {
+		return true
+	}
+	return false
 }
 
 func readRspFile(rspFile string) (list []string) {

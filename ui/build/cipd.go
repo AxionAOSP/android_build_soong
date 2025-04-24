@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	cipdProxyPolicyPath = "build/soong/ui/build/cipd_proxy_policy.pb"
+	cipdProxyPolicyPath = "build/soong/ui/build/cipd_proxy_policy.txtpb"
 	cipdProxyUrlKey     = "CIPD_PROXY_URL"
 )
 

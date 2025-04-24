@@ -22,8 +22,9 @@ import (
 )
 
 func main() {
-	var srcs, deps, javacTarget, srcDepsProto, localHeaderJars string
+	var classDir, srcs, deps, javacTarget, srcDepsProto, localHeaderJars string
 
+	flag.StringVar(&classDir, "classDir", "", "dir which will contain compiled java classes")
 	flag.StringVar(&srcs, "srcs", "", "rsp file containing java source paths")
 	flag.StringVar(&deps, "deps", "", "rsp file enlisting all module deps")
 	flag.StringVar(&javacTarget, "javacTarget", "", "javac output")
@@ -31,6 +32,10 @@ func main() {
 	flag.StringVar(&localHeaderJars, "localHeaderJars", "", "rsp file enlisting all local header jars")
 
 	flag.Parse()
+
+	if classDir == "" {
+		panic("must specify --classDir")
+	}
 
 	if deps == "" {
 		panic("must specify --deps")
@@ -53,7 +58,7 @@ func main() {
 	}
 
 	if srcs != "" {
-		err := iji_lib.GenerateIncrementalInput(srcs, deps, javacTarget, srcDepsProto, localHeaderJars)
+		err := iji_lib.GenerateIncrementalInput(classDir, srcs, deps, javacTarget, srcDepsProto, localHeaderJars)
 		if err != nil {
 			panic("errored")
 		}

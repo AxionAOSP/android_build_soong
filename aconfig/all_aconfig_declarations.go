@@ -112,16 +112,25 @@ func GenerateFinalizedFlagsForApiSurface(ctx android.ModuleContext, outputPath a
 	}
 	finalizedFlagsFile := android.PathForModuleSrc(ctx, apiSurface.Finalized_flags_file)
 
-	ctx.Build(pctx, android.BuildParams{
-		Rule:   RecordFinalizedFlagsRule,
-		Inputs: append(apiSignatureFiles, finalizedFlagsFile, parsedFlagsFile),
-		Output: outputPath,
-		Args: map[string]string{
-			"api_signature_files":  android.JoinPathsWithPrefix(apiSignatureFiles, "--api-signature-file "),
-			"finalized_flags_file": "--finalized-flags-file " + finalizedFlagsFile.String(),
-			"parsed_flags_file":    "--parsed-flags-file " + parsedFlagsFile.String(),
-		},
-	})
+	intermediateMetalavaFlagsConfig := android.PathForModuleOut(ctx, "metalava-flags.config")
+	intermediateFlagReport := android.PathForModuleOut(ctx, "metalava-flag-report.csv")
+	builder := android.NewRuleBuilder(pctx, ctx)
+	builder.Command().
+		BuiltTool("aconfig-to-metalava-flags").
+		Input(parsedFlagsFile).
+		FlagWithOutput("> ", intermediateMetalavaFlagsConfig)
+	builder.Command().
+		BuiltTool("metalava").
+		Flag("flag-report").
+		FlagWithInput("--config-file ", intermediateMetalavaFlagsConfig).
+		FlagWithOutput("--output-file ", intermediateFlagReport).
+		Inputs(apiSignatureFiles)
+	builder.Command().
+		BuiltTool("record-finalized-flags").
+		FlagWithInput("--finalized-flags ", finalizedFlagsFile).
+		FlagWithInput("--flag-report ", intermediateFlagReport).
+		FlagWithOutput("> ", outputPath)
+	builder.Build("finalized-flags", "Record all aconfig flags used with finalized @FlaggedApi APIs")
 }
 
 func GenerateExportedFlagCheck(ctx android.ModuleContext, outputPath android.WritablePath,

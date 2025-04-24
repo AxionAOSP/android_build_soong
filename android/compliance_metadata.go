@@ -133,6 +133,7 @@ type ComplianceMetadataInfo struct {
 	filesContained         []string
 	prebuiltFilesCopied    []string
 	platformGeneratedFiles []string
+	productCopyFiles       []string
 	kernelModuleCopyFiles  []string
 }
 
@@ -142,6 +143,7 @@ type complianceMetadataInfoGob struct {
 	PrebuiltFilesCopied    []string
 	PlatformGeneratedFiles []string
 	KernelModuleCopyFiles  []string
+	ProductCopyFiles       []string
 }
 
 func NewComplianceMetadataInfo() *ComplianceMetadataInfo {
@@ -151,6 +153,7 @@ func NewComplianceMetadataInfo() *ComplianceMetadataInfo {
 		prebuiltFilesCopied:    make([]string, 0),
 		platformGeneratedFiles: make([]string, 0),
 		kernelModuleCopyFiles:  make([]string, 0),
+		productCopyFiles:       make([]string, 0),
 	}
 }
 
@@ -161,6 +164,7 @@ func (m *ComplianceMetadataInfo) ToGob() *complianceMetadataInfoGob {
 		PrebuiltFilesCopied:    m.prebuiltFilesCopied,
 		PlatformGeneratedFiles: m.platformGeneratedFiles,
 		KernelModuleCopyFiles:  m.kernelModuleCopyFiles,
+		ProductCopyFiles:       m.productCopyFiles,
 	}
 }
 
@@ -170,6 +174,7 @@ func (m *ComplianceMetadataInfo) FromGob(data *complianceMetadataInfoGob) {
 	m.prebuiltFilesCopied = data.PrebuiltFilesCopied
 	m.platformGeneratedFiles = data.PlatformGeneratedFiles
 	m.kernelModuleCopyFiles = data.KernelModuleCopyFiles
+	m.productCopyFiles = data.ProductCopyFiles
 }
 
 func (c *ComplianceMetadataInfo) GobEncode() ([]byte, error) {
@@ -213,6 +218,14 @@ func (c *ComplianceMetadataInfo) SetPlatformGeneratedFiles(files []string) {
 
 func (c *ComplianceMetadataInfo) GetPlatformGeneratedFiles() []string {
 	return c.platformGeneratedFiles
+}
+
+func (c *ComplianceMetadataInfo) SetProductCopyFiles(files []string) {
+	c.productCopyFiles = files
+}
+
+func (c *ComplianceMetadataInfo) GetProductCopyFiles() []string {
+	return c.productCopyFiles
 }
 
 func (c *ComplianceMetadataInfo) SetKernelModuleCopyFiles(files []string) {
@@ -404,6 +417,12 @@ func (c *complianceMetadataSingleton) GenerateBuildActions(ctx SingletonContext)
 							destToKernelModuleMap[pair[1]] = p
 						}
 
+						destToProductCopyFiles := make(map[string]string)
+						for _, pcf := range metadataInfo.GetProductCopyFiles() {
+							pair := strings.Split(pcf, ":")
+							destToProductCopyFiles[pair[1]] = pcf
+						}
+
 						csvHeaders := "installed_file,module_path,is_soong_module,is_prebuilt_make_module,product_copy_files,kernel_module_copy_files,is_platform_generated,static_libs,whole_static_libs,license_text"
 						csvContent := make([]string, 0, len(allFiles)+1)
 						csvContent = append(csvContent, csvHeaders)
@@ -415,6 +434,8 @@ func (c *complianceMetadataSingleton) GenerateBuildActions(ctx SingletonContext)
 								csvContent = append(csvContent, file+",,,,,,Y,,,build/soong/licenses/LICENSE")
 							} else if km, ok := destToKernelModuleMap[file]; ok {
 								csvContent = append(csvContent, file+",,,,,"+km+",,,,")
+							} else if p, ok := destToProductCopyFiles[file]; ok {
+								csvContent = append(csvContent, file+",,,,"+p+",,,,,")
 							} else {
 								csvContent = append(csvContent, file+",,Y,,,,,,,")
 							}

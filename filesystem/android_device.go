@@ -25,6 +25,7 @@ import (
 	"sync/atomic"
 
 	"android/soong/android"
+	"android/soong/etc"
 	"android/soong/java"
 
 	"github.com/google/blueprint"
@@ -318,6 +319,15 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	} else {
 		buildComplianceMetadata(ctx, filesystemDepTag)
 	}
+
+	complianceMetadataInfo := ctx.ComplianceMetadataInfo()
+	pcf := complianceMetadataInfo.GetProductCopyFiles()
+	for _, m := range allInstalledModules {
+		if info, ok := android.OtherModuleProvider(ctx, m, etc.ProductCopyFilesModuleProvider); ok {
+			pcf = append(pcf, info.ProductCopyFileEntries...)
+		}
+	}
+	complianceMetadataInfo.SetProductCopyFiles(pcf)
 
 	// Add the host tools as deps
 	if !ctx.Config().KatiEnabled() && proptools.Bool(a.deviceProps.Main_device) {

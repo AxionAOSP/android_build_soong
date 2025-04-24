@@ -62,12 +62,13 @@ var (
 	javacInc, javacIncRE = pctx.MultiCommandRemoteStaticRules("javac-inc",
 		blueprint.RuleParams{
 			Command: `rm -rf "$annoDir" "$annoSrcJar.tmp" "$out.tmp" && ` +
-				`mkdir -p "$outDir" "$annoDir" && ` +
+				`mkdir -p "$annoDir" && ` +
 				`if [ -s $out.rsp ] && [ -s $srcJarList ] ; then ` +
 				`echo >> $out.rsp; fi && ` +
 				`cat $srcJarList >> $out.rsp && ` +
 				`${config.IncrementalJavacInputCmd} ` +
-				`--srcs $out.rsp --deps $javacDeps --javacTarget $out --srcDepsProto $out.proto --localHeaderJars $localHeaderJars && ` +
+				`--srcs $out.rsp --classDir $outDir --deps $javacDeps --javacTarget $out --srcDepsProto $out.proto --localHeaderJars $localHeaderJars && ` +
+				`mkdir -p "$outDir" && ` +
 				`(if [ -s $out.inc.rsp ] ; then ` +
 				`${config.SoongJavacWrapper} $javaTemplate${config.JavacCmd} ` +
 				`${config.JavacHeapFlags} ${config.JavacVmFlags} ${config.CommonJdkFlags} ` +

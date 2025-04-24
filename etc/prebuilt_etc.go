@@ -107,6 +107,14 @@ type PrebuiltEtcInfo struct {
 
 var PrebuiltEtcInfoProvider = blueprint.NewProvider[PrebuiltEtcInfo]()
 
+// If this provider is set, it means this module was converted from PRODUCT_COPY_FILES
+type ProductCopyFilesModuleInfo struct {
+	// The entries as they would've appeared in PRODUCT_COPY_FILES, that is, src:dst
+	ProductCopyFileEntries []string
+}
+
+var ProductCopyFilesModuleProvider = blueprint.NewProvider[ProductCopyFilesModuleInfo]()
+
 var PrepareForTestWithPrebuiltEtc = android.FixtureRegisterWithContext(RegisterPrebuiltEtcBuildComponents)
 
 type PrebuiltEtcProperties struct {
@@ -155,6 +163,11 @@ type PrebuiltEtcProperties struct {
 
 	// Install to partition oem when set to true.
 	Oem_specific *bool `android:"arch_variant"`
+
+	// If this prebuilt_* module was auto-generated from a PRODUCT_COPY_FILES entry.
+	// Used for licensing/compliance/SBOM, as some legacy methods of specifying licenses were
+	// specific to PRODUCT_COPY_FILES.
+	From_product_copy_files *bool
 }
 
 // Dsts is useful in that it allows prebuilt_* modules to easily map the source files to the
@@ -531,6 +544,16 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.SetOutputFiles(p.outputFilePaths.Paths(), "")
 
 	SetCommonPrebuiltEtcInfo(ctx, p)
+
+	if proptools.Bool(p.properties.From_product_copy_files) {
+		entries := make([]string, 0, len(installs))
+		for _, install := range installs {
+			entries = append(entries, fmt.Sprintf("%s:%s", install.sourceFilePath, filepath.Join(install.installDirPath.String(), install.filename)))
+		}
+		android.SetProvider(ctx, ProductCopyFilesModuleProvider, ProductCopyFilesModuleInfo{
+			ProductCopyFileEntries: entries,
+		})
+	}
 }
 
 func SetCommonPrebuiltEtcInfo(ctx android.ModuleContext, p PrebuiltEtcModule) {

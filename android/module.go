@@ -1045,6 +1045,9 @@ func (m *ModuleBase) baseOverridablePropertiesDepsMutator(ctx BottomUpMutatorCon
 // addRequiredDeps adds required, target_required, and host_required as dependencies.
 func addRequiredDeps(ctx BottomUpMutatorContext) {
 	addDep := func(target Target, depName string) {
+		if !blueprint.IsValidModuleName(depName) {
+			ctx.PropertyErrorf("required", "%s is not a valid module", depName)
+		}
 		if !ctx.OtherModuleExists(depName) {
 			if ctx.Config().AllowMissingDependencies() {
 				return

@@ -445,6 +445,7 @@ func TestGenerateIncrementalInputPartialCompileOff(t *testing.T) {
 type testFixture struct {
 	t              *testing.T
 	tmpDir         string
+	ClassDir       string
 	SrcRspFile     string
 	DepsRspFile    string
 	JavacTargetJar string
@@ -465,6 +466,7 @@ func newTestFixture(t *testing.T) *testFixture {
 	fixture := &testFixture{
 		t:              t,
 		tmpDir:         tmpDir,
+		ClassDir:       filepath.Join(tmpDir, "classes"),
 		SrcRspFile:     filepath.Join(tmpDir, "sources.rsp"),
 		DepsRspFile:    filepath.Join(tmpDir, "deps.rsp"),
 		JavacTargetJar: filepath.Join(tmpDir, "output.jar"),
@@ -480,6 +482,7 @@ func newTestFixture(t *testing.T) *testFixture {
 	// Create directories and initial file contents
 	createDir(t, filepath.Dir(fixture.JavaFile1))
 	createDir(t, filepath.Dir(fixture.JavaFile3))
+	createDir(t, fixture.ClassDir)
 
 	writeFile(t, fixture.JavaFile1, "package com.example; class File1 {}")
 	writeFile(t, fixture.JavaFile2, "package com.example; class File2 {}")
@@ -502,7 +505,7 @@ func newTestFixture(t *testing.T) *testFixture {
 func (tf *testFixture) runGenerator() {
 	// Small delay often needed for filesystem timestamp granularity
 	time.Sleep(15 * time.Millisecond)
-	err := GenerateIncrementalInput(tf.SrcRspFile, tf.DepsRspFile, tf.JavacTargetJar, tf.JavaSrcDeps, tf.HeadersRspFile)
+	err := GenerateIncrementalInput(tf.ClassDir, tf.SrcRspFile, tf.DepsRspFile, tf.JavacTargetJar, tf.JavaSrcDeps, tf.HeadersRspFile)
 	if err != nil {
 		tf.t.Fatalf("GenerateIncrementalInput() returned an error: %v", err)
 	}

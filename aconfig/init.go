@@ -99,14 +99,6 @@ var (
 				"${aconfig}",
 			},
 		}, "container", "cache_files", "version")
-
-	RecordFinalizedFlagsRule = pctx.AndroidStaticRule("RecordFinalizedFlagsRule",
-		blueprint.RuleParams{
-			Command: `${record-finalized-flags} ${parsed_flags_file} ${finalized_flags_file} ${api_signature_files} > ${out}`,
-			CommandDeps: []string{
-				"${record-finalized-flags}",
-			},
-		}, "api_signature_files", "finalized_flags_file", "parsed_flags_file")
 	ExportedFlagCheckRule = pctx.AndroidStaticRule("ExportedFlagCheckRule",
 		blueprint.RuleParams{
 			Command: `${exported-flag-check} validate-exported-flags ` +
@@ -163,7 +155,6 @@ func init() {
 	RegisterBuildComponents(android.InitRegistrationContext)
 	pctx.HostBinToolVariable("aconfig", "aconfig")
 	pctx.HostBinToolVariable("soong_zip", "soong_zip")
-	pctx.HostBinToolVariable("record-finalized-flags", "record-finalized-flags")
 	pctx.HostBinToolVariable("exported-flag-check", "exported-flag-check")
 }
 

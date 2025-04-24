@@ -634,6 +634,9 @@ func (r *RuleBuilder) build(name string, desc string) {
 		for _, input := range inputs {
 			addBindMount(input.String(), r.nsjailPathForInputRel(input))
 		}
+		for _, input := range r.OrderOnlys() {
+			addBindMount(input.String(), r.nsjailPathForInputRel(input))
+		}
 		for _, tool := range tools {
 			addBindMount(tool.String(), nsjailPathForToolRel(r.ctx, tool))
 		}

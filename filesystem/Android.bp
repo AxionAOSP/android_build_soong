@@ -9,6 +9,7 @@ bootstrap_go_package {
         "blueprint",
         "soong",
         "soong-android",
+        "soong-etc",
         "soong-bpf", // for testing
         "soong-java", // for testing
         "soong-linkerconfig",

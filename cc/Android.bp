@@ -75,6 +75,8 @@ bootstrap_go_package {
         "ndk_library.go",
         "ndk_sysroot.go",
 
+        "ndk_translation_package.go",
+
         "llndk_library.go",
 
         "kernel_headers.go",
