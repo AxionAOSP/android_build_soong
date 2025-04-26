@@ -256,6 +256,9 @@ type CommonProperties struct {
 		// If true, the "Ravenizer" tool will remove all Mockito and DexMaker
 		// classes from the output jar.
 		Strip_mockito *bool
+
+		// Extra arguments passed to Ravenizer
+		Flags []string
 	}
 
 	// Contributing api surface of the stub module. Is not visible to bp modules, and should
@@ -1714,10 +1717,12 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 	if j.ravenizer.enabled {
 		ravenizerInput := outputFile
 		ravenizerOutput := android.PathForModuleOut(ctx, "ravenizer", "", jarName)
-		ravenizerArgs := ""
+
+		ravenizerArgs := j.properties.Ravenizer.Flags
 		if proptools.Bool(j.properties.Ravenizer.Strip_mockito) {
-			ravenizerArgs = "--strip-mockito"
+			ravenizerArgs = append(ravenizerArgs, "--strip-mockito")
 		}
+
 		TransformRavenizer(ctx, ravenizerOutput, ravenizerInput, ravenizerArgs)
 		outputFile = ravenizerOutput
 		localImplementationJars = android.Paths{ravenizerOutput}

@@ -51,18 +51,18 @@ java_system_features_srcs {
 	android.AssertPathsRelativeToTopEquals(t, "Expected output file", []string{expectedOutputPath}, systemFeaturesModule.Srcs())
 }
 
-func TestJavaSystemFeaturesSrcsFromProductFiles(t *testing.T) {
+func TestJavaSystemFeaturesSrcsFromXml(t *testing.T) {
 	bp := `
 java_system_features_srcs {
     name: "system-features-srcs",
 	full_class_name: "com.android.test.RoSystemFeatures",
-	use_product_copy_files: true,
 }
 `
 
 	res := android.GroupFixturePreparers(
 		android.FixtureRegisterWithContext(registerSystemFeaturesComponents),
 		android.PrepareForTestWithBuildFlag("RELEASE_USE_SYSTEM_FEATURE_BUILD_FLAGS", "true"),
+		android.PrepareForTestWithBuildFlag("RELEASE_USE_SYSTEM_FEATURE_XML_FOR_UNAVAILABLE_FEATURES", "true"),
 		android.PrepareForTestWithBuildFlag("RELEASE_SYSTEM_FEATURE_AUTOMOTIVE", "0"),
 		android.FixtureModifyConfig(func(config android.Config) {
 			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductCopyFiles = []string{
@@ -95,7 +95,7 @@ java_system_features_srcs {
 	android.AssertStringDoesContain(t, "Expected fully class name", cmd, " com.android.test.RoSystemFeatures ")
 	android.AssertStringDoesContain(t, "Expected readonly flag", cmd, "--readonly=true")
 	android.AssertStringDoesContain(t, "Expected AUTOMOTIVE feature flag", cmd, "--feature=AUTOMOTIVE:0 ")
-	android.AssertStringDoesContain(t, "Expected feature xml files flag", cmd, "--feature-xml-files=frameworks/features.xml,frameworks/features2.xml,frameworks/featureswithowner.xml")
+	android.AssertStringDoesContain(t, "Expected feature xml files flag", cmd, "--unavailable-feature-xml-files=frameworks/features.xml,frameworks/features2.xml,frameworks/featureswithowner.xml")
 	android.AssertStringDoesNotContain(t, "Unexpected feature xml file", cmd, "dstalreadyexists.xml")
 	android.AssertStringDoesNotContain(t, "Unexpected feature xml file", cmd, "nonexistent.xml")
 	android.AssertStringDoesNotContain(t, "Unexpected feature xml file", cmd, "wrongsubdir.xml")
@@ -111,12 +111,12 @@ func TestJavaSystemFeaturesSrcsFromInvalidProductFiles(t *testing.T) {
 java_system_features_srcs {
     name: "system-features-srcs",
 	full_class_name: "com.android.test.RoSystemFeatures",
-	use_product_copy_files: true,
 }
 `
 
 	android.GroupFixturePreparers(
 		android.FixtureRegisterWithContext(registerSystemFeaturesComponents),
+		android.PrepareForTestWithBuildFlag("RELEASE_USE_SYSTEM_FEATURE_XML_FOR_UNAVAILABLE_FEATURES", "true"),
 		android.FixtureModifyConfig(func(config android.Config) {
 			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductCopyFiles = []string{
 				"frameworks/dstmissing.xml",

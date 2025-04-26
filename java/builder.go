@@ -1094,14 +1094,14 @@ func TransformJetifier(ctx android.ModuleContext, outputFile android.WritablePat
 }
 
 func TransformRavenizer(ctx android.ModuleContext, outputFile android.WritablePath,
-	inputFile android.Path, ravenizerArgs string) {
+	inputFile android.Path, ravenizerArgs []string) {
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        ravenizer,
 		Description: "ravenizer",
 		Output:      outputFile,
 		Input:       inputFile,
 		Args: map[string]string{
-			"ravenizerArgs": ravenizerArgs,
+			"ravenizerArgs": strings.Join(ravenizerArgs, " "),
 		},
 	})
 }

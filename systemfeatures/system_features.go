@@ -46,9 +46,6 @@ type javaSystemFeaturesSrcs struct {
 		// This is useful for tools that rely on the mapping from feature names to their generated
 		// method names, but don't want the fully generated API class (e.g., for linting).
 		Metadata_only *bool
-		// Whether to parse feature definitions from feature XML files for the
-		// target's PRODUCT_COPY_FILES. Defaults to false.
-		Use_product_copy_files *bool
 	}
 	outputFiles android.WritablePaths
 }
@@ -83,11 +80,13 @@ func (m *javaSystemFeaturesSrcs) GenerateAndroidBuildActions(ctx android.ModuleC
 		FlagForEachArg("--feature=", features).
 		FlagWithArg("--readonly=", fmt.Sprint(ctx.Config().ReleaseUseSystemFeatureBuildFlags())).
 		FlagWithArg("--metadata-only=", fmt.Sprint(proptools.Bool(m.properties.Metadata_only)))
-	if proptools.Bool(m.properties.Use_product_copy_files) {
+
+	if ctx.Config().ReleaseUseSystemFeatureXmlForUnavailableFeatures() {
 		if featureXmlFiles := uniquePossibleFeatureXmlPaths(ctx); len(featureXmlFiles) > 0 {
-			ruleCmd.FlagWithInputList("--feature-xml-files=", featureXmlFiles, ",")
+			ruleCmd.FlagWithInputList("--unavailable-feature-xml-files=", featureXmlFiles, ",")
 		}
 	}
+
 	ruleCmd.FlagWithOutput(" > ", outputFile)
 	rule.Build(ctx.ModuleName(), "Generating systemfeatures srcs filegroup")
 
@@ -114,7 +113,6 @@ func JavaSystemFeaturesSrcsFactory() android.Module {
 	module := &javaSystemFeaturesSrcs{}
 	module.AddProperties(&module.properties)
 	module.properties.Metadata_only = proptools.BoolPtr(false)
-	module.properties.Use_product_copy_files = proptools.BoolPtr(false)
 	android.InitAndroidModule(module)
 	return module
 }
