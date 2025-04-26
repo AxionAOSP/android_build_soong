@@ -40,6 +40,9 @@ func getSingletonPhonyMap(config Config) phonyMap {
 }
 
 func addSingletonPhony(config Config, name string, deps ...Path) {
+	if name == "" {
+		panic("Phony name cannot be the empty string")
+	}
 	phonyMap := getSingletonPhonyMap(config)
 	phonyMapLock.Lock()
 	defer phonyMapLock.Unlock()

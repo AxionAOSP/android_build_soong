@@ -290,6 +290,10 @@ func (c Config) ReleaseUseSystemFeatureBuildFlags() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_USE_SYSTEM_FEATURE_BUILD_FLAGS")
 }
 
+func (c Config) ReleaseUseSystemFeatureXmlForUnavailableFeatures() bool {
+	return c.config.productVariables.GetBuildFlagBool("RELEASE_USE_SYSTEM_FEATURE_XML_FOR_UNAVAILABLE_FEATURES")
+}
+
 // TODO: b/409598478 - Remove FINGERPRINT build flag.
 func (c Config) ReleaseFingerprintAconfigPackages() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_FINGERPRINT_ACONFIG_PACKAGES")
@@ -2221,10 +2225,6 @@ func (c *deviceConfig) BuildBrokenDontCheckSystemSdk() bool {
 
 func (c *deviceConfig) BuildBrokenDupSysprop() bool {
 	return c.config.productVariables.BuildBrokenDupSysprop
-}
-
-func (c *config) BuildWarningBadOptionalUsesLibsAllowlist() []string {
-	return c.productVariables.BuildWarningBadOptionalUsesLibsAllowlist
 }
 
 func (c *deviceConfig) GenruleSandboxing() bool {

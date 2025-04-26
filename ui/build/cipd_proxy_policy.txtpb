@@ -3,3 +3,4 @@ resolve_version {
   allow_tags: false
   allow_refs: false
 }
+get_instance_url {}

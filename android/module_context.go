@@ -478,6 +478,9 @@ func (m *moduleContext) Phony(name string, deps ...Path) {
 			panic("Phony dep cannot be nil")
 		}
 	}
+	if name == "" {
+		panic("Phony name cannot be the empty string")
+	}
 	m.phonies[name] = append(m.phonies[name], deps...)
 }
 

@@ -599,6 +599,9 @@ func (c *makeVarsContext) addVariable(name, ninjaStr string, strict, sort bool) 
 }
 
 func (c *makeVarsContext) addPhony(name string, deps []string) {
+	if name == "" {
+		panic("Phony name cannot be the empty string")
+	}
 	c.phonies = append(c.phonies, phony{name, deps})
 }
 

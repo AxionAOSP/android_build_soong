@@ -79,6 +79,19 @@ type ndkTranslationPackageDepTag struct {
 
 func (_ ndkTranslationPackageDepTag) ExcludeFromVisibilityEnforcement() {}
 
+// Some dependencies do not support native bridge variants for riscv
+func (_ ndkTranslationPackageDepTag) AllowDisabledModuleDependency(target android.Module) bool {
+	return target.Target().NativeBridge == android.NativeBridgeEnabled &&
+		target.Target().Arch.ArchType == android.Riscv64
+}
+
+func (_ ndkTranslationPackageDepTag) AllowDisabledModuleDependencyProxy(ctx android.OtherModuleProviderContext, mod android.ModuleProxy) bool {
+	commonInfo := android.OtherModulePointerProviderOrDefault(ctx, mod, android.CommonModuleInfoProvider)
+	return commonInfo.Target.NativeBridge == android.NativeBridgeEnabled &&
+		commonInfo.Target.Arch.ArchType == android.Riscv64
+
+}
+
 var (
 	ndkTranslationPackageTag              = ndkTranslationPackageDepTag{name: "dep"}
 	ndkTranslationPackageFirstTo32SrcsTag = ndkTranslationPackageDepTag{name: "first_to_32"}

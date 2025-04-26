@@ -34,6 +34,7 @@ bootstrap_go_package {
         "generated_cc_library.go",
         "image.go",
         "linkable.go",
+        "llvm_coverage_tools_zip.go",
         "lto.go",
         "makevars.go",
         "misc_disted_files.go",

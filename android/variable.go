@@ -463,8 +463,6 @@ type ProductVariables struct {
 	BuildBrokenDontCheckSystemSdk       bool     `json:",omitempty"`
 	BuildBrokenDupSysprop               bool     `json:",omitempty"`
 
-	BuildWarningBadOptionalUsesLibsAllowlist []string `json:",omitempty"`
-
 	BuildDebugfsRestrictionsEnabled bool `json:",omitempty"`
 
 	RequiresInsecureExecmemForSwiftshader bool `json:",omitempty"`

@@ -164,6 +164,7 @@ func (m *systemOtherImage) GenerateAndroidBuildActions(ctx android.ModuleContext
 	fsInfo := FilesystemInfo{
 		Output:              output,
 		RootDir:             stagingDir,
+		ModuleName:          ctx.ModuleName(),
 		FilesystemConfig:    m.generateFilesystemConfig(ctx, stagingDir, stagingDirTimestamp),
 		PropFileForMiscInfo: m.buildPropFileForMiscInfo(ctx),
 		InstalledFilesDepSet: depset.New(
