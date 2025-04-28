@@ -99,7 +99,9 @@ type ravenwoodTest struct {
 	ravenwoodTestProperties ravenwoodTestProperties
 
 	testProperties testProperties
-	testConfig     android.Path
+
+	testConfig android.Path
+	data       android.Paths
 
 	forceOSType   android.OsType
 	forceArchType android.ArchType
@@ -177,6 +179,22 @@ func (r *ravenwoodTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		DeviceTemplate:         "${RavenwoodTestConfigTemplate}",
 		HostTemplate:           "${RavenwoodTestConfigTemplate}",
 	})
+	r.data = android.PathsForModuleSrc(ctx, r.testProperties.Data)
+	r.data = append(r.data, android.PathsForModuleSrc(ctx, r.testProperties.Device_common_data)...)
+	r.data = append(r.data, android.PathsForModuleSrc(ctx, r.testProperties.Device_first_data)...)
+	r.data = append(r.data, android.PathsForModuleSrc(ctx, r.testProperties.Device_first_prefer32_data)...)
+	r.data = append(r.data, android.PathsForModuleSrc(ctx, r.testProperties.Host_common_data)...)
+
+	r.data = android.SortedUniquePaths(r.data)
+
+	var testData []android.DataPath
+	for _, data := range r.data {
+		dataPath := android.DataPath{SrcPath: data}
+		testData = append(testData, dataPath)
+	}
+	for _, d := range r.extraOutputFiles {
+		testData = append(testData, android.DataPath{SrcPath: d})
+	}
 
 	// Always enable Ravenizer for ravenwood tests.
 	r.Library.ravenizer.enabled = true
@@ -259,6 +277,12 @@ func (r *ravenwoodTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 	installProps := ctx.InstallFile(installPath, "ravenwood.properties", propertiesOutputPath)
 	installDeps = append(installDeps, installProps)
+
+	// Copy data files
+	for _, data := range r.data {
+		installedData := ctx.InstallFile(installPath, data.Rel(), data)
+		installDeps = append(installDeps, installedData)
+	}
 
 	// Install our JAR with all dependencies
 	ctx.InstallFile(installPath, ctx.ModuleName()+".jar", r.outputFile, installDeps...)

@@ -517,7 +517,7 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, no
 		coverageFiles = make(android.Paths, 0, len(srcObjFiles))
 	}
 	var kytheFiles android.Paths
-	if flags.emitXrefs && ctx.Module() == ctx.PrimaryModule() {
+	if flags.emitXrefs && ctx.IsPrimaryModule(ctx.Module()) {
 		kytheFiles = make(android.Paths, 0, len(srcObjFiles))
 	}
 
@@ -694,7 +694,7 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, no
 		})
 
 		// Register post-process build statements (such as for tidy or kythe).
-		if emitXref && ctx.Module() == ctx.PrimaryModule() {
+		if emitXref && ctx.IsPrimaryModule(ctx.Module()) {
 			kytheFile := android.ObjPathWithExt(ctx, subdir, srcFile, "kzip")
 			ctx.Build(pctx, android.BuildParams{
 				Rule:        kytheExtract,

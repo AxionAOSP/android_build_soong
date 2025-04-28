@@ -177,7 +177,9 @@ var ctsContainerBoundaryFunc containerBoundaryFunc = func(mctx ModuleContext) bo
 		val := reflect.ValueOf(prop).Elem()
 		if val.Kind() == reflect.Struct {
 			testSuites := val.FieldByName("Test_suites")
-			if testSuites.IsValid() && testSuites.Kind() == reflect.Slice && slices.Contains(testSuites.Interface().([]string), "cts") {
+			if testSuites.IsValid() && testSuites.Kind() == reflect.Slice && slices.ContainsFunc(testSuites.Interface().([]string), func(s string) bool {
+				return s == "cts" || strings.HasPrefix(s, "mts")
+			}) {
 				return true
 			}
 		}
@@ -299,7 +301,7 @@ var (
 		restricted: []restriction{
 			{
 				dependency: UnstableContainer,
-				errorMessage: "CTS module should not depend on the modules that contain the " +
+				errorMessage: "CTS/MTS module should not depend on the modules that contain the " +
 					"platform implementation details, including \"framework\". Depending on these " +
 					"modules may lead to disclosure of implementation details and regression " +
 					"due to API changes across platform versions. Try depending on the stubs instead " +

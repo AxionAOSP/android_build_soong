@@ -190,6 +190,10 @@ func TestRavenwoodTest(t *testing.T) {
 				"jni-lib1",
 				"ravenwood-runtime-jni2",
 			],
+			data: [
+				"data/file1.txt",
+				"data2/sub/file2",
+			],
 			resource_apk: "app2",
 			inst_resource_apk: "app3",
 			sdk_version: "test_current",
@@ -227,6 +231,8 @@ func TestRavenwoodTest(t *testing.T) {
 	module.Output(installPathPrefix + "/ravenwood-test/lib64/libpink.so")
 	module.Output(installPathPrefix + "/ravenwood-test/ravenwood-res-apks/ravenwood-res.apk")
 	module.Output(installPathPrefix + "/ravenwood-test/ravenwood-res-apks/ravenwood-inst-res.apk")
+	module.Output(installPathPrefix + "/ravenwood-test/data/file1.txt")
+	module.Output(installPathPrefix + "/ravenwood-test/data2/sub/file2")
 
 	module = ctx.ModuleForTests(t, "ravenwood-test-empty", "android_common")
 	module.Output(installPathPrefix + "/ravenwood-test-empty/ravenwood.properties")

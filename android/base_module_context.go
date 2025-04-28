@@ -197,6 +197,12 @@ type BaseModuleContext interface {
 	// only done once for all variants of a module.
 	PrimaryModule() Module
 
+	// IsPrimaryModule returns if the current module is the first variant.  Variants of a module are always visited in
+	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from the
+	// Module returned by PrimaryModule without data races.  This can be used to perform singleton actions that are
+	// only done once for all variants of a module.
+	IsPrimaryModule(module ModuleOrProxy) bool
+
 	// IsFinalModule returns if the current module is the last variant.  Variants of a module are always visited in
 	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from all
 	// variants using VisitAllModuleVariants if the current module is the last one. This can be used to perform
@@ -561,6 +567,10 @@ func (b *baseModuleContext) GetTagPath() []blueprint.DependencyTag {
 
 func (b *baseModuleContext) PrimaryModule() Module {
 	return b.bp.PrimaryModule().(Module)
+}
+
+func (b *baseModuleContext) IsPrimaryModule(module ModuleOrProxy) bool {
+	return b.bp.IsPrimaryModule(module)
 }
 
 func (b *baseModuleContext) IsFinalModule(module ModuleOrProxy) bool {
