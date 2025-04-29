@@ -15,11 +15,12 @@
 package aconfig
 
 import (
-	"android/soong/android"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
+
+	"android/soong/android"
 
 	"github.com/google/blueprint"
 )
@@ -145,7 +146,7 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 	values := make(map[string][]string)
 	valuesFiles := make(map[string][]android.Path, 0)
 	providerData := android.AconfigReleaseDeclarationsProviderData{}
-	ctx.VisitDirectDeps(func(dep android.Module) {
+	ctx.VisitDirectDepsProxy(func(dep android.ModuleProxy) {
 		if depData, ok := android.OtherModuleProvider(ctx, dep, valueSetProviderKey); ok {
 			depTag := ctx.OtherModuleDependencyTag(dep)
 			for _, config := range configs {

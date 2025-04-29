@@ -2220,6 +2220,10 @@ func (u *usesLibrary) verifyUsesLibraries(ctx android.ModuleContext, inputFile a
 		cmd.FlagWithArg("--missing-optional-uses-library ", lib)
 	}
 
+	for _, lib := range ctx.Config().BootJars() {
+		cmd.FlagWithArg("--bootclasspath-libs ", lib)
+	}
+
 	rule.Build("verify_uses_libraries", "verify <uses-library>")
 	return outputFile
 }

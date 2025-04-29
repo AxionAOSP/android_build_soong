@@ -648,9 +648,9 @@ func (d *Droiddoc) doclavaDocsFlags(ctx android.ModuleContext, cmd *android.Rule
 		ctx.PropertyErrorf("custom_template", "must specify a template")
 	}
 
-	ctx.VisitDirectDepsWithTag(droiddocTemplateTag, func(m android.Module) {
-		if t, ok := m.(*ExportedDroiddocDir); ok {
-			cmd.FlagWithArg("-templatedir ", t.dir.String()).Implicits(t.deps)
+	ctx.VisitDirectDepsProxyWithTag(droiddocTemplateTag, func(m android.ModuleProxy) {
+		if t, ok := android.OtherModuleProvider(ctx, m, ExportedDroiddocDirInfoProvider); ok {
+			cmd.FlagWithArg("-templatedir ", t.Dir.String()).Implicits(t.Deps)
 		} else {
 			ctx.PropertyErrorf("custom_template", "module %q is not a droiddoc_exported_dir", ctx.OtherModuleName(m))
 		}

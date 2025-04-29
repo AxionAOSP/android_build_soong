@@ -376,6 +376,7 @@ var (
 		"-pedantic",
 		"-pedantic-errors",
 		"-Werror=pedantic",
+		"-Wno-all",
 		"-Wno-everything",
 	}
 

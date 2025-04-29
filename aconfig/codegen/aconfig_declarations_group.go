@@ -76,7 +76,7 @@ func (adg *AconfigDeclarationsGroup) GenerateAndroidBuildActions(ctx android.Mod
 	var aconfigDeclarationNames []string
 	var intermediateCacheOutputPaths android.Paths
 	var javaSrcjars android.Paths
-	ctx.VisitDirectDeps(func(dep android.Module) {
+	ctx.VisitDirectDepsProxy(func(dep android.ModuleProxy) {
 		tag := ctx.OtherModuleDependencyTag(dep)
 		if provider, ok := android.OtherModuleProvider(ctx, dep, android.CodegenInfoProvider); ok {
 

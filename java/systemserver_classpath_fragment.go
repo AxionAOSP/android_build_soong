@@ -164,8 +164,9 @@ var LibraryNameToPartitionInfoProvider = blueprint.NewProvider[LibraryNameToPart
 
 func (s *SystemServerClasspathModule) setPartitionInfoOfLibraries(ctx android.ModuleContext) {
 	libraryNameToPartition := map[string]string{}
-	ctx.VisitDirectDepsWithTag(systemServerClasspathFragmentContentDepTag, func(m android.Module) {
-		libraryNameToPartition[m.Name()] = m.PartitionTag(ctx.DeviceConfig())
+	ctx.VisitDirectDepsProxyWithTag(systemServerClasspathFragmentContentDepTag, func(m android.ModuleProxy) {
+		info := android.OtherModulePointerProviderOrDefault(ctx, m, android.CommonModuleInfoProvider)
+		libraryNameToPartition[m.Name()] = info.PartitionTag
 	})
 	android.SetProvider(ctx, LibraryNameToPartitionInfoProvider, LibraryNameToPartitionInfo{
 		LibraryNameToPartition: libraryNameToPartition,

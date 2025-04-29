@@ -358,12 +358,12 @@ func (a *AutogenRuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.
 	}
 	var rroDirs android.Paths
 	// Get rro dirs of the base app
-	ctx.VisitDirectDepsWithTag(rroDepTag, func(m android.Module) {
-		aarDep, _ := m.(AndroidLibraryDependency)
+	ctx.VisitDirectDepsProxyWithTag(rroDepTag, func(m android.ModuleProxy) {
+		javaInfo, _ := android.OtherModuleProvider(ctx, m, JavaInfoProvider)
 		if ctx.InstallInProduct() {
-			rroDirs = filterRRO(aarDep.RRODirsDepSet(), product)
+			rroDirs = filterRRO(javaInfo.AndroidLibraryDependencyInfo.RRODirsDepSet, product)
 		} else {
-			rroDirs = filterRRO(aarDep.RRODirsDepSet(), device)
+			rroDirs = filterRRO(javaInfo.AndroidLibraryDependencyInfo.RRODirsDepSet, device)
 		}
 	})
 

@@ -329,6 +329,9 @@ type JavaInfo struct {
 	// LocalHeaderJars is a list of jars that contain classes from this module, but not from any static dependencies.
 	LocalHeaderJars android.Paths
 
+	// KotlinHeaderJars is a jar that only contains Kotlin classes from this module, but not from any static dependencies.
+	KotlinHeaderJars android.Paths
+
 	// AidlIncludeDirs is a list of directories that should be passed to the aidl tool when
 	// depending on this module.
 	AidlIncludeDirs android.Paths

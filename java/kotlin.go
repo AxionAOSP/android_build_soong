@@ -123,6 +123,18 @@ func (j *Module) kotlinCompile(ctx android.ModuleContext, outputFile, headerOutp
 		commonSrcFilesArg = "--common_srcs " + commonSrcsList.String()
 	}
 
+	associateJars := getAssociateJars(ctx, j.properties.Associates)
+	if len(associateJars) > 0 {
+		flags.kotlincFlags += " -Xfriend-paths=" + strings.Join(associateJars.Strings(), ",")
+		deps = append(deps, associateJars...)
+
+		// Prepend the associates classes jar in the classpath, so that they take priority over the other jars.
+		var newClasspath classpath
+		newClasspath = append(newClasspath, associateJars...)
+		newClasspath = append(newClasspath, flags.kotlincClasspath...)
+		flags.kotlincClasspath = newClasspath
+	}
+
 	classpathRspFile := android.PathForModuleOut(ctx, "kotlinc", "classpath.rsp")
 	android.WriteFileRule(ctx, classpathRspFile, strings.Join(flags.kotlincClasspath.Strings(), " "))
 	deps = append(deps, classpathRspFile)
@@ -174,6 +186,48 @@ func (j *Module) kotlinCompile(ctx android.ModuleContext, outputFile, headerOutp
 		})
 		j.kytheKotlinFiles = append(j.kytheKotlinFiles, extractionFile)
 	}
+}
+
+func getAssociateJars(ctx android.ModuleContext, associates []string) android.Paths {
+	if len(associates) == 0 {
+		return nil
+	}
+
+	associatesFound := make(map[string]bool)
+	for _, name := range associates {
+		associatesFound[name] = false
+	}
+
+	var associateJars android.Paths
+	ctx.VisitDirectDepsProxy(func(depModule android.ModuleProxy) {
+		depName := ctx.OtherModuleName(depModule)
+		_, isAssociate := associatesFound[depName]
+		if !isAssociate {
+			return
+		}
+
+		associatesFound[depName] = true
+		depInfo, ok := android.OtherModuleProvider(ctx, depModule, JavaInfoProvider)
+		if !ok {
+			ctx.PropertyErrorf("Associates", "associate module '%s' is not a Java module", depName)
+			return
+		}
+
+		if len(depInfo.KotlinHeaderJars) == 0 {
+			ctx.PropertyErrorf("Associates", "associate module '%s' is not a Kotlin module", depName)
+			return
+		}
+
+		associateJars = append(associateJars, depInfo.KotlinHeaderJars...)
+	})
+
+	for name, found := range associatesFound {
+		if !found {
+			ctx.PropertyErrorf("Associates", "associate module '%s' must also be listed as a direct dependency (e.g. in static_libs or libs)", name)
+		}
+	}
+
+	return associateJars
 }
 
 var kaptStubs = pctx.AndroidRemoteStaticRule("kaptStubs", android.RemoteRuleSupports{Goma: true},

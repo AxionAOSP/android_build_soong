@@ -559,7 +559,7 @@ func migrateOutputSymlinks(ctx Context, config Config) error {
 	return fixOutDirSymlinks(ctx, config, outDir)
 }
 
-func runSoong(ctx Context, config Config) {
+func runSoong(ctx Context, config Config, enforceNoSoongOutput bool) {
 	ctx.BeginTrace(metrics.RunSoong, "soong")
 	defer ctx.EndTrace()
 
@@ -611,81 +611,86 @@ func runSoong(ctx Context, config Config) {
 
 		fifo := filepath.Join(config.OutDir(), ".ninja_fifo")
 		nr := status.NewNinjaReader(ctx, ctx.Status.StartTool(), fifo)
-		defer nr.Close()
+		func() {
+			defer nr.Close()
+			var ninjaCmd string
+			var ninjaArgs []string
+			switch config.ninjaCommand {
+			case NINJA_N2:
+				ninjaCmd = config.N2Bin()
+				ninjaArgs = []string{
+					// TODO: implement these features, or remove them.
+					//"-d", "keepdepfile",
+					//"-d", "stats",
+					//"-o", "usesphonyoutputs=yes",
+					//"-o", "preremoveoutputs=yes",
+					//"-w", "dupbuild=err",
+					//"-w", "outputdir=err",
+					//"-w", "missingoutfile=err",
+					"-v",
+					"-j", strconv.Itoa(config.Parallel()),
+					"--frontend-file", fifo,
+					"-f", filepath.Join(config.SoongOutDir(), "bootstrap.ninja"),
+				}
+			case NINJA_SISO:
+				ninjaCmd = config.SisoBin()
+				ninjaArgs = []string{
+					"ninja",
+					// TODO: implement these features, or remove them.
+					//"-d", "keepdepfile",
+					//"-d", "stats",
+					//"-o", "usesphonyoutputs=yes",
+					//"-o", "preremoveoutputs=yes",
+					//"-w", "dupbuild=err",
+					//"-w", "outputdir=err",
+					//"-w", "missingoutfile=err",
+					"-v",
+					"-j", strconv.Itoa(config.Parallel()),
+					//"--frontend-file", fifo,
+					"--log_dir", config.SoongOutDir(),
+					"-f", filepath.Join(config.SoongOutDir(), "bootstrap.ninja"),
+				}
+			default:
+				// NINJA_NINJA is the default.
+				ninjaCmd = config.NinjaBin()
+				ninjaArgs = []string{
+					"-d", "keepdepfile",
+					"-d", "stats",
+					"-o", "usesphonyoutputs=yes",
+					"-o", "preremoveoutputs=yes",
+					"-w", "dupbuild=err",
+					"-w", "outputdir=err",
+					"-w", "missingoutfile=err",
+					"-j", strconv.Itoa(config.Parallel()),
+					"--frontend_file", fifo,
+					"-f", filepath.Join(config.SoongOutDir(), "bootstrap.ninja"),
+				}
+			}
 
-		var ninjaCmd string
-		var ninjaArgs []string
-		switch config.ninjaCommand {
-		case NINJA_N2:
-			ninjaCmd = config.N2Bin()
-			ninjaArgs = []string{
-				// TODO: implement these features, or remove them.
-				//"-d", "keepdepfile",
-				//"-d", "stats",
-				//"-o", "usesphonyoutputs=yes",
-				//"-o", "preremoveoutputs=yes",
-				//"-w", "dupbuild=err",
-				//"-w", "outputdir=err",
-				//"-w", "missingoutfile=err",
-				"-v",
-				"-j", strconv.Itoa(config.Parallel()),
-				"--frontend-file", fifo,
-				"-f", filepath.Join(config.SoongOutDir(), "bootstrap.ninja"),
+			if extra, ok := config.Environment().Get("SOONG_UI_NINJA_ARGS"); ok {
+				ctx.Printf(`CAUTION: arguments in $SOONG_UI_NINJA_ARGS=%q, e.g. "-n", can make soong_build FAIL or INCORRECT`, extra)
+				ninjaArgs = append(ninjaArgs, strings.Fields(extra)...)
 			}
-		case NINJA_SISO:
-			ninjaCmd = config.SisoBin()
-			ninjaArgs = []string{
-				"ninja",
-				// TODO: implement these features, or remove them.
-				//"-d", "keepdepfile",
-				//"-d", "stats",
-				//"-o", "usesphonyoutputs=yes",
-				//"-o", "preremoveoutputs=yes",
-				//"-w", "dupbuild=err",
-				//"-w", "outputdir=err",
-				//"-w", "missingoutfile=err",
-				"-v",
-				"-j", strconv.Itoa(config.Parallel()),
-				//"--frontend-file", fifo,
-				"--log_dir", config.SoongOutDir(),
-				"-f", filepath.Join(config.SoongOutDir(), "bootstrap.ninja"),
-			}
-		default:
-			// NINJA_NINJA is the default.
-			ninjaCmd = config.NinjaBin()
-			ninjaArgs = []string{
-				"-d", "keepdepfile",
-				"-d", "stats",
-				"-o", "usesphonyoutputs=yes",
-				"-o", "preremoveoutputs=yes",
-				"-w", "dupbuild=err",
-				"-w", "outputdir=err",
-				"-w", "missingoutfile=err",
-				"-j", strconv.Itoa(config.Parallel()),
-				"--frontend_file", fifo,
-				"-f", filepath.Join(config.SoongOutDir(), "bootstrap.ninja"),
-			}
+
+			ninjaArgs = append(ninjaArgs, targets...)
+
+			cmd := Command(ctx, config, "soong bootstrap",
+				ninjaCmd, ninjaArgs...)
+
+			var ninjaEnv Environment
+
+			// This is currently how the command line to invoke soong_build finds the
+			// root of the source tree and the output root
+			ninjaEnv.Set("TOP", os.Getenv("TOP"))
+
+			cmd.Environment = &ninjaEnv
+			cmd.Sandbox = soongSandbox
+			cmd.RunAndStreamOrFatal()
+		}()
+
+		if enforceNoSoongOutput && nr.HasAnyOutput() {
+			ctx.Fatalf("Soong must not output anything to stdout/stderr on a successful build, please remove the prints")
 		}
-
-		if extra, ok := config.Environment().Get("SOONG_UI_NINJA_ARGS"); ok {
-			ctx.Printf(`CAUTION: arguments in $SOONG_UI_NINJA_ARGS=%q, e.g. "-n", can make soong_build FAIL or INCORRECT`, extra)
-			ninjaArgs = append(ninjaArgs, strings.Fields(extra)...)
-		}
-
-		ninjaArgs = append(ninjaArgs, targets...)
-
-		cmd := Command(ctx, config, "soong bootstrap",
-			ninjaCmd, ninjaArgs...)
-
-		var ninjaEnv Environment
-
-		// This is currently how the command line to invoke soong_build finds the
-		// root of the source tree and the output root
-		ninjaEnv.Set("TOP", os.Getenv("TOP"))
-
-		cmd.Environment = &ninjaEnv
-		cmd.Sandbox = soongSandbox
-		cmd.RunAndStreamOrFatal()
 	}
 
 	targets := make([]string, 0, 0)

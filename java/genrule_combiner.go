@@ -95,7 +95,7 @@ func (j *GenruleCombiner) GenerateAndroidBuildActions(ctx android.ModuleContext)
 
 	// Collect the headers first, so that aconfig flag values for the libraries will override
 	// values from the headers (if they are different).
-	ctx.VisitDirectDepsWithTag(genruleCombinerHeaderDepTag, func(m android.Module) {
+	ctx.VisitDirectDepsProxyWithTag(genruleCombinerHeaderDepTag, func(m android.ModuleProxy) {
 		if dep, ok := android.OtherModuleProvider(ctx, m, JavaInfoProvider); ok {
 			j.headerJars = append(j.headerJars, dep.HeaderJars...)
 
@@ -113,7 +113,7 @@ func (j *GenruleCombiner) GenerateAndroidBuildActions(ctx android.ModuleContext)
 			ctx.PropertyErrorf("headers", "module %q cannot be used as a dependency", ctx.OtherModuleName(m))
 		}
 	})
-	ctx.VisitDirectDepsWithTag(staticLibTag, func(m android.Module) {
+	ctx.VisitDirectDepsProxyWithTag(staticLibTag, func(m android.ModuleProxy) {
 		if dep, ok := android.OtherModuleProvider(ctx, m, JavaInfoProvider); ok {
 			j.implementationJars = append(j.implementationJars, dep.ImplementationJars...)
 			j.implementationAndResourceJars = append(j.implementationAndResourceJars, dep.ImplementationAndResourcesJars...)

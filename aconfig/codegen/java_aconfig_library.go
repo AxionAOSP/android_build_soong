@@ -107,7 +107,7 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuild
 		},
 	})
 
-	if declarations.Exportable {
+	if ctx.Config().ReleaseJarjarFlagsInFramework() || declarations.Exportable {
 		// Mark our generated code as possibly needing jarjar repackaging
 		// The repackaging only happens when the corresponding aconfig_declaration
 		// has property exportable true

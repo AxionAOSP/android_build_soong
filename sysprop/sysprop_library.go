@@ -97,7 +97,7 @@ type SyspropLibraryInfo struct {
 func (g *syspropJavaGenRule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	var checkApiFileTimeStamp android.WritablePath
 
-	ctx.VisitDirectDeps(func(dep android.Module) {
+	ctx.VisitDirectDepsProxy(func(dep android.ModuleProxy) {
 		if info, ok := android.OtherModuleProvider(ctx, dep, SyspropLibraryInfoProvider); ok {
 			checkApiFileTimeStamp = info.CheckApiFileTimeStamp
 		}

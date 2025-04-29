@@ -109,7 +109,7 @@ func (fg *fileGroup) GenerateAndroidBuildActions(ctx ModuleContext) {
 	var intermediateCacheOutputPaths Paths
 	var srcjars Paths
 	modeInfos := make(map[string]ModeInfo)
-	ctx.VisitDirectDeps(func(module Module) {
+	ctx.VisitDirectDepsProxy(func(module ModuleProxy) {
 		if dep, ok := OtherModuleProvider(ctx, module, CodegenInfoProvider); ok {
 			aconfigDeclarations = append(aconfigDeclarations, dep.AconfigDeclarations...)
 			intermediateCacheOutputPaths = append(intermediateCacheOutputPaths, dep.IntermediateCacheOutputPaths...)

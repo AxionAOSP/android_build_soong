@@ -230,7 +230,7 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// TODO: Move this under BootimgInfo, as is, it's easy to confuse the bootImg module for
 	// the underlying ramdisk module.
 	if ramdisk := proptools.String(b.properties.Ramdisk_module); ramdisk != "" {
-		ramdiskModule := ctx.GetDirectDepWithTag(ramdisk, bootimgRamdiskDep)
+		ramdiskModule := ctx.GetDirectDepProxyWithTag(ramdisk, bootimgRamdiskDep)
 		fsInfo, _ := android.OtherModuleProvider(ctx, ramdiskModule, FilesystemProvider)
 		android.SetProvider(ctx, FilesystemProvider, fsInfo)
 	} else {
@@ -377,12 +377,12 @@ func (b *bootimg) buildBootImage(ctx android.ModuleContext, kernel android.Path)
 	ramdiskName := proptools.String(b.properties.Ramdisk_module)
 	if ramdiskName != "" {
 		ramdisk := ctx.GetDirectDepWithTag(ramdiskName, bootimgRamdiskDep)
-		if filesystem, ok := ramdisk.(*filesystem); ok {
+		if fsInfo, ok := android.OtherModuleProvider(ctx, ramdisk, FilesystemProvider); ok {
 			flag := "--ramdisk "
 			if b.bootImageType.isVendorBoot() {
 				flag = "--vendor_ramdisk "
 			}
-			cmd.FlagWithInput(flag, filesystem.OutputPath())
+			cmd.FlagWithInput(flag, fsInfo.Output)
 		} else {
 			ctx.PropertyErrorf("ramdisk", "%q is not android_filesystem module", ramdisk.Name())
 			return output
@@ -546,7 +546,7 @@ func (b *bootimg) buildPropFileForMiscInfo(ctx android.ModuleContext) android.Pa
 	bootImgType := proptools.String(b.properties.Boot_image_type)
 	addStr("avb_"+bootImgType+"_add_hash_footer_args", b.getAvbHashFooterArgs(ctx))
 	if ramdisk := proptools.String(b.properties.Ramdisk_module); ramdisk != "" {
-		ramdiskModule := ctx.GetDirectDepWithTag(ramdisk, bootimgRamdiskDep)
+		ramdiskModule := ctx.GetDirectDepProxyWithTag(ramdisk, bootimgRamdiskDep)
 		fsInfo, _ := android.OtherModuleProvider(ctx, ramdiskModule, FilesystemProvider)
 		if fsInfo.HasOrIsRecovery {
 			// Create a dup entry for recovery

@@ -342,7 +342,7 @@ func (m *testModuleConfigHostModule) GenerateAndroidBuildActions(ctx android.Mod
 // Ensure the base listed is the right type by checking that we get the expected provider data.
 // Returns false on errors and the context is updated with an error indicating the baseType expected.
 func (m *testModuleConfigModule) validateBase(ctx android.ModuleContext, depTag *dependencyTag, baseType string, baseShouldBeHost bool) {
-	ctx.VisitDirectDepsWithTag(*depTag, func(dep android.Module) {
+	ctx.VisitDirectDepsProxyWithTag(*depTag, func(dep android.ModuleProxy) {
 		if provider, ok := android.OtherModuleProvider(ctx, dep, tradefed.BaseTestProviderKey); ok {
 			if baseShouldBeHost == provider.IsHost {
 				m.provider = provider

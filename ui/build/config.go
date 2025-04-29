@@ -100,7 +100,6 @@ type configImpl struct {
 	skipSoong                 bool
 	skipNinja                 bool
 	skipSoongTests            bool
-	searchApiDir              bool // Scan the Android.bp files generated in out/api_surfaces
 	skipMetricsUpload         bool
 	buildStartedTime          int64 // For metrics-upload-only - manually specify a build-started time
 	buildFromSourceStub       bool
@@ -943,8 +942,6 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.skipMetricsUpload = true
 		} else if arg == "--mk-metrics" {
 			c.reportMkMetrics = true
-		} else if arg == "--search-api-dir" {
-			c.searchApiDir = true
 		} else if strings.HasPrefix(arg, "--ninja_weight_source=") {
 			source := strings.TrimPrefix(arg, "--ninja_weight_source=")
 			if source == "ninja_log" {
@@ -1163,10 +1160,6 @@ func (c *configImpl) NinjaArgs() []string {
 
 func (c *configImpl) SoongOutDir() string {
 	return filepath.Join(c.OutDir(), "soong")
-}
-
-func (c *configImpl) ApiSurfacesOutDir() string {
-	return filepath.Join(c.OutDir(), "api_surfaces")
 }
 
 func (c *configImpl) PrebuiltOS() string {

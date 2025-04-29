@@ -240,7 +240,7 @@ func (v *vbmeta) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		Output android.Path
 	}
 	var includeDescriptorsFromImages []partitionWithName
-	for _, p := range ctx.GetDirectDepsWithTag(vbmetaPartitionDep) {
+	for _, p := range ctx.GetDirectDepsProxyWithTag(vbmetaPartitionDep) {
 		bootImgInfo, ok := android.OtherModuleProvider(ctx, p, BootimgInfoProvider)
 		if ok {
 			includeDescriptorsFromImages = append(includeDescriptorsFromImages, partitionWithName{
@@ -284,7 +284,7 @@ func (v *vbmeta) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	seenRils := make(map[int]bool)
-	for _, cp := range ctx.GetDirectDepsWithTag(vbmetaChainedPartitionDep) {
+	for _, cp := range ctx.GetDirectDepsProxyWithTag(vbmetaChainedPartitionDep) {
 		info, ok := android.OtherModuleProvider(ctx, cp, vbmetaPartitionProvider)
 		if !ok {
 			ctx.PropertyErrorf("chained_partitions", "Expected all modules in chained_partitions to provide vbmetaPartitionProvider, but %s did not", cp.Name())

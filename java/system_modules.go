@@ -166,7 +166,7 @@ func (system *SystemModules) commonBuildActions(ctx android.ModuleContext) *Syst
 	var jars android.Paths
 
 	var transitiveStaticLibsHeaderJars []depset.DepSet[android.Path]
-	ctx.VisitDirectDepsWithTag(systemModulesLibsTag, func(module android.Module) {
+	ctx.VisitDirectDepsProxyWithTag(systemModulesLibsTag, func(module android.ModuleProxy) {
 		if dep, ok := android.OtherModuleProvider(ctx, module, JavaInfoProvider); ok {
 			jars = append(jars, dep.HeaderJars...)
 			transitiveStaticLibsHeaderJars = append(transitiveStaticLibsHeaderJars, dep.TransitiveStaticLibsHeaderJars)

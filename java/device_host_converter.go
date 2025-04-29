@@ -102,7 +102,7 @@ func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleCont
 	var transitiveImplementationJars []depset.DepSet[android.Path]
 	var transitiveResourceJars []depset.DepSet[android.Path]
 
-	ctx.VisitDirectDepsWithTag(deviceHostConverterDepTag, func(m android.Module) {
+	ctx.VisitDirectDepsProxyWithTag(deviceHostConverterDepTag, func(m android.ModuleProxy) {
 		if dep, ok := android.OtherModuleProvider(ctx, m, JavaInfoProvider); ok {
 			d.headerJars = append(d.headerJars, dep.HeaderJars...)
 			d.implementationJars = append(d.implementationJars, dep.ImplementationJars...)

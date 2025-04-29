@@ -95,16 +95,17 @@ func (m *dexpreoptSystemserverCheck) GenerateAndroidBuildActions(ctx android.Mod
 	global := dexpreopt.GetGlobalConfig(ctx)
 	targets := ctx.Config().Targets[android.Android]
 
-	ctx.VisitDirectDepsWithTag(systemServerJarDepTag, func(systemServerJar android.Module) {
+	ctx.VisitDirectDepsProxyWithTag(systemServerJarDepTag, func(systemServerJar android.ModuleProxy) {
 		partition := "system"
-		if systemServerJar.InstallInSystemExt() && ctx.Config().InstallApexSystemServerDexpreoptSamePartition() {
+		commonInfo := android.OtherModulePointerProviderOrDefault(ctx, systemServerJar, android.CommonModuleInfoProvider)
+		if commonInfo.SystemExtSpecific && ctx.Config().InstallApexSystemServerDexpreoptSamePartition() {
 			partition = ctx.DeviceConfig().SystemExtPath() // system_ext
 		}
 		var dexLocation string
-		if m, ok := systemServerJar.(ModuleWithStem); ok {
-			dexLocation = dexpreopt.GetSystemServerDexLocation(ctx, global, m.Stem())
+		if javaInfo, ok := android.OtherModuleProvider(ctx, systemServerJar, JavaInfoProvider); ok {
+			dexLocation = dexpreopt.GetSystemServerDexLocation(ctx, global, javaInfo.Stem)
 		} else {
-			ctx.PropertyErrorf("dexpreopt_systemserver_check", "%v is not a ModuleWithStem", systemServerJar.Name())
+			ctx.PropertyErrorf("dexpreopt_systemserver_check", "%v does not have JavaInfo", systemServerJar.Name())
 		}
 		odexLocation := dexpreopt.ToOdexPath(dexLocation, targets[0].Arch.ArchType, partition)
 		odexPath := getInstallPath(ctx, odexLocation)

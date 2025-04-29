@@ -435,7 +435,7 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 	if Bool(test.Properties.Standalone_test) {
 		packagingSpecsBuilder := depset.NewBuilder[android.PackagingSpec](depset.TOPOLOGICAL)
 
-		ctx.VisitDirectDeps(func(dep android.Module) {
+		ctx.VisitDirectDepsProxy(func(dep android.ModuleProxy) {
 			deps := android.OtherModuleProviderOrDefault(ctx, dep, android.InstallFilesProvider)
 			packagingSpecsBuilder.Transitive(deps.TransitivePackagingSpecs)
 		})

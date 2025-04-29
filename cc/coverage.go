@@ -188,8 +188,8 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 			flags.Local.LdFlags = append(flags.Local.LdFlags, "--coverage")
 
 			if ctx.Device() {
-				coverage := ctx.GetDirectDepWithTag(getGcovProfileLibraryName(ctx), CoverageDepTag).(*Module)
-				deps.WholeStaticLibs = append(deps.WholeStaticLibs, coverage.OutputFile().Path())
+				coverage := ctx.GetDirectDepProxyWithTag(getGcovProfileLibraryName(ctx), CoverageDepTag)
+				deps.WholeStaticLibs = append(deps.WholeStaticLibs, android.OutputFileForModule(ctx, coverage, ""))
 				flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--wrap,getenv")
 			}
 		} else if clangCoverage {

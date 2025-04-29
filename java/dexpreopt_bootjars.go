@@ -540,7 +540,7 @@ func (dbj *dexpreoptBootJars) DepsMutator(ctx android.BottomUpMutatorContext) {
 // This dependency will be used to get the path to the deapexed dex boot jars and profile (via a provider)
 func addDependenciesOntoSelectedBootImageApexes(ctx android.BottomUpMutatorContext, apexes ...string) {
 	psi := android.PrebuiltSelectionInfoMap{}
-	ctx.VisitDirectDepsWithTag(apexContributionsMetadataDepTag, func(am android.Module) {
+	ctx.VisitDirectDepsProxyWithTag(apexContributionsMetadataDepTag, func(am android.ModuleProxy) {
 		if info, exists := android.OtherModuleProvider(ctx, am, android.PrebuiltSelectionInfoProvider); exists {
 			psi = info
 		}

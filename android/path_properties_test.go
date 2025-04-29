@@ -55,7 +55,7 @@ func pathDepsMutatorTestModuleFactory() Module {
 }
 
 func (p *pathDepsMutatorTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
-	ctx.VisitDirectDeps(func(dep Module) {
+	ctx.VisitDirectDepsProxy(func(dep ModuleProxy) {
 		if _, ok := ctx.OtherModuleDependencyTag(dep).(sourceOrOutputDependencyTag); ok {
 			p.sourceDeps = append(p.sourceDeps, ctx.OtherModuleName(dep))
 		}

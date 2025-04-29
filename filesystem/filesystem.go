@@ -1115,7 +1115,9 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (android.Path, and
 			addPath("avb_key_path", key)
 		}
 		addStr("partition_name", f.partitionName())
-		addStr("avb_add_hashtree_footer_args", f.getAvbAddHashtreeFooterArgs(ctx))
+		avbAddHashTreeFooterArgs, avbAddHashTreeFooterDeps := f.getAvbAddHashtreeFooterArgs(ctx)
+		addStr("avb_add_hashtree_footer_args", avbAddHashTreeFooterArgs)
+		deps = append(deps, avbAddHashTreeFooterDeps...)
 	}
 
 	if f.properties.File_contexts != nil && f.properties.Precompiled_file_contexts != nil {
@@ -1200,6 +1202,7 @@ func (f *filesystem) buildPropFileForMiscInfo(ctx android.ModuleContext) android
 	addStr := func(name string, value string) {
 		lines = append(lines, fmt.Sprintf("%s=%s", name, value))
 	}
+	var deps android.Paths
 
 	addStr("use_dynamic_partition_size", "true")
 	addStr("ext_mkuserimg", "mkuserimg_mke2fs")
@@ -1209,7 +1212,9 @@ func (f *filesystem) buildPropFileForMiscInfo(ctx android.ModuleContext) android
 
 	if proptools.Bool(f.properties.Use_avb) {
 		addStr("avb_"+f.partitionName()+"_hashtree_enable", "true")
-		addStr("avb_"+f.partitionName()+"_add_hashtree_footer_args", strings.TrimSpace(f.getAvbAddHashtreeFooterArgs(ctx)))
+		avbAddHashTreeFooterArgs, avbAddHashTreeFooterDeps := f.getAvbAddHashtreeFooterArgs(ctx)
+		addStr("avb_"+f.partitionName()+"_add_hashtree_footer_args", strings.TrimSpace(avbAddHashTreeFooterArgs))
+		deps = append(deps, avbAddHashTreeFooterDeps...)
 	}
 
 	if f.selinuxFc != nil {
@@ -1260,15 +1265,21 @@ func (f *filesystem) buildPropFileForMiscInfo(ctx android.ModuleContext) android
 	android.WriteFileRule(ctx, propFilePreProcessing, strings.Join(lines, "\n"))
 	propFile := android.PathForModuleOut(ctx, "prop_file_for_misc_info")
 	ctx.Build(pctx, android.BuildParams{
-		Rule:   textFileProcessorRule,
-		Input:  propFilePreProcessing,
-		Output: propFile,
+		Rule:      textFileProcessorRule,
+		Input:     propFilePreProcessing,
+		Output:    propFile,
+		Implicits: deps,
 	})
 
 	return propFile
 }
 
-func (f *filesystem) getAvbAddHashtreeFooterArgs(ctx android.ModuleContext) string {
+// Returns the avb_add_hashtree_footer_args value for this module. This value depends on the
+// contents of some other files, which will be returned as the second return value, and must
+// be tracked as implicit deps. The result should also be passed through textFileProcessorRule
+// to read the files and incorporate the results into the args.
+func (f *filesystem) getAvbAddHashtreeFooterArgs(ctx android.ModuleContext) (string, android.Paths) {
+	var deps android.Paths
 	avb_add_hashtree_footer_args := ""
 	if !proptools.BoolDefault(f.properties.Use_fec, true) {
 		avb_add_hashtree_footer_args += " --do_not_generate_fec"
@@ -1288,13 +1299,15 @@ func (f *filesystem) getAvbAddHashtreeFooterArgs(ctx android.ModuleContext) stri
 	// number.
 	if ctx.Module().UseGenericConfig() {
 		avb_add_hashtree_footer_args += fmt.Sprintf(" --prop com.android.build.%s.fingerprint:{CONTENTS_OF:%s}", f.partitionName(), ctx.Config().BuildThumbprintFile(ctx))
+		deps = append(deps, ctx.Config().BuildThumbprintFile(ctx))
 	} else {
 		avb_add_hashtree_footer_args += fmt.Sprintf(" --prop com.android.build.%s.fingerprint:{CONTENTS_OF:%s}", f.partitionName(), ctx.Config().BuildFingerprintFile(ctx))
+		deps = append(deps, ctx.Config().BuildFingerprintFile(ctx))
 	}
 	if f.properties.Security_patch != nil && proptools.String(f.properties.Security_patch) != "" {
 		avb_add_hashtree_footer_args += fmt.Sprintf(" --prop com.android.build.%s.security_patch:%s", f.partitionName(), proptools.String(f.properties.Security_patch))
 	}
-	return avb_add_hashtree_footer_args
+	return avb_add_hashtree_footer_args, deps
 }
 
 // This method checks if there is any property set for the fstype(s) other than

@@ -1128,7 +1128,7 @@ func getAvbInfo(config android.Config, partitionType string) avbInfo {
 }
 
 func (f *filesystemCreator) createFileListDiffTest(ctx android.ModuleContext, partitionType string, partitionModuleName string) android.Path {
-	partitionImage := ctx.GetDirectDepWithTag(partitionModuleName, generatedFilesystemDepTag)
+	partitionImage := ctx.GetDirectDepProxyWithTag(partitionModuleName, generatedFilesystemDepTag)
 	filesystemInfo, ok := android.OtherModuleProvider(ctx, partitionImage, filesystem.FilesystemProvider)
 	if !ok {
 		ctx.ModuleErrorf("Expected module %s to provide FileysystemInfo", partitionModuleName)
@@ -1160,7 +1160,7 @@ func createFailingCommand(ctx android.ModuleContext, message string) android.Pat
 }
 
 func createVbmetaDiff(ctx android.ModuleContext, vbmetaModuleName string, vbmetaPartitionName string) android.Path {
-	vbmetaModule := ctx.GetDirectDepWithTag(vbmetaModuleName, generatedVbmetaPartitionDepTag)
+	vbmetaModule := ctx.GetDirectDepProxyWithTag(vbmetaModuleName, generatedVbmetaPartitionDepTag)
 	outputFilesProvider, ok := android.OtherModuleProvider(ctx, vbmetaModule, android.OutputFilesProvider)
 	if !ok {
 		ctx.ModuleErrorf("Expected module %s to provide OutputFiles", vbmetaModule)

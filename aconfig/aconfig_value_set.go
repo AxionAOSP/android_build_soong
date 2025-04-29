@@ -15,9 +15,10 @@
 package aconfig
 
 import (
-	"android/soong/android"
 	"fmt"
 	"strings"
+
+	"android/soong/android"
 
 	"github.com/google/blueprint"
 )
@@ -106,7 +107,7 @@ func (module *ValueSetModule) GenerateAndroidBuildActions(ctx android.ModuleCont
 	// valueSetProviderKey provider that aconfig modules can read and use
 	// to append values to their aconfig actions.
 	packages := make(map[string]android.Paths)
-	ctx.VisitDirectDeps(func(dep android.Module) {
+	ctx.VisitDirectDepsProxy(func(dep android.ModuleProxy) {
 		if depData, ok := android.OtherModuleProvider(ctx, dep, valuesProviderKey); ok {
 			srcs := make([]android.Path, len(depData.Values))
 			copy(srcs, depData.Values)

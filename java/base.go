@@ -100,6 +100,9 @@ type CommonProperties struct {
 	// list of java libraries that will be compiled into the resulting jar
 	Static_libs proptools.Configurable[[]string] `android:"arch_variant"`
 
+	// List of Kotlin libraries whose `internal` members are accessible to this library
+	Associates []string `android:"arch_variant"`
+
 	// manifest file to be included in resulting jar
 	Manifest *string `android:"path"`
 
@@ -1386,6 +1389,11 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		}
 		flags.kotlincDeps = append(flags.kotlincDeps, deps.kotlinPlugins...)
 
+		// TODO(b/403236545): Remove this once the Kotlin compiler version is >= 2.2.0.
+		if j.useCompose(ctx) {
+			kotlincFlags = append(kotlincFlags, "-P", "plugin:androidx.compose.compiler.plugins.kotlin:featureFlag=+OptimizeNonSkippingGroups")
+		}
+
 		if len(kotlincFlags) > 0 {
 			// optimization.
 			ctx.Variable(pctx, "kotlincFlags", strings.Join(kotlincFlags, " "))
@@ -1967,6 +1975,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		RepackagedHeaderJars: android.PathsIfNonNil(repackagedHeaderJarFile),
 
 		LocalHeaderJars:                        localHeaderJars,
+		KotlinHeaderJars:                       kotlinHeaderJars,
 		TransitiveStaticLibsHeaderJars:         depset.New(depset.PREORDER, localHeaderJars, transitiveStaticLibsHeaderJars),
 		TransitiveStaticLibsImplementationJars: completeStaticLibsImplementationJars,
 		TransitiveStaticLibsResourceJars:       completeStaticLibsResourceJars,
@@ -2925,6 +2934,15 @@ func (this Module) GetDebugString() string {
 // Merge the jarjar rules we inherit from our dependencies, any that have been added directly to
 // us, and if it's been set, apply the jarjar_prefix property to rename them.
 func (module *Module) collectJarJarRules(ctx android.ModuleContext) *JarJarProviderData {
+
+	// Stop collect jarjar_prefix jarjar rules if the module has test sdk scope.
+	// If a module uses test API scope, which means in its source code and static dependencies
+	// it could only use API exposed through the test surface. So it should not apply the jarjar
+	// rules set by any bootclass path jar
+	if ctx.Config().ReleaseJarjarFlagsInFramework() && module.SdkVersion(ctx).Kind == android.SdkTest {
+		return nil
+	}
+
 	// Gather repackage information from deps
 	result := collectDirectDepsProviders(ctx)
 

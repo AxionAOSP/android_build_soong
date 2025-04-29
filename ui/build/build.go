@@ -367,7 +367,7 @@ func Build(ctx Context, config Config) {
 	genKatiSuffix(ctx, config)
 
 	if what&RunSoong != 0 {
-		runSoong(ctx, config)
+		runSoong(ctx, config, what&RunBuildTests != 0)
 	}
 
 	if what&RunKati != 0 {

@@ -521,3 +521,95 @@ func TestKotlinPlugin(t *testing.T) {
 	android.AssertStringDoesNotContain(t, "unexpected kotlin plugin",
 		noKotlinPlugin.VariablesForTestsRelativeToTop()["kotlincFlags"], "-Xplugin="+kotlinPlugin.String())
 }
+
+func TestKotlinAssociates(t *testing.T) {
+	t.Parallel()
+
+	targets := []string{"FooUtils", "FooTest"}
+	for _, target := range targets {
+		t.Run("Successful associate linking of "+target, func(t *testing.T) {
+			t.Parallel()
+			bp := `
+				java_library {
+					name: "Foo",
+					srcs: ["Foo.kt"],
+				}
+
+				java_library {
+					name: "FooUtils",
+					srcs: ["FooUtils.kt"],
+					libs: ["Foo"],
+					associates: ["Foo"],
+				}
+
+				java_test {
+					name: "FooTest",
+					srcs: ["FooTest.kt"],
+					static_libs: ["Foo"],
+					associates: ["Foo"],
+				}
+			`
+			result := android.GroupFixturePreparers(
+				PrepareForTestWithJavaDefaultModules,
+			).RunTestWithBp(t, bp)
+
+			module := result.ModuleForTests(t, target, "android_common")
+			kotlincRule := module.Rule("kotlinc")
+			expectedFriendPath := "out/soong/.intermediates/Foo/android_common/kotlin_headers/Foo.jar"
+			expectedFlag := "-Xfriend-paths=" + expectedFriendPath
+
+			kotlincFlags := kotlincRule.Args["kotlincFlags"]
+			if !strings.Contains(kotlincFlags, expectedFlag) {
+				t.Errorf("kotlincFlags missing expected friend path:\n  Flags: %s\n  Expected: %s", kotlincFlags, expectedFlag)
+			}
+
+			classpathRspFile := module.Output("kotlinc/classpath.rsp")
+			classpathContent := android.ContentFromFileRuleForTests(t, result.TestContext, classpathRspFile)
+			classpathEntries := strings.Fields(classpathContent)
+			android.AssertStringPathRelativeToTopEquals(t, "first classpath entry", result.Config, expectedFriendPath, classpathEntries[0])
+		})
+	}
+
+	t.Run("Error: Associate not a dependency", func(t *testing.T) {
+		t.Parallel()
+		bp := `
+				java_library {
+					name: "Foo",
+					srcs: ["Foo.kt"],
+				}
+
+				java_library {
+					name: "FooUtils",
+					srcs: ["FooUtils.kt"],
+					associates: ["Foo"],
+				}
+			`
+		android.GroupFixturePreparers(
+			PrepareForTestWithJavaDefaultModules,
+		).ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+			`\QAssociates: associate module 'Foo' must also be listed as a direct dependency\E`,
+		)).RunTestWithBp(t, bp)
+	})
+
+	t.Run("Error: Associate not a Kotlin module", func(t *testing.T) {
+		t.Parallel()
+		bp := `
+				java_library {
+					name: "Foo",
+					srcs: ["Foo.java"],
+				}
+
+				java_library {
+					name: "FooUtils",
+					srcs: ["FooUtils.kt"],
+					libs: ["Foo"],
+					associates: ["Foo"],
+				}
+			`
+		android.GroupFixturePreparers(
+			PrepareForTestWithJavaDefaultModules,
+		).ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+			`\QAssociates: associate module 'Foo' is not a Kotlin module\E`,
+		)).RunTestWithBp(t, bp)
+	})
+}

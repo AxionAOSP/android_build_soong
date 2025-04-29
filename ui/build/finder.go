@@ -63,7 +63,7 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 	// Set up configuration parameters for the Finder cache.
 	cacheParams := finder.CacheParams{
 		WorkingDirectory: dir,
-		RootDirs:         androidBpSearchDirs(config),
+		RootDirs:         []string{"."},
 		FollowSymlinks:   config.environ.IsEnvTrue("ALLOW_BP_UNDER_SYMLINKS"),
 		ExcludeDirs:      []string{".git", ".repo"},
 		PruneFiles:       pruneFiles,
@@ -104,15 +104,6 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 		ctx.Fatalf("Could not create module-finder: %v", err)
 	}
 	return f
-}
-
-func androidBpSearchDirs(config Config) []string {
-	dirs := []string{"."} // always search from root of source tree.
-	if config.searchApiDir {
-		// Search in out/api_surfaces
-		dirs = append(dirs, config.ApiSurfacesOutDir())
-	}
-	return dirs
 }
 
 func findProductAndBoardConfigFiles(entries finder.DirEntries) (dirNames []string, fileNames []string) {

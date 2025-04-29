@@ -533,7 +533,7 @@ func visibilityRuleEnforcer(ctx BottomUpMutatorContext) {
 	qualified := createVisibilityModuleReference(ctx.ModuleName(), ctx.ModuleDir(), ctx.Module())
 
 	// Visit all the dependencies making sure that this module has access to them all.
-	ctx.VisitDirectDeps(func(dep Module) {
+	ctx.VisitDirectDepsProxy(func(dep ModuleProxy) {
 		// Ignore dependencies that have an ExcludeFromVisibilityEnforcementTag
 		tag := ctx.OtherModuleDependencyTag(dep)
 		if _, ok := tag.(ExcludeFromVisibilityEnforcementTag); ok {
