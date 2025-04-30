@@ -367,7 +367,7 @@ type overridableProperties struct {
 	Prebuilts proptools.Configurable[[]string]
 
 	// List of BPF programs inside this APEX bundle.
-	Bpfs []string
+	Bpfs proptools.Configurable[[]string]
 
 	// Names of modules to be overridden. Listed modules can only be other binaries (in Make or
 	// Soong). This does not completely prevent installation of the overridden binaries, but if
@@ -981,7 +981,7 @@ func (a *apexBundle) OverridablePropertiesDepsMutator(ctx android.BottomUpMutato
 
 	commonVariation := ctx.Config().AndroidCommonTarget.Variations()
 	ctx.AddFarVariationDependencies(commonVariation, androidAppTag, a.overridableProperties.Apps.GetOrDefault(ctx, nil)...)
-	ctx.AddFarVariationDependencies(commonVariation, bpfTag, a.overridableProperties.Bpfs...)
+	ctx.AddFarVariationDependencies(commonVariation, bpfTag, a.overridableProperties.Bpfs.GetOrDefault(ctx, nil)...)
 	if prebuilts := a.overridableProperties.Prebuilts.GetOrDefault(ctx, nil); len(prebuilts) > 0 {
 		// For prebuilt_etc, use the first variant (64 on 64/32bit device, 32 on 32bit device)
 		// regardless of the TARGET_PREFER_* setting. See b/144532908

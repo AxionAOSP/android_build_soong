@@ -247,12 +247,6 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		toolchain.ToolchainLdflags(),
 		productExtraLdflags,
 	}, " "))
-	ctx.Strict(clangPrefix+"GLOBAL_LLDFLAGS", strings.Join([]string{
-		fmt.Sprintf("${config.%sGlobalLldflags}", hod),
-		toolchain.Lldflags(),
-		toolchain.ToolchainLdflags(),
-		productExtraLdflags,
-	}, " "))
 
 	if target.Os.Class == android.Device {
 		for variable, value := range sanitizerVariables {

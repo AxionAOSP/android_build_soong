@@ -129,7 +129,7 @@ func main() {
 			panic(err)
 		}
 	}
-	if err = config.WritePartitionBuildFlags(outputDir); err != nil {
+	if err = config.WritePartitionBuildFlags(product, outputDir); err != nil {
 		panic(err)
 	}
 

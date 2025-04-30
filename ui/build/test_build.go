@@ -87,7 +87,7 @@ func testForDanglingRules(ctx Context, config Config) {
 
 	// out/target/product/<xxxxx>/build_fingerprint.txt is a source file created in sysprop.mk
 	// ^out/target/product/[^/]+/build_fingerprint.txt$
-	buildFingerPrintFilePattern := regexp.MustCompile("^" + filepath.Join(outDir, "target", "product") + "/[^/]+/build_fingerprint.txt$")
+	buildFingerPrintFilePattern := regexp.MustCompile("^" + filepath.Join(outDir, "target", "product") + "/[^/]+/build_(fingerprint|thumbprint).txt$")
 
 	danglingRules := make(map[string]bool)
 

@@ -87,7 +87,7 @@ func (t *toolchainLinuxX8664) Name() string {
 
 func (t *toolchainLinuxX8664) ToolchainLinkFlags() string {
 	// Prepend the lld flags from cc_config so we stay in sync with cc
-	return "${cc_config.LinuxLldflags} ${cc_config.LinuxX8664Lldflags} " +
+	return "${cc_config.LinuxLdflags} ${cc_config.LinuxX8664Ldflags} " +
 		"${config.LinuxToolchainLinkFlags} ${config.LinuxToolchainX8664LinkFlags}"
 }
 
@@ -170,7 +170,7 @@ func (toolchainLinuxX8664) LibclangRuntimeLibraryArch() string {
 
 func (t *toolchainLinuxX86) ToolchainLinkFlags() string {
 	// Prepend the lld flags from cc_config so we stay in sync with cc
-	return "${cc_config.LinuxLldflags} ${cc_config.LinuxX86Lldflags} " +
+	return "${cc_config.LinuxLdflags} ${cc_config.LinuxX86Ldflags} " +
 		"${config.LinuxToolchainLinkFlags} ${config.LinuxToolchainX86LinkFlags}"
 }
 

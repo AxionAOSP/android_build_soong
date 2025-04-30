@@ -83,7 +83,7 @@ var (
 
 	deviceGlobalLinkFlags = []string{
 		// Prepend the lld flags from cc_config so we stay in sync with cc
-		"${cc_config.DeviceGlobalLldflags}",
+		"${cc_config.DeviceGlobalLdflags}",
 
 		// Override cc's --no-undefined-version to allow rustc's generated alloc functions
 		"-Wl,--undefined-version",
@@ -138,7 +138,7 @@ func init() {
 	pctx.StaticVariable("DEVICE_GLOBAL_LINK_FLAGS",
 		strings.Join(android.RemoveListFromList(deviceGlobalLinkFlags, []string{
 			// The cc_config flags are retrieved from cc_toolchain by rust rules.
-			"${cc_config.DeviceGlobalLldflags}",
+			"${cc_config.DeviceGlobalLdflags}",
 			"-B${cc_config.ClangBin}",
 		}), " "))
 }

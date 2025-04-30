@@ -735,7 +735,6 @@ type ModuleContextIntf interface {
 	isCfi() bool
 	isFuzzer() bool
 	isNDKStubLibrary() bool
-	useClangLld(actx ModuleContext) bool
 	apexVariationName() string
 	bootstrap() bool
 	nativeCoverage() bool
@@ -815,7 +814,6 @@ type linker interface {
 	linkerFlags(ctx ModuleContext, flags Flags) Flags
 	linkerProps() []interface{}
 	baseLinkerProps() BaseLinkerProperties
-	useClangLld(actx ModuleContext) bool
 
 	link(ctx ModuleContext, flags Flags, deps PathDeps, objs Objects) android.Path
 	appendLdflags([]string)
@@ -1939,10 +1937,6 @@ func (ctx *moduleContextImpl) selectedStl() string {
 		return stl.Properties.SelectedStl
 	}
 	return ""
-}
-
-func (ctx *moduleContextImpl) useClangLld(actx ModuleContext) bool {
-	return ctx.mod.linker.useClangLld(actx)
 }
 
 func (ctx *moduleContextImpl) baseModuleName() string {

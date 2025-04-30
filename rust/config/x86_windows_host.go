@@ -82,7 +82,7 @@ func (t *toolchainWindowsX86) Name() string {
 
 func (t *toolchainWindowsX86) ToolchainLinkFlags() string {
 	// Prepend the lld flags from cc_config so we stay in sync with cc
-	return "${cc_config.WindowsLldflags} ${cc_config.WindowsX86Ldflags} ${cc_config.WindowsAvailableLibraries} " +
+	return "${cc_config.WindowsLdflags} ${cc_config.WindowsX86Ldflags} ${cc_config.WindowsAvailableLibraries} " +
 		"${config.WindowsToolchainRustLinkFlags} ${config.WindowsX86ToolchainRustLinkFlags}"
 }
 
@@ -149,7 +149,7 @@ func (t *toolchainWindowsX8664) Name() string {
 
 func (t *toolchainWindowsX8664) ToolchainLinkFlags() string {
 	// Prepend the lld flags from cc_config so we stay in sync with cc
-	return "${cc_config.WindowsLldflags} ${cc_config.WindowsX8664Ldflags} ${cc_config.WindowsAvailableLibraries} " +
+	return "${cc_config.WindowsLdflags} ${cc_config.WindowsX8664Ldflags} ${cc_config.WindowsAvailableLibraries} " +
 		"${config.WindowsToolchainRustLinkFlags} ${config.WindowsX8664ToolchainRustLinkFlags}"
 }
 

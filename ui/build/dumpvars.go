@@ -300,6 +300,7 @@ func runMakeProductConfig(ctx Context, config Config) {
 		"BUILD_BROKEN_USES_BUILD_STATIC_JAVA_LIBRARY",
 		"BUILD_BROKEN_USES_BUILD_STATIC_LIBRARY",
 		"RELEASE_BUILD_EXECUTION_METRICS",
+		"RELEASE_SRC_DIR_IS_READ_ONLY",
 	}, exportEnvVars...), BannerVars...)
 
 	makeVars, err := dumpMakeVars(ctx, config, config.Arguments(), allVars, true, "")
@@ -321,7 +322,15 @@ func runMakeProductConfig(ctx Context, config Config) {
 	config.SetNinjaArgs(strings.Fields(makeVars["NINJA_GOALS"]))
 	config.SetTargetDevice(makeVars["TARGET_DEVICE"])
 	config.SetTargetDeviceDir(makeVars["TARGET_DEVICE_DIR"])
-	config.sandboxConfig.SetSrcDirIsRO(makeVars["BUILD_BROKEN_SRC_DIR_IS_WRITABLE"] == "false")
+	if makeVars["RELEASE_SRC_DIR_IS_READ_ONLY"] == "true" {
+		// If the release config says source is read-only, then make it read-write only if
+		// BUILD_BROKEN_SRC_DIR_IS_WRITABLE=true.
+		config.sandboxConfig.SetSrcDirIsRO(makeVars["BUILD_BROKEN_SRC_DIR_IS_WRITABLE"] != "true")
+	} else {
+		// If the release config says source is not read-only, then make it read-only only if
+		// BUILD_BROKEN_SRC_DIR_IS_WRITABLE=false.
+		config.sandboxConfig.SetSrcDirIsRO(makeVars["BUILD_BROKEN_SRC_DIR_IS_WRITABLE"] == "false")
+	}
 	config.sandboxConfig.SetSrcDirRWAllowlist(strings.Fields(makeVars["BUILD_BROKEN_SRC_DIR_RW_ALLOWLIST"]))
 
 	config.SetBuildBrokenDupRules(makeVars["BUILD_BROKEN_DUP_RULES"] == "true")

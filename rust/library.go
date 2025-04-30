@@ -824,7 +824,7 @@ func (library *libraryDecorator) getApiStubsCcFlags(ctx ModuleContext) cc.Flags 
 	minSdkVersion := cc.MinSdkVersion(ctx.RustModule(), cc.CtxIsForPlatform(ctx), ctx.Device(), platformSdkVersion)
 
 	// Collect common CC compilation flags
-	ccFlags = cc.CommonLinkerFlags(ctx, ccFlags, true, toolchain, false)
+	ccFlags = cc.CommonLinkerFlags(ctx, ccFlags, toolchain, false)
 	ccFlags = cc.CommonLibraryLinkerFlags(ctx, ccFlags, toolchain, library.getStem(ctx))
 	ccFlags = cc.AddStubLibraryCompilerFlags(ccFlags)
 	ccFlags = cc.AddTargetFlags(ctx, ccFlags, toolchain, minSdkVersion, false)

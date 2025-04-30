@@ -508,7 +508,7 @@ func (config *ReleaseConfig) WriteMakefile(outFile, targetRelease string, config
 	return os.WriteFile(outFile, []byte(data), 0644)
 }
 
-func (config *ReleaseConfig) WritePartitionBuildFlags(outDir string) error {
+func (config *ReleaseConfig) WritePartitionBuildFlags(product string, outDir string) error {
 	var err error
 	for partition, flags := range config.PartitionBuildFlags {
 		slices.SortFunc(flags.Flags, func(a, b *rc_proto.FlagArtifact) int {
@@ -516,7 +516,7 @@ func (config *ReleaseConfig) WritePartitionBuildFlags(outDir string) error {
 		})
 		// The json file name must not be modified as this is read from
 		// build_flags_json module
-		if err = WriteMessage(filepath.Join(outDir, fmt.Sprintf("build_flags_%s.json", partition)), flags); err != nil {
+		if err = WriteMessage(filepath.Join(outDir, fmt.Sprintf("build_flags_%s-%s.json", product, partition)), flags); err != nil {
 			return err
 		}
 	}
