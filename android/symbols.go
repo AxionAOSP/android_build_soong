@@ -15,14 +15,23 @@
 package android
 
 import (
-	"fmt"
-
 	"github.com/google/blueprint"
 )
+
+func init() {
+	pctx.HostBinToolVariable("symbols_map", "symbols_map")
+}
 
 var zipFiles = pctx.AndroidStaticRule("SnapshotZipFiles", blueprint.RuleParams{
 	Command:        `${SoongZipCmd}  -r $out.rsp -o $out`,
 	CommandDeps:    []string{"${SoongZipCmd}"},
+	Rspfile:        "$out.rsp",
+	RspfileContent: "$in",
+})
+
+var mergeSymbolsMapProtos = pctx.AndroidStaticRule("merge_symbol_map_protos", blueprint.RuleParams{
+	Command:        `${symbols_map} -merge $out @$out.rsp`,
+	CommandDeps:    []string{"${symbols_map}"},
 	Rspfile:        "$out.rsp",
 	RspfileContent: "$in",
 })
@@ -64,7 +73,7 @@ type symbolsContext interface {
 // Defines the build rules to generate the symbols.zip file and the merged elf mapping textproto
 // file. Modules in depModules that provide [SymbolInfosProvider] and are exported to make
 // will be listed in the symbols.zip and the merged proto file.
-func BuildSymbolsZip(ctx symbolsContext, depModules []ModuleOrProxy, iden string, symbolsZipFile, mergedMappingProtoFile WritablePath) {
+func BuildSymbolsZip(ctx symbolsContext, depModules []ModuleOrProxy, symbolsZipFile, mergedMappingProtoFile WritablePath) {
 	var allSymbolicOutputPaths, allElfMappingProtoPaths Paths
 	for _, mod := range depModules {
 		if commonInfo, _ := OtherModuleProvider(ctx, mod, CommonModuleInfoProvider); commonInfo.SkipAndroidMkProcessing {
@@ -84,12 +93,9 @@ func BuildSymbolsZip(ctx symbolsContext, depModules []ModuleOrProxy, iden string
 		Output: symbolsZipFile,
 	})
 
-	dictMappingBuilder := NewRuleBuilder(pctx, ctx)
-	dictMappingBuilder.Command().
-		BuiltTool("symbols_map").
-		Flag("-merge").
-		Output(mergedMappingProtoFile).
-		Inputs(allElfMappingProtoPaths)
-
-	dictMappingBuilder.Build(fmt.Sprintf("%s_symbols_elf_dict_mapping_proto", iden), fmt.Sprintf("Building symbols mapping proto for %s", iden))
+	ctx.Build(pctx, BuildParams{
+		Rule:   mergeSymbolsMapProtos,
+		Output: mergedMappingProtoFile,
+		Inputs: allElfMappingProtoPaths,
+	})
 }

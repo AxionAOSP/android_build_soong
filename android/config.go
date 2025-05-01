@@ -435,7 +435,6 @@ var defaultPartialCompileFlags = partialCompileFlags{}
 var enabledPartialCompileFlags = partialCompileFlags{
 	Use_d8:                  true,
 	Disable_stub_validation: true,
-	Enable_inc_javac:        true,
 }
 
 // These are the flags when `SOONG_PARTIAL_COMPILE=all`.
@@ -1375,7 +1374,7 @@ func (c *config) UnbundledBuild() bool {
 
 // Returns true if building apps that aren't bundled with the platform.
 // UnbundledBuild() is always true when this is true.
-func (c *config) UnbundledBuildApps() bool {
+func (c *config) HasUnbundledBuildApps() bool {
 	return len(c.productVariables.Unbundled_build_apps) > 0
 }
 
@@ -2027,7 +2026,7 @@ func (c *config) ForceApexSymlinkOptimization() bool {
 }
 
 func (c *config) ApexCompressionEnabled() bool {
-	return Bool(c.productVariables.CompressedApex) && !c.UnbundledBuildApps()
+	return Bool(c.productVariables.CompressedApex) && !c.HasUnbundledBuildApps()
 }
 
 func (c *config) DefaultApexPayloadType() string {
@@ -2220,10 +2219,6 @@ func (c *deviceConfig) BuildBrokenDontCheckSystemSdk() bool {
 
 func (c *deviceConfig) BuildBrokenDupSysprop() bool {
 	return c.config.productVariables.BuildBrokenDupSysprop
-}
-
-func (c *deviceConfig) GenruleSandboxing() bool {
-	return Bool(c.config.productVariables.GenruleSandboxing)
 }
 
 func (c *deviceConfig) RequiresInsecureExecmemForSwiftshader() bool {

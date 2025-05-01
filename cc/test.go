@@ -441,7 +441,7 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 		})
 
 		for _, standaloneTestDep := range packagingSpecsBuilder.Build().ToList() {
-			if standaloneTestDep.ToGob().SrcPath == nil {
+			if standaloneTestDep.SrcPath() == nil {
 				continue
 			}
 			if standaloneTestDep.SkipInstall() {

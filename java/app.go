@@ -1044,7 +1044,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	a.linter.mergedManifest = a.aapt.mergedManifestFile
 	a.linter.manifest = a.aapt.manifestPath
 	a.linter.resources = a.aapt.resourceFiles
-	a.linter.buildModuleReportZip = ctx.Config().UnbundledBuildApps()
+	a.linter.buildModuleReportZip = ctx.Config().HasUnbundledBuildApps()
 
 	dexJarFile, packageResources, javaInfo := a.dexBuildActions(ctx)
 

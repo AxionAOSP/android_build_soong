@@ -19,7 +19,6 @@ import (
 	"os"
 	"regexp"
 	"strconv"
-	"strings"
 	"testing"
 
 	"android/soong/android"
@@ -435,9 +434,6 @@ func TestGenruleCmd(t *testing.T) {
 				prepareForGenRuleTest,
 				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 					variables.Allow_missing_dependencies = proptools.BoolPtr(test.allowMissingDependencies)
-				}),
-				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
-					variables.GenruleSandboxing = proptools.BoolPtr(true)
 				}),
 				android.FixtureModifyContext(func(ctx *android.TestContext) {
 					ctx.SetAllowMissingDependencies(test.allowMissingDependencies)
@@ -1190,7 +1186,7 @@ func TestGenruleWithGlobPaths(t *testing.T) {
 	}
 }
 
-func TestGenruleUsesOrderOnlyBuildNumberFile(t *testing.T) {
+func TestGenruleUsesOrderOnlyBuildNumberOrDateFile(t *testing.T) {
 	testCases := []struct {
 		name            string
 		bp              string
@@ -1199,7 +1195,7 @@ func TestGenruleUsesOrderOnlyBuildNumberFile(t *testing.T) {
 		expectedCommand string
 	}{
 		{
-			name: "not allowed when not in allowlist",
+			name: "buld number not allowed when not in allowlist",
 			fs: android.MockFS{
 				"foo/Android.bp": []byte(`
 genrule {
@@ -1213,7 +1209,7 @@ genrule {
 			expectedError: `Only allowlisted modules may use uses_order_only_build_number_file: true`,
 		},
 		{
-			name: "normal",
+			name: "build number normal",
 			fs: android.MockFS{
 				"build/soong/tests/Android.bp": []byte(`
 genrule {
@@ -1224,44 +1220,10 @@ genrule {
 }
 `),
 			},
-			expectedCommand: `cp BUILD_NUMBER_FILE __SBOX_SANDBOX_DIR__/out/out.txt`,
+			expectedCommand: `cp __SBOX_SANDBOX_DIR__/out/soong/build_number.txt __SBOX_SANDBOX_DIR__/out/out.txt`,
 		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			fixtures := android.GroupFixturePreparers(
-				prepareForGenRuleTest,
-				android.PrepareForTestWithVisibility,
-				android.FixtureMergeMockFs(tc.fs),
-				android.FixtureModifyConfigAndContext(func(config android.Config, ctx *android.TestContext) {
-					config.TestProductVariables.BuildNumberFile = proptools.StringPtr("build_number.txt")
-				}),
-			)
-			if tc.expectedError != "" {
-				fixtures = fixtures.ExtendWithErrorHandler(android.FixtureExpectsOneErrorPattern(tc.expectedError))
-			}
-			result := fixtures.RunTest(t)
-
-			if tc.expectedError == "" {
-				tc.expectedCommand = strings.ReplaceAll(tc.expectedCommand, "BUILD_NUMBER_FILE", result.Config.SoongOutDir()+"/build_number.txt")
-				gen := result.Module("gen", "").(*Module)
-				android.AssertStringEquals(t, "raw commands", tc.expectedCommand, gen.rawCommands[0])
-			}
-		})
-	}
-}
-
-func TestGenruleUsesOrderOnlyBuildDateFile(t *testing.T) {
-	testCases := []struct {
-		name            string
-		bp              string
-		fs              android.MockFS
-		expectedError   string
-		expectedCommand string
-	}{
 		{
-			name: "not allowed when not in allowlist",
+			name: "build date not allowed when not in allowlist",
 			fs: android.MockFS{
 				"foo/Android.bp": []byte(`
 				genrule {
@@ -1275,7 +1237,7 @@ func TestGenruleUsesOrderOnlyBuildDateFile(t *testing.T) {
 			expectedError: `Only allowlisted modules may use uses_order_only_build_date_file: true`,
 		},
 		{
-			name: "normal",
+			name: "build date normal",
 			fs: android.MockFS{
 				"build/soong/tests/Android.bp": []byte(`
 				genrule {
@@ -1286,7 +1248,7 @@ func TestGenruleUsesOrderOnlyBuildDateFile(t *testing.T) {
 				}
 				`),
 			},
-			expectedCommand: `cp BUILD_DATE_FILE __SBOX_SANDBOX_DIR__/out/out.txt`,
+			expectedCommand: `cp __SBOX_SANDBOX_DIR__/out/build_date.txt __SBOX_SANDBOX_DIR__/out/out.txt`,
 		},
 	}
 
@@ -1296,6 +1258,9 @@ func TestGenruleUsesOrderOnlyBuildDateFile(t *testing.T) {
 				prepareForGenRuleTest,
 				android.PrepareForTestWithVisibility,
 				android.FixtureMergeMockFs(tc.fs),
+				android.FixtureModifyConfigAndContext(func(config android.Config, ctx *android.TestContext) {
+					config.TestProductVariables.BuildNumberFile = proptools.StringPtr("build_number.txt")
+				}),
 				android.SetBuildDateFileEnvVarForTests(),
 			)
 			if tc.expectedError != "" {
@@ -1304,7 +1269,6 @@ func TestGenruleUsesOrderOnlyBuildDateFile(t *testing.T) {
 			result := fixtures.RunTest(t)
 
 			if tc.expectedError == "" {
-				tc.expectedCommand = strings.ReplaceAll(tc.expectedCommand, "BUILD_DATE_FILE", result.Config.OutDir()+"/build_date.txt")
 				gen := result.Module("gen", "").(*Module)
 				android.AssertStringEquals(t, "raw commands", tc.expectedCommand, gen.rawCommands[0])
 			}

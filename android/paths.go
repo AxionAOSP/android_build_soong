@@ -28,6 +28,8 @@ import (
 	"github.com/google/blueprint/pathtools"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go -source paths.go
+
 var absSrcDir string
 
 // PathContext is the subset of a (Module|Singleton)Context required by the
@@ -1212,34 +1214,10 @@ func (p WritablePaths) Paths() Paths {
 	return ret
 }
 
+// @auto-generate: gob
 type basePath struct {
 	path string
 	rel  string
-}
-
-type basePathGob struct {
-	Path string
-	Rel  string
-}
-
-func (p *basePath) ToGob() *basePathGob {
-	return &basePathGob{
-		Path: p.path,
-		Rel:  p.rel,
-	}
-}
-
-func (p *basePath) FromGob(data *basePathGob) {
-	p.path = data.Path
-	p.rel = data.Rel
-}
-
-func (p basePath) GobEncode() ([]byte, error) {
-	return gobtools.CustomGobEncode[basePathGob](&p)
-}
-
-func (p *basePath) GobDecode(data []byte) error {
-	return gobtools.CustomGobDecode[basePathGob](data, p)
 }
 
 func (p basePath) Ext() string {
@@ -1273,6 +1251,8 @@ func (p basePath) withoutRel() basePath {
 }
 
 // SourcePath is a Path representing a file path rooted from SrcDir
+//
+// @auto-generate: gob
 type SourcePath struct {
 	basePath
 }
@@ -1456,6 +1436,8 @@ func (p SourcePath) join(ctx PathContext, paths ...string) SourcePath {
 }
 
 // OutputPath is a Path representing an intermediates file path rooted from the build directory
+//
+// @auto-generate: gob
 type OutputPath struct {
 	basePath
 
@@ -1463,34 +1445,6 @@ type OutputPath struct {
 	outDir string
 
 	fullPath string
-}
-
-type outputPathGob struct {
-	BasePath basePath
-	OutDir   string
-	FullPath string
-}
-
-func (p *OutputPath) ToGob() *outputPathGob {
-	return &outputPathGob{
-		BasePath: p.basePath,
-		OutDir:   p.outDir,
-		FullPath: p.fullPath,
-	}
-}
-
-func (p *OutputPath) FromGob(data *outputPathGob) {
-	p.basePath = data.BasePath
-	p.outDir = data.OutDir
-	p.fullPath = data.FullPath
-}
-
-func (p OutputPath) GobEncode() ([]byte, error) {
-	return gobtools.CustomGobEncode[outputPathGob](&p)
-}
-
-func (p *OutputPath) GobDecode(data []byte) error {
-	return gobtools.CustomGobDecode[outputPathGob](data, p)
 }
 
 func (p OutputPath) withRel(rel string) OutputPath {
@@ -1532,6 +1486,7 @@ var _ WritablePath = OutputPath{}
 var _ objPathProvider = OutputPath{}
 
 // toolDepPath is a Path representing a dependency of the build tool.
+// @auto-generate: gob
 type toolDepPath struct {
 	basePath
 }
@@ -1731,6 +1686,7 @@ func (p SourcePath) resPathWithName(ctx ModuleOutPathContext, name string) Modul
 }
 
 // ModuleOutPath is a Path representing a module's output directory.
+// @auto-generate: gob
 type ModuleOutPath struct {
 	OutputPath
 }
@@ -1774,6 +1730,7 @@ func PathForModuleOut(ctx ModuleOutPathContext, paths ...string) ModuleOutPath {
 
 // ModuleGenPath is a Path representing the 'gen' directory in a module's output
 // directory. Mainly used for generated sources.
+// @auto-generate: gob
 type ModuleGenPath struct {
 	ModuleOutPath
 }
@@ -1824,6 +1781,7 @@ func (p ModuleGenPath) objPathWithExt(ctx ModuleOutPathContext, subdir, ext stri
 
 // ModuleObjPath is a Path representing the 'obj' directory in a module's output
 // directory. Used for compiled objects.
+// @auto-generate: gob
 type ModuleObjPath struct {
 	ModuleOutPath
 }
@@ -1848,6 +1806,7 @@ func PathForModuleObj(ctx ModuleOutPathContext, pathComponents ...string) Module
 
 // ModuleResPath is a a Path representing the 'res' directory in a module's
 // output directory.
+// @auto-generate: gob
 type ModuleResPath struct {
 	ModuleOutPath
 }
@@ -1872,6 +1831,8 @@ func PathForModuleRes(ctx ModuleOutPathContext, pathComponents ...string) Module
 }
 
 // InstallPath is a Path representing a installed file path rooted from the build directory
+//
+// @auto-generate: gob
 type InstallPath struct {
 	basePath
 
@@ -1888,43 +1849,6 @@ type InstallPath struct {
 	makePath bool
 
 	fullPath string
-}
-
-type installPathGob struct {
-	BasePath     basePath
-	SoongOutDir  string
-	PartitionDir string
-	Partition    string
-	MakePath     bool
-	FullPath     string
-}
-
-func (p *InstallPath) ToGob() *installPathGob {
-	return &installPathGob{
-		BasePath:     p.basePath,
-		SoongOutDir:  p.soongOutDir,
-		PartitionDir: p.partitionDir,
-		Partition:    p.partition,
-		MakePath:     p.makePath,
-		FullPath:     p.fullPath,
-	}
-}
-
-func (p *InstallPath) FromGob(data *installPathGob) {
-	p.basePath = data.BasePath
-	p.soongOutDir = data.SoongOutDir
-	p.partitionDir = data.PartitionDir
-	p.partition = data.Partition
-	p.makePath = data.MakePath
-	p.fullPath = data.FullPath
-}
-
-func (p InstallPath) GobEncode() ([]byte, error) {
-	return gobtools.CustomGobEncode[installPathGob](&p)
-}
-
-func (p *InstallPath) GobDecode(data []byte) error {
-	return gobtools.CustomGobDecode[installPathGob](data, p)
 }
 
 // Will panic if called from outside a test environment.
@@ -2263,6 +2187,7 @@ func PathForPhony(ctx PathContext, phony string) WritablePath {
 	return PhonyPath{basePath{phony, ""}}
 }
 
+// @auto-generate: gob
 type PhonyPath struct {
 	basePath
 }
@@ -2293,6 +2218,7 @@ func (p PhonyPath) ReplaceExtension(ctx PathContext, ext string) OutputPath {
 var _ Path = PhonyPath{}
 var _ WritablePath = PhonyPath{}
 
+// @auto-generate: gob
 type testPath struct {
 	basePath
 }
@@ -2538,6 +2464,7 @@ func absolutePath(path string) string {
 // The data file should be installed (copied from `<SrcPath>`) to
 // `<install_root>/<RelativeInstallPath>/<filename>`, or
 // `<install_root>/<filename>` if RelativeInstallPath is empty.
+// @auto-generate: gob
 type DataPath struct {
 	// The path of the data file that should be copied into the data directory
 	SrcPath Path

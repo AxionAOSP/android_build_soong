@@ -20,15 +20,17 @@ import (
 	"sort"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/gobtools"
 	"github.com/google/blueprint/proptools"
 	"github.com/google/blueprint/uniquelist"
 )
+
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go -source packaging.go
 
 // PackagingSpec abstracts a request to place a built artifact at a certain path in a package. A
 // package can be the traditional <partition>.img, but isn't limited to those. Other examples could
 // be a new filesystem image that is a subset of system.img (e.g. for an Android-like mini OS
 // running on a VM), or a zip archive for some of the host tools.
+// @auto-generate: gob
 type PackagingSpec struct {
 	// Path relative to the root of the package
 	relPathInPackage string
@@ -80,24 +82,6 @@ type PackagingSpec struct {
 	prebuilt bool
 }
 
-type packagingSpecGob struct {
-	RelPathInPackage      string
-	SrcPath               Path
-	SymlinkTarget         string
-	Executable            bool
-	EffectiveLicenseFiles Paths
-	Partition             string
-	SkipInstall           bool
-	AconfigPaths          Paths
-	ArchType              ArchType
-	Overrides             []string
-	Owner                 string
-	RequiresFullInstall   bool
-	FullInstallPath       InstallPath
-	Variation             string
-	Prebuilt              bool
-}
-
 func (p *PackagingSpec) Owner() string {
 	return p.owner
 }
@@ -108,52 +92,6 @@ func (p *PackagingSpec) Variation() string {
 
 func (p *PackagingSpec) Prebuilt() bool {
 	return p.prebuilt
-}
-
-func (p *PackagingSpec) ToGob() *packagingSpecGob {
-	return &packagingSpecGob{
-		RelPathInPackage:      p.relPathInPackage,
-		SrcPath:               p.srcPath,
-		SymlinkTarget:         p.symlinkTarget,
-		Executable:            p.executable,
-		EffectiveLicenseFiles: p.effectiveLicenseFiles.ToSlice(),
-		Partition:             p.partition,
-		SkipInstall:           p.skipInstall,
-		AconfigPaths:          p.aconfigPaths.ToSlice(),
-		ArchType:              p.archType,
-		Overrides:             p.overrides.ToSlice(),
-		Owner:                 p.owner,
-		RequiresFullInstall:   p.requiresFullInstall,
-		FullInstallPath:       p.fullInstallPath,
-		Variation:             p.variation,
-		Prebuilt:              p.prebuilt,
-	}
-}
-
-func (p *PackagingSpec) FromGob(data *packagingSpecGob) {
-	p.relPathInPackage = data.RelPathInPackage
-	p.srcPath = data.SrcPath
-	p.symlinkTarget = data.SymlinkTarget
-	p.executable = data.Executable
-	p.effectiveLicenseFiles = uniquelist.Make(data.EffectiveLicenseFiles)
-	p.partition = data.Partition
-	p.skipInstall = data.SkipInstall
-	p.aconfigPaths = uniquelist.Make(data.AconfigPaths)
-	p.archType = data.ArchType
-	p.overrides = uniquelist.Make(data.Overrides)
-	p.owner = data.Owner
-	p.requiresFullInstall = data.RequiresFullInstall
-	p.fullInstallPath = data.FullInstallPath
-	p.variation = data.Variation
-	p.prebuilt = data.Prebuilt
-}
-
-func (p *PackagingSpec) GobEncode() ([]byte, error) {
-	return gobtools.CustomGobEncode[packagingSpecGob](p)
-}
-
-func (p *PackagingSpec) GobDecode(data []byte) error {
-	return gobtools.CustomGobDecode[packagingSpecGob](data, p)
 }
 
 func (p *PackagingSpec) Equals(other *PackagingSpec) bool {

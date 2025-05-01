@@ -454,7 +454,6 @@ type ProductVariables struct {
 	BuildBrokenClangAsFlags             bool     `json:",omitempty"`
 	BuildBrokenClangCFlags              bool     `json:",omitempty"`
 	BuildBrokenClangProperty            bool     `json:",omitempty"`
-	GenruleSandboxing                   *bool    `json:",omitempty"`
 	BuildBrokenEnforceSyspropOwner      bool     `json:",omitempty"`
 	BuildBrokenTrebleSyspropNeverallow  bool     `json:",omitempty"`
 	BuildBrokenVendorPropertyNamespace  bool     `json:",omitempty"`

@@ -114,7 +114,7 @@ func (sdkTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, variation
 				ccModule.Properties.PreventInstall = true
 			}
 
-			if ctx.Config().UnbundledBuildApps() {
+			if ctx.Config().HasUnbundledBuildApps() {
 				if variation == "" {
 					// For an unbundled apps build, hide the platform variant from Make
 					// so that other Make modules don't link against it, but against the

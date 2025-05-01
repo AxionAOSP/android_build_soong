@@ -15,6 +15,7 @@
 package java
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -3524,6 +3525,72 @@ func TestUsesLibraries(t *testing.T) {
 	android.AssertStringDoesContain(t, "dexpreopt app cmd context", cmd, "--context-json=")
 	android.AssertStringDoesContain(t, "dexpreopt app cmd product_packages", cmd,
 		"--product-packages=out/soong/.intermediates/app/android_common/dexpreopt/app/product_packages.txt")
+}
+
+func TestClassLoaderContext_SdkLibrary(t *testing.T) {
+	bp := `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			api_packages: ["foo"],
+			sdk_version: "current",
+			uses_libs: ["bar"],
+		}
+
+		java_sdk_library {
+			name: "bar",
+			srcs: ["b.java"],
+			api_packages: ["bar"],
+			sdk_version: "current",
+		}
+
+		android_app {
+			name: "app",
+			srcs: ["app.java"],
+			libs: ["foo.stubs"],
+			uses_libs: ["foo"],
+			sdk_version: "current",
+		}
+
+		android_app {
+			name: "app2",
+			srcs: ["app.java"],
+			libs: ["foo.impl"],
+			uses_libs: ["foo"],
+			sdk_version: "current",
+		}
+	`
+
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo", "bar"),
+	).RunTestWithBp(t, bp)
+
+	for _, name := range []string{"app", "app2"} {
+		app := result.ModuleForTests(t, name, "android_common")
+		cmd := app.Rule("dexpreopt").RuleParams.Command
+
+		var clc map[string]interface{}
+		for _, flag := range strings.Split(cmd, " ") {
+			if value, match := strings.CutPrefix(flag, "--context-json='"); match {
+				value = strings.TrimSuffix(value, "'")
+				if err := json.Unmarshal([]byte(value), &clc); err != nil {
+					t.Error(err)
+					return
+				}
+			}
+		}
+
+		deps := clc["any"].([]interface{})
+		android.AssertIntEquals(t, "", 1, len(deps))
+		foo := deps[0].(map[string]interface{})
+		android.AssertStringEquals(t, "", "foo", foo["Name"].(string))
+		fooDeps := foo["Subcontexts"].([]interface{})
+		android.AssertIntEquals(t, "", 1, len(fooDeps))
+		bar := fooDeps[0].(map[string]interface{})
+		android.AssertStringEquals(t, "", "bar", bar["Name"].(string))
+	}
 }
 
 func TestDexpreoptBcp(t *testing.T) {

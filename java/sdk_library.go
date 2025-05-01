@@ -1474,6 +1474,8 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 		m += "Please see the documentation of the prebuilt_apis module type (and a usage example in prebuilts/sdk) for a convenient way to generate these."
 		ctx.ModuleErrorf(m)
 	}
+
+	module.usesLibrary.deps(ctx, false)
 }
 
 func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -1534,6 +1536,7 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 			module.bootDexJarPath = module.implLibraryInfo.BootDexJarPath
 			module.uncompressDexState = module.implLibraryInfo.UncompressDexState
 			module.active = module.implLibraryInfo.Active
+			module.classLoaderContexts = module.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
 		}
 
 		module.outputFile = module.implLibraryInfo.OutputFile

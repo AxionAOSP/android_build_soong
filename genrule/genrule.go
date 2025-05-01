@@ -1042,8 +1042,5 @@ func DefaultsFactory(props ...interface{}) android.Module {
 }
 
 func getSandboxedRuleBuilder(ctx android.ModuleContext, r *android.RuleBuilder) *android.RuleBuilder {
-	if !ctx.DeviceConfig().GenruleSandboxing() {
-		return r.SandboxTools()
-	}
 	return r.SandboxInputs()
 }

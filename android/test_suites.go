@@ -204,7 +204,7 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 			testSuiteSymbolsZipFile := pathForTestSymbols(ctx, fmt.Sprintf("%s-symbols.zip", testSuite))
 			testSuiteMergedMappingProtoFile := pathForTestSymbols(ctx, fmt.Sprintf("%s-symbols-mapping.textproto", testSuite))
 			allTestModules := files[testSuite].testModules()
-			BuildSymbolsZip(ctx, allTestModules, testSuite, testSuiteSymbolsZipFile, testSuiteMergedMappingProtoFile)
+			BuildSymbolsZip(ctx, allTestModules, testSuiteSymbolsZipFile, testSuiteMergedMappingProtoFile)
 
 			ctx.DistForGoalWithFilenameTag(testSuite, testSuiteSymbolsZipFile, testSuiteSymbolsZipFile.Base())
 			ctx.DistForGoalWithFilenameTag(testSuite, testSuiteMergedMappingProtoFile, testSuiteMergedMappingProtoFile.Base())

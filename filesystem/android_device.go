@@ -426,7 +426,7 @@ type symbolicOutputInfo struct {
 func (a *androidDevice) buildSymbolsZip(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) {
 	a.symbolsZipFile = android.PathForModuleOut(ctx, "symbols.zip")
 	a.symbolsMappingFile = android.PathForModuleOut(ctx, "symbols-mapping.textproto")
-	android.BuildSymbolsZip(ctx, allInstalledModules, ctx.ModuleName(), a.symbolsZipFile, a.symbolsMappingFile)
+	android.BuildSymbolsZip(ctx, allInstalledModules, a.symbolsZipFile, a.symbolsMappingFile)
 }
 
 func (a *androidDevice) distInstalledFiles(ctx android.ModuleContext) {

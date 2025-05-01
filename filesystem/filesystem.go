@@ -634,7 +634,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			FullInstallPath:     spec.FullInstallPath(),
 			RequiresFullInstall: spec.RequiresFullInstall(),
 			SourcePath:          spec.SrcPath(),
-			SymlinkTarget:       spec.ToGob().SymlinkTarget,
+			SymlinkTarget:       spec.SymlinkTarget(),
 		})
 	}
 

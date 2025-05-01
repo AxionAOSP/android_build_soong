@@ -27,10 +27,11 @@ import (
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/depset"
-	"github.com/google/blueprint/gobtools"
 	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
 )
+
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go -source module.go
 
 var (
 	DeviceSharedLibrary = "shared_library"
@@ -2689,6 +2690,7 @@ func checkDistProperties(ctx *moduleContext, property string, dist *Dist) {
 }
 
 // katiInstall stores a request from Soong to Make to create an install rule.
+// @auto-generate: gob
 type katiInstall struct {
 	from          Path
 	to            InstallPath
@@ -2699,74 +2701,10 @@ type katiInstall struct {
 	absFrom       string
 }
 
-type katiInstallGob struct {
-	From          Path
-	To            InstallPath
-	ImplicitDeps  Paths
-	OrderOnlyDeps Paths
-	Executable    bool
-	ExtraFiles    *extraFilesZip
-	AbsFrom       string
-}
-
-func (k *katiInstall) ToGob() *katiInstallGob {
-	return &katiInstallGob{
-		From:          k.from,
-		To:            k.to,
-		ImplicitDeps:  k.implicitDeps,
-		OrderOnlyDeps: k.orderOnlyDeps,
-		Executable:    k.executable,
-		ExtraFiles:    k.extraFiles,
-		AbsFrom:       k.absFrom,
-	}
-}
-
-func (k *katiInstall) FromGob(data *katiInstallGob) {
-	k.from = data.From
-	k.to = data.To
-	k.implicitDeps = data.ImplicitDeps
-	k.orderOnlyDeps = data.OrderOnlyDeps
-	k.executable = data.Executable
-	k.extraFiles = data.ExtraFiles
-	k.absFrom = data.AbsFrom
-}
-
-func (k *katiInstall) GobEncode() ([]byte, error) {
-	return gobtools.CustomGobEncode[katiInstallGob](k)
-}
-
-func (k *katiInstall) GobDecode(data []byte) error {
-	return gobtools.CustomGobDecode[katiInstallGob](data, k)
-}
-
+// @auto-generate: gob
 type extraFilesZip struct {
 	zip Path
 	dir InstallPath
-}
-
-type extraFilesZipGob struct {
-	Zip Path
-	Dir InstallPath
-}
-
-func (e *extraFilesZip) ToGob() *extraFilesZipGob {
-	return &extraFilesZipGob{
-		Zip: e.zip,
-		Dir: e.dir,
-	}
-}
-
-func (e *extraFilesZip) FromGob(data *extraFilesZipGob) {
-	e.zip = data.Zip
-	e.dir = data.Dir
-}
-
-func (e *extraFilesZip) GobEncode() ([]byte, error) {
-	return gobtools.CustomGobEncode[extraFilesZipGob](e)
-}
-
-func (e *extraFilesZip) GobDecode(data []byte) error {
-	return gobtools.CustomGobDecode[extraFilesZipGob](data, e)
 }
 
 type katiInstalls []katiInstall

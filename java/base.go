@@ -1947,7 +1947,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		j.linter.javaLanguageLevel = flags.javaVersion.String()
 		j.linter.kotlinLanguageLevel = "1.3"
 		j.linter.compile_data = android.PathsForModuleSrc(ctx, j.properties.Compile_data)
-		if !apexInfo.IsForPlatform() && ctx.Config().UnbundledBuildApps() {
+		if !apexInfo.IsForPlatform() && ctx.Config().HasUnbundledBuildApps() {
 			j.linter.buildModuleReportZip = true
 		}
 		j.linter.lint(ctx)
