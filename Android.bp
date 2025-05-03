@@ -31,6 +31,10 @@ bootstrap_go_package {
     visibility: ["//visibility:public"],
 }
 
+unbundled_builder {
+    name: "unbundled_builder",
+}
+
 //
 // Defaults to enable various configurations of host bionic
 //

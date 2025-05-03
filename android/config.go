@@ -1374,6 +1374,12 @@ func (c *config) UnbundledBuild() bool {
 
 // Returns true if building apps that aren't bundled with the platform.
 // UnbundledBuild() is always true when this is true.
+func (c *config) UnbundledBuildApps() []string {
+	return c.productVariables.Unbundled_build_apps
+}
+
+// Returns true if building apps that aren't bundled with the platform.
+// UnbundledBuild() is always true when this is true.
 func (c *config) HasUnbundledBuildApps() bool {
 	return len(c.productVariables.Unbundled_build_apps) > 0
 }

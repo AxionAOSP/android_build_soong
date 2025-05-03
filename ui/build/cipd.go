@@ -16,9 +16,13 @@ package build
 
 import (
 	"bufio"
+	"errors"
+	"io"
 	"log"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 )
 
 const (
@@ -27,10 +31,12 @@ const (
 )
 
 type cipdProxy struct {
-	cmd *Cmd
+	cmd      *Cmd
+	wg       sync.WaitGroup
+	stopping atomic.Bool
 }
 
-func startCIPDProxyServer(ctx Context, config Config) cipdProxy {
+func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 	ctx.Status.Status("Starting CIPD proxy server...")
 
 	cipdPath := filepath.Join("prebuilts/cipd", config.HostPrebuiltTag(), "cipd")
@@ -39,16 +45,48 @@ func startCIPDProxyServer(ctx Context, config Config) cipdProxy {
 	if err != nil {
 		log.Fatal(err)
 	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	if err := cmd.Start(); err != nil {
 		log.Fatal(err)
 	}
+	cp := cipdProxy{cmd: cmd}
+	cp.wg.Add(1)
+	go func() {
+		// Log any error output from cipd until it exits.
+		defer cp.wg.Done()
+
+		bufReader := bufio.NewReader(stderr)
+		for {
+			l, err := bufReader.ReadString('\n')
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					if !cp.stopping.Load() {
+						err := cmd.Wait()
+						ctx.Printf("cipd: unexpected EOF, process exited with %v", err)
+					}
+					break
+				}
+				ctx.Fatalf("cipd: %v %v", l, err)
+			}
+			ctx.Printf("cipd: %v", l)
+		}
+	}()
 
 	bufReader := bufio.NewReader(stdout)
 	for {
 		l, err := bufReader.ReadString('\n')
+		if errors.Is(err, io.EOF) {
+			ctx.Printf("cipd: unexpected EOF: %v\n", l)
+			// The stderr goroutine will handle the EOF
+			cp.wg.Wait()
+		}
+
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("Got %v reading from cipd process", err)
 		}
 		if strings.HasPrefix(l, cipdProxyUrlKey) {
 			proxyUrl := strings.TrimSpace(l[len(cipdProxyUrlKey)+1:])
@@ -57,9 +95,11 @@ func startCIPDProxyServer(ctx Context, config Config) cipdProxy {
 			break
 		}
 	}
-	return cipdProxy{cmd: cmd}
+	return &cp
 }
 
 func (c *cipdProxy) Stop() {
+	c.stopping.Store(true)
 	c.cmd.Process.Kill()
+	c.wg.Wait()
 }

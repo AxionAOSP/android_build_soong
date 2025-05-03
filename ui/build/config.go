@@ -372,7 +372,13 @@ func newConfig(ctx Context, isDumpVar bool, args ...string) Config {
 			ret.partialCompileRequested = true
 			value = "true"
 			if ret.disableUsePartialCompile {
-				value = ""
+				// Allow the user to try using partial compile when we would normally force it off to avoid
+				// superpartition overflow.
+				if ret.environ.IsEnvTrue("SOONG_HONOR_USE_PARTIAL_COMPILE") {
+					ret.disableUsePartialCompile = false
+				} else {
+					value = ""
+				}
 			}
 		} else {
 			value = ""

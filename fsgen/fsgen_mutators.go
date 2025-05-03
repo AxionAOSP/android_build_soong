@@ -241,6 +241,9 @@ func appendDepIfAppropriate(mctx android.BottomUpMutatorContext, deps *multilibD
 }
 
 func collectDepsMutator(mctx android.BottomUpMutatorContext) {
+	if !shouldEnableFilesystemCreator(mctx) {
+		return
+	}
 	m := mctx.Module()
 	if m.Target().Os.Class != android.Device {
 		return
@@ -325,6 +328,9 @@ func getBitness(archTypes []android.ArchType) (ret []string) {
 }
 
 func removeDepsMutator(mctx android.BottomUpMutatorContext) {
+	if !shouldEnableFilesystemCreator(mctx) {
+		return
+	}
 	fsGenState := mctx.Config().Get(fsGenStateOnceKey).(*FsGenState)
 	fsGenState.fsDepsMutex.Lock()
 	defer fsGenState.fsDepsMutex.Unlock()
@@ -332,6 +338,9 @@ func removeDepsMutator(mctx android.BottomUpMutatorContext) {
 }
 
 func setDepsMutator(mctx android.BottomUpMutatorContext) {
+	if !shouldEnableFilesystemCreator(mctx) {
+		return
+	}
 	removeOverriddenDeps(mctx)
 	fsGenState := mctx.Config().Get(fsGenStateOnceKey).(*FsGenState)
 	fsDeps := fsGenState.fsDeps
