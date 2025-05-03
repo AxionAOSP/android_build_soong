@@ -551,8 +551,8 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 		name := "generator"
 		if task.useNsjail {
 			rule = android.NewRuleBuilder(pctx, ctx).
-				Nsjail(task.genDir, android.PathForModuleOut(ctx, "nsjail_build_sandbox"),
-					task.genDir.Join(ctx, "nsjail_dir_deps.d"))
+				Nsjail(task.genDir, android.PathForModuleOut(ctx, "nsjail_build_sandbox")).
+				DirDepsFile(task.genDir.Join(ctx, "dir_deps.d"))
 			if task.keepGendir {
 				rule.NsjailKeepGendir()
 			}
@@ -570,6 +570,7 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 
 			// Use a RuleBuilder to create a rule that runs the command inside an sbox sandbox.
 			rule = getSandboxedRuleBuilder(ctx, android.NewRuleBuilder(pctx, ctx).Sbox(task.genDir, manifestPath))
+			rule.DirDepsFile(task.genDir.Join(ctx, "dir_deps.d"))
 		}
 		if Bool(g.properties.Write_if_changed) {
 			rule.Restat()
@@ -682,10 +683,8 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 			cmd.OrderOnly(ctx.Config().BuildDateFile(ctx))
 		}
 
-		if task.useNsjail {
-			for _, input := range task.dirSrcs {
-				cmd.ImplicitDirectory(input)
-			}
+		for _, input := range task.dirSrcs {
+			cmd.ImplicitDirectory(input)
 		}
 
 		// Create the rule to run the genrule command inside sbox.
@@ -963,10 +962,6 @@ func NewGenRule() *Module {
 		useNsjail := Bool(properties.Use_nsjail)
 
 		dirSrcs := android.DirectoryPathsForModuleSrc(ctx, properties.Dir_srcs)
-		if len(dirSrcs) > 0 && !useNsjail {
-			ctx.PropertyErrorf("dir_srcs", "can't use dir_srcs if use_nsjail is false")
-			return nil
-		}
 
 		keepGendir := Bool(properties.Keep_gendir)
 		if keepGendir && !useNsjail {

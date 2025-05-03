@@ -28,7 +28,7 @@ import (
 	"github.com/google/blueprint/pathtools"
 )
 
-//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go -source paths.go
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
 
 var absSrcDir string
 

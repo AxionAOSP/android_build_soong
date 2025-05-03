@@ -94,19 +94,24 @@ func (c *Cmd) sandboxSupported() bool {
 			sandboxConfig.distDir = absPath(c.ctx, derefPath)
 		}
 
-		sandboxArgs := []string{
+		var sandboxArgs []string
+		sandboxArgs = append(sandboxArgs,
 			"-H", "android-build",
 			"-e",
 			"-u", "nobody",
 			"-g", sandboxConfig.group,
-			"-R", "/",
+		)
+		sandboxArgs = append(sandboxArgs,
+			c.readMountArgs()...,
+		)
+		sandboxArgs = append(sandboxArgs,
 			// Mount tmp before srcDir
 			// srcDir is /tmp/.* in integration tests, which is a child dir of /tmp
 			// nsjail throws an error if a child dir is mounted before its parent
 			"-B", "/tmp",
-			c.config.sandboxConfig.SrcDirMountFlag(), sandboxConfig.srcDir,
-			"-B", sandboxConfig.outDir,
-		}
+			c.config.sandboxConfig.SrcDirMountFlag(), c.srcDirArg(),
+			"-B", c.outDirArg(),
+		)
 
 		if _, err := os.Stat(sandboxConfig.distDir); !os.IsNotExist(err) {
 			//Mount dist dir as read-write if it already exists

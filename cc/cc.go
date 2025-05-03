@@ -246,12 +246,19 @@ type LinkableInfo struct {
 	APIListCoverageXMLPath android.ModuleOutPath
 	// FuzzSharedLibraries returns the shared library dependencies for this module.
 	// Expects that IsFuzzModule returns true.
-	FuzzSharedLibraries      android.RuleBuilderInstalls
+	FuzzSharedLibraries      InstallPairs
 	IsVndkPrebuiltLibrary    bool
 	HasLLNDKStubs            bool
 	IsLLNDKMovedToApex       bool
 	ImplementationModuleName string
 }
+
+type InstallPair struct {
+	Src android.Path
+	Dst android.InstallPath
+}
+
+type InstallPairs []InstallPair
 
 var LinkableInfoProvider = blueprint.NewProvider[*LinkableInfo]()
 
@@ -1391,7 +1398,7 @@ func (c *Module) FuzzPackagedModule() fuzz.FuzzPackagedModule {
 	panic(fmt.Errorf("FuzzPackagedModule called on non-fuzz module: %q", c.BaseModuleName()))
 }
 
-func (c *Module) FuzzSharedLibraries() android.RuleBuilderInstalls {
+func (c *Module) FuzzSharedLibraries() InstallPairs {
 	if fuzzer, ok := c.compiler.(*fuzzBinary); ok {
 		return fuzzer.sharedLibraries
 	}

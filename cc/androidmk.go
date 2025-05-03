@@ -383,10 +383,6 @@ func (fuzz *fuzzBinary) prepareAndroidMKProviderInfo(config android.Config, ctx 
 	ctx.subAndroidMk(config, entries, fuzz.binaryDecorator)
 
 	entries.SetBool("LOCAL_IS_FUZZ_TARGET", true)
-	if fuzz.installedSharedDeps != nil {
-		// TOOD: move to install dep
-		entries.AddStrings("LOCAL_FUZZ_INSTALLED_SHARED_DEPS", fuzz.installedSharedDeps...)
-	}
 }
 
 func (test *testLibrary) prepareAndroidMKProviderInfo(config android.Config, ctx AndroidMkContext, entries *android.AndroidMkInfo) {

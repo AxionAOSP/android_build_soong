@@ -24,7 +24,7 @@ import (
 	"github.com/google/blueprint/uniquelist"
 )
 
-//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go -source packaging.go
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
 
 // PackagingSpec abstracts a request to place a built artifact at a certain path in a package. A
 // package can be the traditional <partition>.img, but isn't limited to those. Other examples could

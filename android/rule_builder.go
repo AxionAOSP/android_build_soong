@@ -48,26 +48,26 @@ type RuleBuilder struct {
 	pctx PackageContext
 	ctx  BuilderContext
 
-	commands          []*RuleBuilderCommand
-	installs          RuleBuilderInstalls
-	temporariesSet    map[WritablePath]bool
-	restat            bool
-	sbox              bool
-	highmem           bool
-	remoteable        RemoteRuleSupports
-	rbeParams         *remoteexec.REParams
-	outDir            WritablePath
-	sboxOutSubDir     string
-	sboxTools         bool
-	sboxInputs        bool
-	sboxManifestPath  WritablePath
-	missingDeps       []string
-	args              map[string]string
-	nsjail            bool
-	nsjailKeepGendir  bool
-	nsjailBasePath    WritablePath
-	nsjailDirDepsFile WritablePath
-	nsjailImplicits   Paths
+	commands         []*RuleBuilderCommand
+	installs         RuleBuilderInstalls
+	temporariesSet   map[WritablePath]bool
+	restat           bool
+	sbox             bool
+	highmem          bool
+	remoteable       RemoteRuleSupports
+	rbeParams        *remoteexec.REParams
+	outDir           WritablePath
+	sboxOutSubDir    string
+	sboxTools        bool
+	sboxInputs       bool
+	sboxManifestPath WritablePath
+	missingDeps      []string
+	args             map[string]string
+	nsjail           bool
+	nsjailKeepGendir bool
+	nsjailBasePath   WritablePath
+	nsjailImplicits  Paths
+	dirDepsFile      WritablePath
 }
 
 // NewRuleBuilder returns a newly created RuleBuilder.
@@ -187,7 +187,7 @@ func (r *RuleBuilder) Sbox(outputDir WritablePath, manifestPath WritablePath) *R
 // output directory that nsjail will mount to out/. It should not be written to by any other rule.
 // baseDir should point to a location where nsjail will mount to /nsjail_build_sandbox, which will
 // be the working directory of the command.
-func (r *RuleBuilder) Nsjail(outputDir WritablePath, baseDir WritablePath, dirDepsFile WritablePath) *RuleBuilder {
+func (r *RuleBuilder) Nsjail(outputDir WritablePath, baseDir WritablePath) *RuleBuilder {
 	if len(r.commands) > 0 {
 		panic("Nsjail() may not be called after Command()")
 	}
@@ -197,7 +197,14 @@ func (r *RuleBuilder) Nsjail(outputDir WritablePath, baseDir WritablePath, dirDe
 	r.nsjail = true
 	r.outDir = outputDir
 	r.nsjailBasePath = baseDir
-	r.nsjailDirDepsFile = dirDepsFile
+	return r
+}
+
+func (r *RuleBuilder) DirDepsFile(dirDepsFile WritablePath) *RuleBuilder {
+	if r.dirDepsFile != nil {
+		panic("Cannot call DirDepsFile() twice")
+	}
+	r.dirDepsFile = dirDepsFile
 	return r
 }
 
@@ -520,9 +527,12 @@ func (r *RuleBuilder) depFileMergerCmd(depFiles WritablePaths) *RuleBuilderComma
 }
 
 func (r *RuleBuilder) dirsToDepFileCmd(dirs DirectoryPaths, target WritablePath) *RuleBuilderCommand {
+	if r.dirDepsFile == nil {
+		panic("You must call DirDepsFile() to use directory inputs")
+	}
 	return r.Command().
 		builtToolWithoutDeps("dir_to_depfile").
-		FlagWithDepFile("-o ", r.nsjailDirDepsFile).
+		FlagWithDepFile("-o ", r.dirDepsFile).
 		FlagWithArg("-t ", target.String()).
 		Text(strings.Join(dirs.Strings(), " "))
 }
@@ -551,9 +561,6 @@ func (r *RuleBuilder) build(name string, desc string) {
 	}
 
 	if dirs := r.implicitDirectories(); len(dirs) > 0 {
-		if !r.nsjail {
-			panic(fmt.Errorf("ImplicitDirectories are only supported for nsjail"))
-		}
 		r.dirsToDepFileCmd(dirs, r.Outputs()[0])
 	}
 
@@ -679,10 +686,6 @@ func (r *RuleBuilder) build(name string, desc string) {
 		manifest.Commands = append(manifest.Commands, &command)
 		command.Command = proto.String(commandString)
 
-		if depFile != nil {
-			manifest.OutputDepfile = proto.String(depFile.String())
-		}
-
 		// If sandboxing tools is enabled, add copy rules to the manifest to copy each tool
 		// into the sbox directory.
 		if r.sboxTools {
@@ -723,6 +726,14 @@ func (r *RuleBuilder) build(name string, desc string) {
 					From: proto.String(input.String()),
 					To:   proto.String(r.sboxPathForInputRel(input)),
 				})
+			}
+			for _, c := range r.commands {
+				for _, directory := range c.implicitDirectories {
+					command.CopyDirBefore = append(command.CopyDirBefore, &sbox_proto.CopyDir{
+						From: proto.String(directory.String()),
+						To:   proto.String(directory.String()),
+					})
+				}
 			}
 
 			// If using rsp files copy them and their contents into the sbox directory with
@@ -792,6 +803,13 @@ func (r *RuleBuilder) build(name string, desc string) {
 			command.CopyAfter = append(command.CopyAfter, &sbox_proto.Copy{
 				From: proto.String(filepath.Join(r.sboxOutSubDir, rel)),
 				To:   proto.String(output.String()),
+			})
+		}
+		if depFile != nil {
+			rel := Rel(r.ctx, r.outDir.String(), depFile.String())
+			command.CopyAfter = append(command.CopyAfter, &sbox_proto.Copy{
+				From: proto.String(filepath.Join(r.sboxOutSubDir, rel)),
+				To:   proto.String(depFile.String()),
 			})
 		}
 
@@ -996,10 +1014,6 @@ func (c *RuleBuilderCommand) addInput(path Path) string {
 func (c *RuleBuilderCommand) addImplicit(path Path) {
 	checkPathNotNil(path)
 	c.implicits = append(c.implicits, path)
-}
-
-func (c *RuleBuilderCommand) addImplicitDirectory(path DirectoryPath) {
-	c.implicitDirectories = append(c.implicitDirectories, path)
 }
 
 func (c *RuleBuilderCommand) addOrderOnly(path Path) {
@@ -1371,10 +1385,10 @@ func (c *RuleBuilderCommand) Implicits(paths Paths) *RuleBuilderCommand {
 // ImplicitDirectory adds the specified input directory to the dependencies without modifying the
 // command line. Added directories will be bind-mounted for the nsjail.
 func (c *RuleBuilderCommand) ImplicitDirectory(path DirectoryPath) *RuleBuilderCommand {
-	if !c.rule.nsjail {
-		panic("ImplicitDirectory() must be called after Nsjail()")
+	if !c.rule.nsjail && !c.rule.sbox {
+		panic("ImplicitDirectory() must be called after Nsjail() or Sbox()")
 	}
-	c.addImplicitDirectory(path)
+	c.implicitDirectories = append(c.implicitDirectories, path)
 	return c
 }
 

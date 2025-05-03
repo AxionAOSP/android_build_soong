@@ -209,8 +209,5 @@ func (fuzz *fuzzDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidM
 	ret.ExtraEntries = append(ret.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext,
 		entries *android.AndroidMkEntries) {
 		entries.SetBool("LOCAL_IS_FUZZ_TARGET", true)
-		if fuzz.installedSharedDeps != nil {
-			entries.AddStrings("LOCAL_FUZZ_INSTALLED_SHARED_DEPS", fuzz.installedSharedDeps...)
-		}
 	})
 }

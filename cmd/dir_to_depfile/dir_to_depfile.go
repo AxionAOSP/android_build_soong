@@ -50,7 +50,7 @@ func main() {
 	}
 
 	depsFile := makedeps.Deps{
-		Output: *output,
+		Output: *target,
 	}
 
 	for _, arg := range flag.Args() {
