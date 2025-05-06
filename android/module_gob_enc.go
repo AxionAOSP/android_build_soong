@@ -10,49 +10,55 @@ import (
 func (r katiInstall) GobEncode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	var err error
-
-	if err = gobtools.EncodeStruct(buf, &r.from); err != nil {
-		return nil, err
-	}
-
-	if err = gobtools.EncodeStruct(buf, &r.to); err != nil {
-		return nil, err
-	}
-
-	if err = gobtools.EncodeStruct(buf, &r.implicitDeps); err != nil {
-		return nil, err
-	}
-
-	if err = gobtools.EncodeStruct(buf, &r.orderOnlyDeps); err != nil {
-		return nil, err
-	}
-
-	if err = gobtools.EncodeSimple(buf, r.executable); err != nil {
-		return nil, err
-	}
-
-	isNil6 := r.extraFiles == nil
-	if err = gobtools.EncodeSimple(buf, isNil6); err != nil {
-		return nil, err
-	}
-	if !isNil6 {
-		if err = gobtools.EncodeStruct(buf, &*r.extraFiles); err != nil {
-			return nil, err
-		}
-	}
-
-	if err = gobtools.EncodeString(buf, r.absFrom); err != nil {
+	if err := r.Encode(buf); err != nil {
 		return nil, err
 	}
 
 	return buf.Bytes(), nil
 }
 
+func (r katiInstall) Encode(buf *bytes.Buffer) error {
+	var err error
+
+	if err = gobtools.EncodeStruct(buf, &r.from); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeStruct(buf, &r.to); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeStruct(buf, &r.implicitDeps); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeStruct(buf, &r.orderOnlyDeps); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.executable); err != nil {
+		return err
+	}
+
+	isNil6 := r.extraFiles == nil
+	if err = gobtools.EncodeSimple(buf, isNil6); err != nil {
+		return err
+	}
+	if !isNil6 {
+		if err = gobtools.EncodeStruct(buf, &*r.extraFiles); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeString(buf, r.absFrom); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (r *katiInstall) GobDecode(b []byte) error {
 	buf := bytes.NewReader(b)
-	err := r.Decode(buf)
-	return err
+	return r.Decode(buf)
 }
 
 func (r *katiInstall) Decode(buf *bytes.Reader) error {
@@ -107,23 +113,29 @@ func (r *katiInstall) Decode(buf *bytes.Reader) error {
 func (r extraFilesZip) GobEncode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	var err error
-
-	if err = gobtools.EncodeStruct(buf, &r.zip); err != nil {
-		return nil, err
-	}
-
-	if err = gobtools.EncodeStruct(buf, &r.dir); err != nil {
+	if err := r.Encode(buf); err != nil {
 		return nil, err
 	}
 
 	return buf.Bytes(), nil
 }
 
+func (r extraFilesZip) Encode(buf *bytes.Buffer) error {
+	var err error
+
+	if err = gobtools.EncodeStruct(buf, &r.zip); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeStruct(buf, &r.dir); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (r *extraFilesZip) GobDecode(b []byte) error {
 	buf := bytes.NewReader(b)
-	err := r.Decode(buf)
-	return err
+	return r.Decode(buf)
 }
 
 func (r *extraFilesZip) Decode(buf *bytes.Reader) error {

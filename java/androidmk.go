@@ -113,8 +113,6 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.SetOptionalPath("LOCAL_SOONG_PROGUARD_USAGE_ZIP", library.dexer.proguardUsageZip)
 					entries.SetString("LOCAL_MODULE_STEM", library.Stem())
 
-					entries.SetOptionalPaths("LOCAL_SOONG_LINT_REPORTS", library.linter.reports)
-
 					if library.dexpreopter.configPath != nil {
 						entries.SetPath("LOCAL_SOONG_DEXPREOPT_CONFIG", library.dexpreopter.configPath)
 					}
@@ -382,8 +380,6 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 					install := app.onDeviceDir + "/" + extra.Base()
 					entries.AddStrings("LOCAL_SOONG_BUILT_INSTALLED", extra.String()+":"+install)
 				}
-
-				entries.SetOptionalPaths("LOCAL_SOONG_LINT_REPORTS", app.linter.reports)
 
 				entries.AddStrings("LOCAL_SOONG_LOGTAGS_FILES", app.logtagsSrcs.Strings()...)
 			},

@@ -242,6 +242,14 @@ func (s *javaFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		}
 	})
 	s.CreateFuzzPackage(ctx, archDirs, fuzz.Java, pctx)
+
+	// Create the phony and dist rules
+	ctx.Phony("haiku-java", s.Packages...)
+	ctx.DistForGoals([]string{"haiku-java"}, s.Packages...)
+	for _, target := range android.SortedKeys(s.FuzzTargets) {
+		ctx.Phony("haiku-java", android.PathForPhony(ctx, target))
+	}
+
 }
 
 func (s *javaFuzzPackager) MakeVars(ctx android.MakeVarsContext) {

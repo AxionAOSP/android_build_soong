@@ -2945,6 +2945,16 @@ func ModuleNameWithPossibleOverride(ctx BaseModuleContext) string {
 	return ctx.ModuleName()
 }
 
+// OtherModuleNameWithPossibleOverride returns the name of the OverrideModule that overrides the
+// current variant of the given module, or ctx.ModuleName() if the given module is not an
+// OverridableModule or if this variant is not overridden.
+func OtherModuleNameWithPossibleOverride(ctx BaseModuleContext, m ModuleOrProxy) string {
+	if overrideInfo, ok := OtherModuleProvider(ctx, m, OverrideInfoProvider); ok && overrideInfo.OverriddenBy != "" {
+		return overrideInfo.OverriddenBy
+	}
+	return ctx.OtherModuleName(m)
+}
+
 // SrcIsModule decodes module references in the format ":unqualified-name" or "//namespace:name"
 // into the module name, or empty string if the input was not a module reference.
 func SrcIsModule(s string) (module string) {

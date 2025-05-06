@@ -17,6 +17,8 @@ package unbundled
 import (
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/java"
+	"fmt"
 	"slices"
 
 	"github.com/google/blueprint"
@@ -96,4 +98,24 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	android.BuildSymbolsZip(ctx, appModules, symbolsZip, symbolsMapping)
 	ctx.DistForGoalWithFilenameTag("apps_only", symbolsZip, symbolsZip.Base())
 	ctx.DistForGoalWithFilenameTag("apps_only", symbolsMapping, symbolsMapping.Base())
+
+	// Dist lint reports
+	var reportFiles android.Paths
+	for _, app := range appModules {
+		name := android.OtherModuleNameWithPossibleOverride(ctx, app)
+		if info, ok := android.OtherModuleProvider(ctx, app, java.ModuleLintReportZipsProvider); ok {
+			reports := info.AllReports()
+			for _, report := range reports {
+				ctx.DistForGoalWithFilename("lint-check", report, fmt.Sprintf("%s-%s", name, report.Base()))
+			}
+			reportFiles = append(reportFiles, reports...)
+		}
+	}
+	ctx.Phony("lint-check", reportFiles...)
+
+	// Dist proguard zips
+	proguardZips := java.BuildProguardZips(ctx, appModules)
+	ctx.DistForGoalWithFilenameTag("apps_only", proguardZips.DictZip, targetProductPrefix+proguardZips.DictZip.Base())
+	ctx.DistForGoalWithFilenameTag("apps_only", proguardZips.DictMapping, targetProductPrefix+proguardZips.DictMapping.Base())
+	ctx.DistForGoalWithFilenameTag("apps_only", proguardZips.UsageZip, targetProductPrefix+proguardZips.UsageZip.Base())
 }

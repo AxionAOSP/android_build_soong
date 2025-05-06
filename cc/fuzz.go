@@ -16,7 +16,6 @@ package cc
 
 import (
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -386,19 +385,15 @@ func NewFuzzer(hod android.HostOrDeviceSupported) *Module {
 // their architecture & target/host specific zip file.
 type ccRustFuzzPackager struct {
 	fuzz.FuzzPackager
-	fuzzPackagingArchModules         string
-	fuzzTargetSharedDepsInstallPairs string
-	allFuzzTargetsName               string
-	onlyIncludePresubmits            bool
+	onlyIncludePresubmits bool
+	phonyName             string
 }
 
 func fuzzPackagingFactory() android.Singleton {
 
 	fuzzPackager := &ccRustFuzzPackager{
-		fuzzPackagingArchModules:         "SOONG_FUZZ_PACKAGING_ARCH_MODULES",
-		fuzzTargetSharedDepsInstallPairs: "FUZZ_TARGET_SHARED_DEPS_INSTALL_PAIRS",
-		allFuzzTargetsName:               "ALL_FUZZ_TARGETS",
-		onlyIncludePresubmits:            false,
+		onlyIncludePresubmits: false,
+		phonyName:             "haiku",
 	}
 	return fuzzPackager
 }
@@ -406,10 +401,8 @@ func fuzzPackagingFactory() android.Singleton {
 func fuzzPackagingFactoryPresubmit() android.Singleton {
 
 	fuzzPackager := &ccRustFuzzPackager{
-		fuzzPackagingArchModules:         "SOONG_PRESUBMIT_FUZZ_PACKAGING_ARCH_MODULES",
-		fuzzTargetSharedDepsInstallPairs: "PRESUBMIT_FUZZ_TARGET_SHARED_DEPS_INSTALL_PAIRS",
-		allFuzzTargetsName:               "ALL_PRESUBMIT_FUZZ_TARGETS",
-		onlyIncludePresubmits:            true,
+		onlyIncludePresubmits: true,
+		phonyName:             "haiku-presubmit",
 	}
 	return fuzzPackager
 }
@@ -503,24 +496,13 @@ func (s *ccRustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) 
 	}
 
 	s.CreateFuzzPackage(ctx, archDirs, fuzz.Cc, pctx)
-}
 
-func (s *ccRustFuzzPackager) MakeVars(ctx android.MakeVarsContext) {
-	packages := s.Packages.Strings()
-	sort.Strings(packages)
-	sort.Strings(s.FuzzPackager.SharedLibInstallStrings)
-	// TODO(mitchp): Migrate this to use MakeVarsContext::DistForGoal() when it's
-	// ready to handle phony targets created in Soong. In the meantime, this
-	// exports the phony 'fuzz' target and dependencies on packages to
-	// core/main.mk so that we can use dist-for-goals.
-
-	ctx.Strict(s.fuzzPackagingArchModules, strings.Join(packages, " "))
-
-	ctx.Strict(s.fuzzTargetSharedDepsInstallPairs,
-		strings.Join(s.FuzzPackager.SharedLibInstallStrings, " "))
-
-	// Preallocate the slice of fuzz targets to minimise memory allocations.
-	s.PreallocateSlice(ctx, s.allFuzzTargetsName)
+	// Create the phony and dist rules
+	ctx.Phony(s.phonyName, s.Packages...)
+	ctx.DistForGoals([]string{s.phonyName}, s.Packages...)
+	for _, target := range android.SortedKeys(s.FuzzTargets) {
+		ctx.Phony(s.phonyName, android.PathForPhony(ctx, target))
+	}
 }
 
 // GetSharedLibsToZip finds and marks all the transiently-dependent shared libraries for

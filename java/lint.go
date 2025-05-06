@@ -580,8 +580,30 @@ func BuildModuleLintReportZips(ctx android.ModuleContext, depSets LintDepSets, v
 	xmlZip := android.PathForModuleOut(ctx, "lint-report-xml.zip")
 	lintZip(ctx, xmlList, xmlZip, validations)
 
+	android.SetProvider(ctx, ModuleLintReportZipsProvider, ModuleLintReportZipsInfo{
+		HtmlZip: htmlZip,
+		TextZip: textZip,
+		XmlZip:  xmlZip,
+	})
+
 	return android.Paths{htmlZip, textZip, xmlZip}
 }
+
+type ModuleLintReportZipsInfo struct {
+	HtmlZip android.Path
+	TextZip android.Path
+	XmlZip  android.Path
+}
+
+func (i *ModuleLintReportZipsInfo) AllReports() android.Paths {
+	return android.Paths{
+		i.HtmlZip,
+		i.TextZip,
+		i.XmlZip,
+	}
+}
+
+var ModuleLintReportZipsProvider = blueprint.NewProvider[ModuleLintReportZipsInfo]()
 
 type lintSingleton struct {
 	htmlZip              android.WritablePath
@@ -652,12 +674,12 @@ func copiedLintDatabaseFilesPath(ctx android.PathContext, name string) android.W
 }
 
 func (l *lintSingleton) generateLintReportZips(ctx android.SingletonContext) {
+	// Dists of lint reports in unbundled builds is handled by unbundled_builder in unbundled.go
 	if ctx.Config().UnbundledBuild() {
 		return
 	}
 
 	var outputs []*LintInfo
-	var dirs []string
 	ctx.VisitAllModuleProxies(func(m android.ModuleProxy) {
 		commonInfo := android.OtherModulePointerProviderOrDefault(ctx, m, android.CommonModuleInfoProvider)
 		platformAvailabilitInfo := android.OtherModuleProviderOrDefault(ctx, m, android.PlatformAvailabilityInfoProvider)
@@ -678,8 +700,6 @@ func (l *lintSingleton) generateLintReportZips(ctx android.SingletonContext) {
 			outputs = append(outputs, lintInfo)
 		}
 	})
-
-	dirs = android.SortedUniqueStrings(dirs)
 
 	zip := func(outputPath android.WritablePath, get func(*LintInfo) android.Path) {
 		var paths android.Paths
@@ -706,10 +726,7 @@ func (l *lintSingleton) generateLintReportZips(ctx android.SingletonContext) {
 	zip(l.referenceBaselineZip, func(l *LintInfo) android.Path { return l.ReferenceBaseline })
 
 	ctx.Phony("lint-check", l.htmlZip, l.textZip, l.xmlZip, l.referenceBaselineZip)
-
-	if !ctx.Config().UnbundledBuild() {
-		ctx.DistForGoal("lint-check", l.htmlZip, l.textZip, l.xmlZip, l.referenceBaselineZip)
-	}
+	ctx.DistForGoal("lint-check", l.htmlZip, l.textZip, l.xmlZip, l.referenceBaselineZip)
 }
 
 func init() {

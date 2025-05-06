@@ -288,7 +288,6 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 
 			fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 			fmt.Fprintln(w, "ALL_MODULES.$(my_register_name).BUNDLE :=", a.bundleModuleFile.String())
-			android.AndroidMkEmitAssignList(w, "ALL_MODULES.$(my_register_name).LINT_REPORTS", a.lintReports.Strings())
 
 			if a.installedFilesFile != nil {
 				goal := "checkbuild"

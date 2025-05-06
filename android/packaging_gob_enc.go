@@ -11,93 +11,99 @@ import (
 func (r PackagingSpec) GobEncode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	var err error
-
-	if err = gobtools.EncodeString(buf, r.relPathInPackage); err != nil {
-		return nil, err
-	}
-
-	if err = gobtools.EncodeStruct(buf, &r.srcPath); err != nil {
-		return nil, err
-	}
-
-	if err = gobtools.EncodeString(buf, r.symlinkTarget); err != nil {
-		return nil, err
-	}
-
-	if err = gobtools.EncodeSimple(buf, r.executable); err != nil {
-		return nil, err
-	}
-
-	unilst5 := r.effectiveLicenseFiles.ToSlice()
-	if err = gobtools.EncodeSimple(buf, int32(len(unilst5))); err != nil {
-		return nil, err
-	}
-	for i := 0; i < len(unilst5); i++ {
-		if err = gobtools.EncodeStruct(buf, &unilst5[i]); err != nil {
-			return nil, err
-		}
-	}
-
-	if err = gobtools.EncodeString(buf, r.partition); err != nil {
-		return nil, err
-	}
-
-	if err = gobtools.EncodeSimple(buf, r.skipInstall); err != nil {
-		return nil, err
-	}
-
-	unilst9 := r.aconfigPaths.ToSlice()
-	if err = gobtools.EncodeSimple(buf, int32(len(unilst9))); err != nil {
-		return nil, err
-	}
-	for i := 0; i < len(unilst9); i++ {
-		if err = gobtools.EncodeStruct(buf, &unilst9[i]); err != nil {
-			return nil, err
-		}
-	}
-
-	if err = gobtools.EncodeStruct(buf, &r.archType); err != nil {
-		return nil, err
-	}
-
-	unilst12 := r.overrides.ToSlice()
-	if err = gobtools.EncodeSimple(buf, int32(len(unilst12))); err != nil {
-		return nil, err
-	}
-	for i := 0; i < len(unilst12); i++ {
-		if err = gobtools.EncodeString(buf, unilst12[i]); err != nil {
-			return nil, err
-		}
-	}
-
-	if err = gobtools.EncodeString(buf, r.owner); err != nil {
-		return nil, err
-	}
-
-	if err = gobtools.EncodeSimple(buf, r.requiresFullInstall); err != nil {
-		return nil, err
-	}
-
-	if err = gobtools.EncodeStruct(buf, &r.fullInstallPath); err != nil {
-		return nil, err
-	}
-
-	if err = gobtools.EncodeString(buf, r.variation); err != nil {
-		return nil, err
-	}
-
-	if err = gobtools.EncodeSimple(buf, r.prebuilt); err != nil {
+	if err := r.Encode(buf); err != nil {
 		return nil, err
 	}
 
 	return buf.Bytes(), nil
 }
 
+func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
+	var err error
+
+	if err = gobtools.EncodeString(buf, r.relPathInPackage); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeStruct(buf, &r.srcPath); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeString(buf, r.symlinkTarget); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.executable); err != nil {
+		return err
+	}
+
+	unilst5 := r.effectiveLicenseFiles.ToSlice()
+	if err = gobtools.EncodeSimple(buf, int32(len(unilst5))); err != nil {
+		return err
+	}
+	for i := 0; i < len(unilst5); i++ {
+		if err = gobtools.EncodeStruct(buf, &unilst5[i]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeString(buf, r.partition); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.skipInstall); err != nil {
+		return err
+	}
+
+	unilst9 := r.aconfigPaths.ToSlice()
+	if err = gobtools.EncodeSimple(buf, int32(len(unilst9))); err != nil {
+		return err
+	}
+	for i := 0; i < len(unilst9); i++ {
+		if err = gobtools.EncodeStruct(buf, &unilst9[i]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeStruct(buf, &r.archType); err != nil {
+		return err
+	}
+
+	unilst12 := r.overrides.ToSlice()
+	if err = gobtools.EncodeSimple(buf, int32(len(unilst12))); err != nil {
+		return err
+	}
+	for i := 0; i < len(unilst12); i++ {
+		if err = gobtools.EncodeString(buf, unilst12[i]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeString(buf, r.owner); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.requiresFullInstall); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeStruct(buf, &r.fullInstallPath); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeString(buf, r.variation); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.prebuilt); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (r *PackagingSpec) GobDecode(b []byte) error {
 	buf := bytes.NewReader(b)
-	err := r.Decode(buf)
-	return err
+	return r.Decode(buf)
 }
 
 func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
