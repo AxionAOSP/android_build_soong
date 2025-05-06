@@ -189,6 +189,7 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 		inputFiles := make([]android.Path, len(declarationFiles))
 		copy(inputFiles, declarationFiles)
 		inputFiles = append(inputFiles, valuesFiles[config]...)
+		mainlineBetaNamespaceConfig := ctx.Config().ReleaseMainlineBetaNamespaceConfig()
 		args := map[string]string{
 			"release_version":    ctx.Config().ReleaseVersion(),
 			"package":            module.properties.Package,
@@ -196,6 +197,7 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 			"values":             joinAndPrefix(" --values ", values[config]),
 			"default-permission": optionalVariable(" --default-permission ", defaultPermission),
 			"allow-read-write":   optionalVariable(" --allow-read-write ", strconv.FormatBool(allowReadWrite)),
+			"mainline-beta-namespace-config":   optionalVariable(" --mainline-beta-namespace-config ", mainlineBetaNamespaceConfig),
 		}
 		if len(module.properties.Container) > 0 {
 			args["container"] = "--container " + module.properties.Container

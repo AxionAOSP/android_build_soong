@@ -41,6 +41,7 @@ func init() {
 	registerMutators(android.InitRegistrationContext)
 	pctx.HostBinToolVariable("fileslist", "fileslist")
 	pctx.HostBinToolVariable("fs_config", "fs_config")
+	pctx.HostBinToolVariable("symbols_map", "symbols_map")
 	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
 }
 

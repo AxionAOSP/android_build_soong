@@ -112,10 +112,4 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		}
 	}
 	ctx.Phony("lint-check", reportFiles...)
-
-	// Dist proguard zips
-	proguardZips := java.BuildProguardZips(ctx, appModules)
-	ctx.DistForGoalWithFilenameTag("apps_only", proguardZips.DictZip, targetProductPrefix+proguardZips.DictZip.Base())
-	ctx.DistForGoalWithFilenameTag("apps_only", proguardZips.DictMapping, targetProductPrefix+proguardZips.DictMapping.Base())
-	ctx.DistForGoalWithFilenameTag("apps_only", proguardZips.UsageZip, targetProductPrefix+proguardZips.UsageZip.Base())
 }

@@ -311,6 +311,14 @@ func (c Config) ReleaseJarjarFlagsInFramework() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_JARJAR_FLAGS_IN_FRAMEWORK")
 }
 
+func (c Config) ReleaseMainlineBetaNamespaceConfig() string {
+	if val, exists := c.GetBuildFlag("RELEASE_MAINLINE_BETA_NAMESPACE_CONFIG"); exists {
+		return val
+	} else {
+		return ""
+	}
+}
+
 // A DeviceConfig object represents the configuration for a particular device
 // being built. For now there will only be one of these, but in the future there
 // may be multiple devices being built.
