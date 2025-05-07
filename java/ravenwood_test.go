@@ -200,6 +200,7 @@ func TestRavenwoodTest(t *testing.T) {
 			target_sdk_version: "34",
 			package_name: "a.b.c",
 			inst_package_name: "x.y.z",
+			instrumentation_class: "androidx.test.runner.AndroidJUnitRunner",
 		}
 		android_ravenwood_test {
 			name: "ravenwood-test-empty",

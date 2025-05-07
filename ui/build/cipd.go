@@ -19,6 +19,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -36,11 +37,20 @@ type cipdProxy struct {
 	stopping atomic.Bool
 }
 
+func cipdPath(config Config) string {
+	return filepath.Join("prebuilts/cipd", config.HostPrebuiltTag(), "cipd")
+}
+
+func shouldRunCIPDProxy(config Config) bool {
+	cipdPath := cipdPath(config)
+	_, err := os.Stat(cipdPath)
+	return err == nil
+}
+
 func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 	ctx.Status.Status("Starting CIPD proxy server...")
 
-	cipdPath := filepath.Join("prebuilts/cipd", config.HostPrebuiltTag(), "cipd")
-	cmd := Command(ctx, config, "cipd", cipdPath, "proxy", "-proxy-policy", cipdProxyPolicyPath)
+	cmd := Command(ctx, config, "cipd", cipdPath(config), "proxy", "-proxy-policy", cipdProxyPolicyPath)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		log.Fatal(err)

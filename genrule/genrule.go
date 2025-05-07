@@ -569,7 +569,7 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 			manifestPath := android.PathForModuleOut(ctx, manifestName)
 
 			// Use a RuleBuilder to create a rule that runs the command inside an sbox sandbox.
-			rule = getSandboxedRuleBuilder(ctx, android.NewRuleBuilder(pctx, ctx).Sbox(task.genDir, manifestPath))
+			rule = android.NewRuleBuilder(pctx, ctx).Sbox(task.genDir, manifestPath).SandboxInputs()
 			rule.DirDepsFile(task.genDir.Join(ctx, "dir_deps.d"))
 		}
 		if Bool(g.properties.Write_if_changed) {
@@ -872,7 +872,7 @@ func NewGenSrcs() *Module {
 			// TODO(ccross): this RuleBuilder is a hack to be able to call
 			// rule.Command().PathForOutput.  Replace this with passing the rule into the
 			// generator.
-			rule := getSandboxedRuleBuilder(ctx, android.NewRuleBuilder(pctx, ctx).Sbox(genDir, nil))
+			rule := android.NewRuleBuilder(pctx, ctx).Sbox(genDir, nil).SandboxInputs()
 
 			for _, in := range shard {
 				outFile := android.GenPathWithExtAndTrimExt(ctx, finalSubDir, in, String(properties.Output_extension), String(properties.Trim_extension))
@@ -1034,8 +1034,4 @@ func DefaultsFactory(props ...interface{}) android.Module {
 	android.InitDefaultsModule(module)
 
 	return module
-}
-
-func getSandboxedRuleBuilder(ctx android.ModuleContext, r *android.RuleBuilder) *android.RuleBuilder {
-	return r.SandboxInputs()
 }

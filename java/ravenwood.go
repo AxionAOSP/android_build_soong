@@ -45,8 +45,9 @@ var genManifestProperties = pctx.AndroidStaticRule("genManifestProperties",
 		Command: "echo targetSdkVersionInt=$targetSdkVersionInt > $out && " +
 			"echo targetSdkVersionRaw=$targetSdkVersionRaw >> $out && " +
 			"echo packageName=$packageName >> $out && " +
-			"echo instPackageName=$instPackageName >> $out",
-	}, "targetSdkVersionInt", "targetSdkVersionRaw", "packageName", "instPackageName")
+			"echo instPackageName=$instPackageName >> $out && " +
+			"echo instrumentationClass=$instrumentationClass >> $out",
+	}, "targetSdkVersionInt", "targetSdkVersionRaw", "packageName", "instPackageName", "instrumentationClass")
 
 const ravenwoodUtilsName = "ravenwood-utils"
 const ravenwoodRuntimeName = "ravenwood-runtime"
@@ -89,8 +90,12 @@ type ravenwoodTestProperties struct {
 
 	// Specify the package name of this test module.
 	// This will be set to the test Context's package name.
-	//(i.e. Instrumentation.getContext().getPackageName())
+	// (i.e. Instrumentation.getContext().getPackageName())
 	Inst_package_name *string
+
+	// Specify the name of the Instrumentation subclass to use.
+	// (e.g. "androidx.test.runner.AndroidJUnitRunner")
+	Instrumentation_class *string
 }
 
 type ravenwoodTest struct {
@@ -266,15 +271,17 @@ func (r *ravenwoodTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	targetSdkVersionInt := r.TargetSdkVersion(ctx).FinalOrFutureInt() // FinalOrFutureInt may be 10000.
 	packageName := proptools.StringDefault(r.ravenwoodTestProperties.Package_name, "")
 	instPackageName := proptools.StringDefault(r.ravenwoodTestProperties.Inst_package_name, "")
+	instClassName := proptools.StringDefault(r.ravenwoodTestProperties.Instrumentation_class, "")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        genManifestProperties,
 		Description: "genManifestProperties",
 		Output:      propertiesOutputPath,
 		Args: map[string]string{
-			"targetSdkVersionInt": strconv.Itoa(targetSdkVersionInt),
-			"targetSdkVersionRaw": targetSdkVersion,
-			"packageName":         packageName,
-			"instPackageName":     instPackageName,
+			"targetSdkVersionInt":  strconv.Itoa(targetSdkVersionInt),
+			"targetSdkVersionRaw":  targetSdkVersion,
+			"packageName":          packageName,
+			"instPackageName":      instPackageName,
+			"instrumentationClass": instClassName,
 		},
 	})
 	installProps := ctx.InstallFile(installPath, "ravenwood.properties", propertiesOutputPath)

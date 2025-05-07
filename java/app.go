@@ -499,7 +499,7 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	if a.dexer.proguardDictionary.Valid() {
 		android.SetProvider(ctx, ProguardProvider, ProguardInfo{
-			ModuleName:         ctx.ModuleName(),
+			ModuleName:         android.ModuleNameWithPossibleOverride(ctx),
 			Class:              "APPS",
 			ProguardDictionary: a.dexer.proguardDictionary.Path(),
 			ProguardUsageZip:   a.dexer.proguardUsageZip.Path(),

@@ -16,5 +16,8 @@ bootstrap_go_package {
     srcs: [
         "unbundled.go",
     ],
+    testSrcs: [
+        "unbundled_test.go",
+    ],
     pluginFor: ["soong_build"],
 }

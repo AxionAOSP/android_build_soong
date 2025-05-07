@@ -1207,7 +1207,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	if j.dexer.proguardDictionary.Valid() {
 		android.SetProvider(ctx, ProguardProvider, ProguardInfo{
-			ModuleName:         ctx.ModuleName(),
+			ModuleName:         android.ModuleNameWithPossibleOverride(ctx),
 			Class:              "JAVA_LIBRARIES",
 			ProguardDictionary: j.dexer.proguardDictionary.Path(),
 			ProguardUsageZip:   j.dexer.proguardUsageZip.Path(),

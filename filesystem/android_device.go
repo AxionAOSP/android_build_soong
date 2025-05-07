@@ -32,12 +32,6 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
-var proguardDictToProto = pctx.AndroidStaticRule("proguard_dict_to_proto", blueprint.RuleParams{
-	Command:     `${symbols_map} -r8 $in -location $location -write_if_changed $out`,
-	Restat:      true,
-	CommandDeps: []string{"${symbols_map}"},
-}, "location")
-
 type PartitionNameProperties struct {
 	// Name of the super partition filesystem module
 	Super_partition_name *string
@@ -116,9 +110,7 @@ type androidDevice struct {
 
 	allImagesZip android.Path
 
-	proguardDictZip             android.Path
-	proguardDictMapping         android.Path
-	proguardUsageZip            android.Path
+	proguardZips                java.ProguardZips
 	kernelConfig                android.Path
 	kernelVersion               android.Path
 	miscInfo                    android.Path
@@ -216,7 +208,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.kernelVersion, a.kernelConfig = a.extractKernelVersionAndConfigs(ctx)
 	a.miscInfo = a.addMiscInfo(ctx)
 	a.buildTargetFilesZip(ctx, allInstalledModules)
-	a.buildProguardZips(ctx, allInstalledModules)
+	a.proguardZips = java.BuildProguardZips(ctx, allInstalledModules)
 	a.buildSymbolsZip(ctx, allInstalledModules)
 	a.buildUpdatePackage(ctx)
 
@@ -415,11 +407,6 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 	return ret
 }
 
-type symbolicOutputInfo struct {
-	unstrippedOutputFile android.Path
-	symbolicOutputPath   android.InstallPath
-}
-
 func (a *androidDevice) buildSymbolsZip(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) {
 	a.symbolsZipFile = android.PathForModuleOut(ctx, "symbols.zip")
 	a.symbolsMappingFile = android.PathForModuleOut(ctx, "symbols-mapping.textproto")
@@ -457,9 +444,9 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 		if ctx.Config().HasDeviceProduct() {
 			namePrefix = ctx.Config().DeviceProduct() + "-"
 		}
-		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.proguardDictZip, namePrefix+a.proguardDictZip.Base())
-		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.proguardDictMapping, namePrefix+a.proguardDictMapping.Base())
-		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.proguardUsageZip, namePrefix+a.proguardUsageZip.Base())
+		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.proguardZips.DictZip, namePrefix+a.proguardZips.DictZip.Base())
+		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.proguardZips.DictMapping, namePrefix+a.proguardZips.DictMapping.Base())
+		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.proguardZips.UsageZip, namePrefix+a.proguardZips.UsageZip.Base())
 
 		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.symbolsZipFile, namePrefix+a.symbolsZipFile.Base())
 		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.symbolsMappingFile, namePrefix+a.symbolsMappingFile.Base())
@@ -498,56 +485,6 @@ func (a *androidDevice) MakeVars(_ android.MakeVarsModuleContext) []android.Modu
 		return []android.ModuleMakeVarsValue{{"SOONG_ONLY_ALL_IMAGES_ZIP", a.allImagesZip.String()}}
 	}
 	return nil
-}
-
-func (a *androidDevice) buildProguardZips(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) {
-	dictZip := android.PathForModuleOut(ctx, "proguard-dict.zip")
-	dictZipBuilder := android.NewRuleBuilder(pctx, ctx)
-	dictZipCmd := dictZipBuilder.Command().BuiltTool("soong_zip").Flag("-d").FlagWithOutput("-o ", dictZip)
-
-	dictMapping := android.PathForModuleOut(ctx, "proguard-dict-mapping.textproto")
-	dictMappingBuilder := android.NewRuleBuilder(pctx, ctx)
-	dictMappingCmd := dictMappingBuilder.Command().BuiltTool("symbols_map").Flag("-merge").Output(dictMapping)
-
-	protosDir := android.PathForModuleOut(ctx, "proguard_mapping_protos")
-
-	usageZip := android.PathForModuleOut(ctx, "proguard-usage.zip")
-	usageZipBuilder := android.NewRuleBuilder(pctx, ctx)
-	usageZipCmd := usageZipBuilder.Command().BuiltTool("merge_zips").Output(usageZip)
-
-	for _, mod := range allInstalledModules {
-		if proguardInfo, ok := android.OtherModuleProvider(ctx, mod, java.ProguardProvider); ok {
-			// Maintain these out/target/common paths for backwards compatibility. They may be able
-			// to be changed if tools look up file locations from the protobuf, but I'm not
-			// exactly sure how that works.
-			dictionaryFakePath := fmt.Sprintf("out/target/common/obj/%s/%s_intermediates/proguard_dictionary", proguardInfo.Class, proguardInfo.ModuleName)
-			dictZipCmd.FlagWithArg("-e ", dictionaryFakePath)
-			dictZipCmd.FlagWithInput("-f ", proguardInfo.ProguardDictionary)
-			dictZipCmd.Textf("-e out/target/common/obj/%s/%s_intermediates/classes.jar", proguardInfo.Class, proguardInfo.ModuleName)
-			dictZipCmd.FlagWithInput("-f ", proguardInfo.ClassesJar)
-
-			protoFile := protosDir.Join(ctx, filepath.Dir(dictionaryFakePath), "proguard_dictionary.textproto")
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   proguardDictToProto,
-				Input:  proguardInfo.ProguardDictionary,
-				Output: protoFile,
-				Args: map[string]string{
-					"location": dictionaryFakePath,
-				},
-			})
-			dictMappingCmd.Input(protoFile)
-
-			usageZipCmd.Input(proguardInfo.ProguardUsageZip)
-		}
-	}
-
-	dictZipBuilder.Build("proguard_dict_zip", "Building proguard dictionary zip")
-	dictMappingBuilder.Build("proguard_dict_mapping_proto", "Building proguard mapping proto")
-	usageZipBuilder.Build("proguard_usage_zip", "Building proguard usage zip")
-
-	a.proguardDictZip = dictZip
-	a.proguardDictMapping = dictMapping
-	a.proguardUsageZip = usageZip
 }
 
 // Helper structs for target_files.zip creation
