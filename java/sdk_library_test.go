@@ -180,11 +180,11 @@ func TestJavaSdkLibrary(t *testing.T) {
 
 	fooImplDexJar := result.ModuleForTests(t, "foo.impl", "android_common").Rule("d8")
 	// tests if kotlinc generated files are NOT excluded from output of foo.impl.
-	android.AssertStringDoesNotContain(t, "foo.impl dex", fooImplDexJar.BuildParams.Args["mergeZipsFlags"], "-stripFile META-INF/*.kotlin_module")
+	android.AssertStringDoesNotContain(t, "foo.impl dex", fooImplDexJar.BuildParams.Args["mergeZipsFlags"], "-stripFile META-INF/**/*.kotlin_module")
 
 	barImplDexJar := result.ModuleForTests(t, "bar.impl", "android_common").Rule("d8")
 	// tests if kotlinc generated files are excluded from output of bar.impl.
-	android.AssertStringDoesContain(t, "bar.impl dex", barImplDexJar.BuildParams.Args["mergeZipsFlags"], "-stripFile META-INF/*.kotlin_module")
+	android.AssertStringDoesContain(t, "bar.impl dex", barImplDexJar.BuildParams.Args["mergeZipsFlags"], "-stripFile META-INF/**/*.kotlin_module")
 }
 
 func TestJavaSdkLibrary_UpdatableLibrary(t *testing.T) {

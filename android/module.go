@@ -1135,29 +1135,21 @@ func addVintfFragmentDeps(ctx BottomUpMutatorContext) {
 		return
 	}
 
-	deviceConfig := ctx.DeviceConfig()
-
 	mod := ctx.Module()
-	vintfModules := ctx.AddDependency(mod, vintfDepTag, mod.VintfFragmentModuleNames(ctx)...)
+	ctx.AddDependency(mod, vintfDepTag, mod.VintfFragmentModuleNames(ctx)...)
+}
 
-	modPartition := mod.PartitionTag(deviceConfig)
-	for _, vintf := range vintfModules {
-		if vintf == nil {
-			// TODO(b/372091092): Remove this. Having it gives us missing dependency errors instead
-			// of nil pointer dereference errors, but we should resolve the missing dependencies.
-			continue
+func checkVintfFragmentDeps(ctx ModuleContext) {
+	modPartition := ctx.Module().PartitionTag(ctx.DeviceConfig())
+	ctx.VisitDirectDepsProxyWithTag(vintfDepTag, func(vintf ModuleProxy) {
+		commonInfo := OtherModulePointerProviderOrDefault(ctx, vintf, CommonModuleInfoProvider)
+		vintfPartition := commonInfo.PartitionTag
+		if modPartition != vintfPartition {
+			ctx.ModuleErrorf("Module %q(%q) and Vintf_fragment %q(%q) are installed to different partitions.",
+				ctx.ModuleName(), modPartition,
+				vintf.Name(), vintfPartition)
 		}
-		if vintfModule, ok := vintf.(*VintfFragmentModule); ok {
-			vintfPartition := vintfModule.PartitionTag(deviceConfig)
-			if modPartition != vintfPartition {
-				ctx.ModuleErrorf("Module %q(%q) and Vintf_fragment %q(%q) are installed to different partitions.",
-					mod.Name(), modPartition,
-					vintfModule.Name(), vintfPartition)
-			}
-		} else {
-			ctx.ModuleErrorf("Only vintf_fragment type module should be listed in vintf_fragment_modules : %q", vintf.Name())
-		}
-	}
+	})
 }
 
 // AddProperties "registers" the provided props
@@ -2053,6 +2045,8 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	// reporting missing dependency errors in Blueprint when AllowMissingDependencies == true.
 	// TODO: This will be removed once defaults modules handle missing dependency errors
 	blueprintCtx.GetMissingDependencies()
+
+	checkVintfFragmentDeps(ctx)
 
 	// For the final GenerateAndroidBuildActions pass, require that all visited dependencies Soong modules and
 	// are enabled. Unless the module is a CommonOS variant which may have dependencies on disabled variants

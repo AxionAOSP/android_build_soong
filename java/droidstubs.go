@@ -439,6 +439,8 @@ func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if d.properties.Api_levels_module != nil {
 		ctx.AddDependency(ctx.Module(), metalavaAPILevelsModuleTag, proptools.String(d.properties.Api_levels_module))
 	}
+
+	d.EmbeddableSdkLibraryComponent.setComponentDependencyInfoProvider(ctx)
 }
 
 func (d *Droidstubs) sdkValuesFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, metadataDir android.WritablePath) {
@@ -1427,6 +1429,9 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			Input(d.removedApiFile).Flag(removedApiFile.String())
 
 		msg = "failed to update public API"
+		if ctx.Config().GetBuildFlagBool("RELEASE_SRC_DIR_IS_READ_ONLY") {
+			msg += ". You may need `BUILD_BROKEN_SRC_DIR_IS_WRITABLE=true`"
+		}
 
 		rule.Command().
 			Text("touch").Output(d.updateCurrentApiTimestamp).
@@ -1612,6 +1617,10 @@ type PrebuiltStubsSources struct {
 
 func (d *PrebuiltStubsSources) StubsSrcJar(_ StubsType) (android.Path, error) {
 	return d.stubsSrcJar, nil
+}
+
+func (p *PrebuiltStubsSources) DepsMutator(ctx android.BottomUpMutatorContext) {
+	p.EmbeddableSdkLibraryComponent.setComponentDependencyInfoProvider(ctx)
 }
 
 func (p *PrebuiltStubsSources) GenerateAndroidBuildActions(ctx android.ModuleContext) {

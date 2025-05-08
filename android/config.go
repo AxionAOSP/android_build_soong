@@ -433,6 +433,9 @@ type partialCompileFlags struct {
 	// Whether to enable incremental java compilation.
 	Enable_inc_javac bool
 
+	// Whether to use the kotlin-incremental-client when compiling .kt files.
+	Enable_inc_kotlin bool
+
 	// Add others as needed.
 }
 
@@ -443,6 +446,8 @@ var defaultPartialCompileFlags = partialCompileFlags{}
 var enabledPartialCompileFlags = partialCompileFlags{
 	Use_d8:                  true,
 	Disable_stub_validation: true,
+	Enable_inc_kotlin:       false,
+	Enable_inc_javac:        false,
 }
 
 // These are the flags when `SOONG_PARTIAL_COMPILE=all`.
@@ -450,6 +455,7 @@ var allPartialCompileFlags = partialCompileFlags{
 	Use_d8:                  true,
 	Disable_stub_validation: true,
 	Enable_inc_javac:        true,
+	Enable_inc_kotlin:       true,
 }
 
 type deviceConfig struct {
@@ -538,6 +544,11 @@ func (c *config) parsePartialCompileFlags(isEngBuild bool) (partialCompileFlags,
 		case "disable_inc_javac":
 			ret.Enable_inc_javac = !makeVal(state, defaultPartialCompileFlags.Enable_inc_javac)
 
+		case "inc_kotlin", "enable_inc_kotlin":
+			ret.Enable_inc_kotlin = makeVal(state, defaultPartialCompileFlags.Enable_inc_kotlin)
+		case "disable_inc_kotlin":
+			ret.Enable_inc_kotlin = !makeVal(state, defaultPartialCompileFlags.Enable_inc_kotlin)
+
 		case "stub_validation", "enable_stub_validation":
 			ret.Disable_stub_validation = !makeVal(state, !defaultPartialCompileFlags.Disable_stub_validation)
 		case "disable_stub_validation":
@@ -545,6 +556,7 @@ func (c *config) parsePartialCompileFlags(isEngBuild bool) (partialCompileFlags,
 
 		case "use_d8":
 			ret.Use_d8 = makeVal(state, defaultPartialCompileFlags.Use_d8)
+
 		default:
 			return partialCompileFlags{}, fmt.Errorf("Unknown SOONG_PARTIAL_COMPILE value: %v", tok)
 		}

@@ -650,7 +650,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 	// Exclude kotlinc generated files when "exclude_kotlinc_generated_files" is set to true.
 	mergeZipsFlags := ""
 	if proptools.BoolDefault(d.dexProperties.Exclude_kotlinc_generated_files, false) {
-		mergeZipsFlags = "-stripFile META-INF/*.kotlin_module -stripFile **/*.kotlin_builtins"
+		mergeZipsFlags = "-stripFile META-INF/**/*.kotlin_module -stripFile **/*.kotlin_builtins"
 	}
 
 	useR8 := d.effectiveOptimizeEnabled(ctx)

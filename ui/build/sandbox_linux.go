@@ -281,6 +281,10 @@ func (c *Cmd) wrapSandbox() {
 		"--rlimit_cpu", "soft",
 		"--rlimit_fsize", "soft",
 		"--rlimit_nofile", "soft",
+
+		// nsjail defaults to a niceness of 19, the minimum priority.  Raise it to 5 so that UI tasks are still
+		// a higher priority, but the build is a higher priority than the other background tasks that are set to 10.
+		"--nice_level", "5",
 	)
 
 	sandboxArgs = append(sandboxArgs,
@@ -316,7 +320,7 @@ func (c *Cmd) wrapSandbox() {
 	if len(c.config.sandboxConfig.SrcDirRWAllowlist()) > 0 && !c.config.sandboxConfig.SrcDirIsRO() {
 		errMsg := `Product source tree has been set as ReadWrite, RW allowlist not necessary.
 			To recover, either
-			1. Unset BUILD_BROKEN_SRC_DIR_IS_WRITABLE #or
+			1. Set BUILD_BROKEN_SRC_DIR_IS_WRITABLE=false #or
 			2. Unset BUILD_BROKEN_SRC_DIR_RW_ALLOWLIST`
 		c.ctx.Fatalln(errMsg)
 	}

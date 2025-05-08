@@ -32,9 +32,6 @@ var (
 	windowsRustLinkFlags = []string{
 		"--sysroot ${cc_config.WindowsGccRoot}/${cc_config.WindowsGccTriple}",
 		"-fuse-ld=lld",
-		"-lssp",
-		"-lgcc_s",
-		"-ladvapi32",
 	}
 
 	// x86 specific flags

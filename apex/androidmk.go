@@ -304,6 +304,9 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 			fmt.Fprintf(w, "ALL_MODULES.$(my_register_name).SYMBOLIC_OUTPUT_PATH := $(foreach m,%s,$(ALL_MODULES.$(m).SYMBOLIC_OUTPUT_PATH))\n", strings.Join(moduleNames, " "))
 			fmt.Fprintf(w, "ALL_MODULES.$(my_register_name).ELF_SYMBOL_MAPPING_PATH := $(foreach m,%s,$(ALL_MODULES.$(m).ELF_SYMBOL_MAPPING_PATH))\n", strings.Join(moduleNames, " "))
 
+			fmt.Fprintf(w, "ALL_MODULES.$(my_register_name).JACOCO_REPORT_SOONG_ZIP_ARGUMENTS := $(foreach m,%s,$(ALL_MODULES.$(m).JACOCO_REPORT_SOONG_ZIP_ARGUMENTS))\n", strings.Join(moduleNames, " "))
+			fmt.Fprintf(w, "ALL_MODULES.$(my_register_name).JACOCO_REPORT_FILES := $(foreach m,%s,$(ALL_MODULES.$(m).JACOCO_REPORT_FILES))\n", strings.Join(moduleNames, " "))
+
 			distCoverageFiles(w, "ndk_apis_usedby_apex", a.nativeApisUsedByModuleFile.String())
 			distCoverageFiles(w, "ndk_apis_backedby_apex", a.nativeApisBackedByModuleFile.String())
 			distCoverageFiles(w, "java_apis_used_by_apex", a.javaApisUsedByModuleFile.String())

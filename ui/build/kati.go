@@ -205,6 +205,11 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string, envF
 	//     fi
 	cmd.Environment.Unset("SOONG_USE_PARTIAL_COMPILE")
 
+	// SOONG_HONOR_USE_PARTIAL_COMPILE is used by soong_ui to determine whether or not to force
+	// SOONG_USE_PARTIAL_COMPILE=false for certain ninja targets.  It should not be used by anything other
+	// than soong_ui.
+	cmd.Environment.Unset("SOONG_HONOR_USE_PARTIAL_COMPILE")
+
 	// Unset BUILD_HOSTNAME during kati run to avoid kati rerun, kati will use BUILD_HOSTNAME from a file.
 	cmd.Environment.Unset("BUILD_HOSTNAME")
 

@@ -1174,13 +1174,13 @@ func (e *EmbeddableSdkLibraryComponent) initSdkLibraryComponent(module android.M
 	module.AddProperties(&e.sdkLibraryComponentProperties)
 }
 
-// to satisfy SdkLibraryComponentDependency
 func (e *EmbeddableSdkLibraryComponent) SdkLibraryName() *string {
 	return e.sdkLibraryComponentProperties.SdkLibraryName
 }
 
-// to satisfy SdkLibraryComponentDependency
-func (e *EmbeddableSdkLibraryComponent) OptionalSdkLibraryImplementation() *string {
+var SdkLibraryComponentDependencyInfoProvider = blueprint.NewMutatorProvider[SdkLibraryComponentDependencyInfo]("deps")
+
+type SdkLibraryComponentDependencyInfo struct {
 	// For shared libraries, this is the same as the SDK library name. If a Java library or app
 	// depends on a component library (e.g. a stub library) it still needs to know the name of the
 	// run-time library and the corresponding module that provides the implementation. This name is
@@ -1189,28 +1189,17 @@ func (e *EmbeddableSdkLibraryComponent) OptionalSdkLibraryImplementation() *stri
 	//
 	// For non-shared SDK (component or not) libraries this returns `nil`, as they are not
 	// <uses-library> and should not be added to the manifest or to CLC.
-	return e.sdkLibraryComponentProperties.SdkLibraryToImplicitlyTrack
+	OptionalSdkLibraryImplementation *string
+	// The name of the java_sdk_library/_import module if this module was created by one.
+	SdkLibraryName *string
 }
 
-// Implemented by modules that are (or possibly could be) a component of a java_sdk_library
-// (including the java_sdk_library) itself.
-type SdkLibraryComponentDependency interface {
-	UsesLibraryDependency
-
-	// SdkLibraryName returns the name of the java_sdk_library/_import module.
-	SdkLibraryName() *string
-
-	// The name of the implementation library for the optional SDK library or nil, if there isn't one.
-	OptionalSdkLibraryImplementation() *string
+func (e *EmbeddableSdkLibraryComponent) setComponentDependencyInfoProvider(ctx android.BottomUpMutatorContext) {
+	android.SetProvider(ctx, SdkLibraryComponentDependencyInfoProvider, SdkLibraryComponentDependencyInfo{
+		OptionalSdkLibraryImplementation: e.sdkLibraryComponentProperties.SdkLibraryToImplicitlyTrack,
+		SdkLibraryName:                   e.sdkLibraryComponentProperties.SdkLibraryName,
+	})
 }
-
-// Make sure that all the module types that are components of java_sdk_library/_import
-// and which can be referenced (directly or indirectly) from an android app implement
-// the SdkLibraryComponentDependency interface.
-var _ SdkLibraryComponentDependency = (*Library)(nil)
-var _ SdkLibraryComponentDependency = (*Import)(nil)
-var _ SdkLibraryComponentDependency = (*SdkLibrary)(nil)
-var _ SdkLibraryComponentDependency = (*SdkLibraryImport)(nil)
 
 type ApiScopePathsInfo struct {
 	StubsImplPath      android.Paths
@@ -1476,6 +1465,11 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 
 	module.usesLibrary.deps(ctx, false)
+
+	module.EmbeddableSdkLibraryComponent.setComponentDependencyInfoProvider(ctx)
+	libDeps := ctx.AddVariationDependencies(nil, usesLibStagingTag, module.properties.Libs...)
+	libDeps = append(libDeps, ctx.AddVariationDependencies(nil, usesLibStagingTag, module.sdkLibraryProperties.Impl_only_libs...)...)
+	module.usesLibrary.depsFromLibs(ctx, libDeps)
 }
 
 func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -1867,11 +1861,17 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 			panic(fmt.Sprintf("script file %s doesn't exist", script))
 		}
 
+		env_msg := ""
+		if mctx.Config().GetBuildFlagBool("RELEASE_SRC_DIR_IS_READ_ONLY") {
+			env_msg = "BUILD_BROKEN_SRC_DIR_IS_WRITABLE=true "
+		}
+
 		mctx.ModuleErrorf("One or more current api files are missing. "+
 			"You can update them by:\n"+
-			"%s %q %s && m update-api",
+			"%s %q %s && %sm update-api",
 			script, filepath.Join(mctx.ModuleDir(), apiDir),
-			strings.Join(generatedScopes.Strings(func(s *apiScope) string { return s.apiFilePrefix }), " "))
+			strings.Join(generatedScopes.Strings(func(s *apiScope) string { return s.apiFilePrefix }), " "),
+			env_msg)
 		return
 	}
 
@@ -2214,6 +2214,8 @@ func (module *SdkLibraryImport) DepsMutator(ctx android.BottomUpMutatorContext) 
 			ctx.AddDependency(module, xmlPermissionsFileTag, xmlPermissionsModuleName)
 		}
 	}
+
+	module.EmbeddableSdkLibraryComponent.setComponentDependencyInfoProvider(ctx)
 }
 
 var _ android.ApexModule = (*SdkLibraryImport)(nil)

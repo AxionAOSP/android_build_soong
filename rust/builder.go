@@ -466,9 +466,9 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 		}
 	}
 	var implicitOutputs android.WritablePaths
-	mod := ctx.Module().(cc.LinkableInterface)
-	if ctx.Windows() && mod.Shared() {
-		// On windows, an additional .lib file is produced for shared libraries.
+
+	if ctx.Windows() && (t.crateType == "cdylib" || t.crateType == "dylib") {
+		// On windows, an additional .lib file is produced for dynamic linkages.
 		importLibraryPath := android.PathForModuleOut(ctx, outputFile.ReplaceExtension(ctx, "lib").Base())
 		linkFlags = append(linkFlags, "-Wl,--out-implib="+importLibraryPath.String())
 		implicitOutputs = append(implicitOutputs, importLibraryPath)

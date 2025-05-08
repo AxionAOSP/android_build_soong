@@ -2091,6 +2091,27 @@ func (u *usesLibrary) deps(ctx android.BottomUpMutatorContext, addCompatDeps boo
 	}
 }
 
+func (u *usesLibrary) depsFromLibs(ctx android.BottomUpMutatorContext, libDeps []android.Module) {
+	// For library dependencies that are component libraries (like stubs), add the implementation
+	// as a dependency (dexpreopt needs to be against the implementation library, not stubs).
+	for _, dep := range libDeps {
+		if dep != nil {
+			if component, ok := android.OtherModuleProvider(ctx, dep, SdkLibraryComponentDependencyInfoProvider); ok {
+				if lib := component.OptionalSdkLibraryImplementation; lib != nil {
+					// Add library as optional if it's one of the optional compatibility libs or it's
+					// explicitly listed in the optional_uses_libs property.
+					tag := usesLibReqTag
+					if android.InList(*lib, dexpreopt.OptionalCompatUsesLibs) ||
+						android.InList(*lib, u.usesLibraryProperties.Optional_uses_libs.GetOrDefault(ctx, nil)) {
+						tag = usesLibOptTag
+					}
+					ctx.AddVariationDependencies(nil, tag, *lib)
+				}
+			}
+		}
+	}
+}
+
 // presentOptionalUsesLibs returns optional_uses_libs after filtering out libraries that don't exist in the source tree.
 func (u *usesLibrary) presentOptionalUsesLibs(ctx android.BaseModuleContext) []string {
 	optionalUsesLibs := android.FilterListPred(u.usesLibraryProperties.Optional_uses_libs.GetOrDefault(ctx, nil), func(s string) bool {
@@ -2125,7 +2146,7 @@ func (u *usesLibrary) classLoaderContextForUsesLibDeps(ctx android.ModuleContext
 		// Skip stub libraries. A dependency on the implementation library has been added earlier,
 		// so it will be added to CLC, but the stub shouldn't be. Stub libraries can be distingushed
 		// from implementation libraries by their name, which is different as it has a suffix.
-		if comp := javaInfo.SdkLibraryComponentDependencyInfo; comp != nil {
+		if comp, ok := android.OtherModuleProvider(ctx, m, SdkLibraryComponentDependencyInfoProvider); ok {
 			if impl := comp.OptionalSdkLibraryImplementation; impl != nil && *impl != dep {
 				return
 			}

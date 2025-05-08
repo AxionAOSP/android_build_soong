@@ -686,14 +686,12 @@ func (s StubDexJarsByModule) addStubDexJar(ctx android.ModuleContext, module and
 		// migrated to a module_lib API.
 		name = "conscrypt.module.public.api"
 	} else {
-		if info, ok := android.OtherModuleProvider(ctx, module, JavaInfoProvider); ok {
-			if slcDepInfo := info.SdkLibraryComponentDependencyInfo; slcDepInfo != nil {
-				if sdkLibraryName := slcDepInfo.SdkLibraryName; sdkLibraryName != nil {
-					// The module is a component of a java_sdk_library so use the name of the java_sdk_library.
-					// e.g. if this module is `foo.system.stubs` and is part of the `foo` java_sdk_library then
-					// use `foo` as the name.
-					name = *sdkLibraryName
-				}
+		if slcDepInfo, ok := android.OtherModuleProvider(ctx, module, SdkLibraryComponentDependencyInfoProvider); ok {
+			if sdkLibraryName := slcDepInfo.SdkLibraryName; sdkLibraryName != nil {
+				// The module is a component of a java_sdk_library so use the name of the java_sdk_library.
+				// e.g. if this module is `foo.system.stubs` and is part of the `foo` java_sdk_library then
+				// use `foo` as the name.
+				name = *sdkLibraryName
 			}
 		}
 	}

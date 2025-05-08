@@ -16,6 +16,7 @@ package java
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -3527,6 +3528,20 @@ func TestUsesLibraries(t *testing.T) {
 		"--product-packages=out/soong/.intermediates/app/android_common/dexpreopt/app/product_packages.txt")
 }
 
+func extractContextJson(cmd string) (map[string]interface{}, error) {
+	var clc map[string]interface{}
+	for _, flag := range strings.Split(cmd, " ") {
+		if value, match := strings.CutPrefix(flag, "--context-json='"); match {
+			value = strings.TrimSuffix(value, "'")
+			if err := json.Unmarshal([]byte(value), &clc); err != nil {
+				return nil, err
+			}
+			return clc, nil
+		}
+	}
+	return nil, errors.New("--context-json not found")
+}
+
 func TestClassLoaderContext_SdkLibrary(t *testing.T) {
 	bp := `
 		java_sdk_library {
@@ -3567,19 +3582,111 @@ func TestClassLoaderContext_SdkLibrary(t *testing.T) {
 		FixtureWithLastReleaseApis("foo", "bar"),
 	).RunTestWithBp(t, bp)
 
+	{
+		fooXml := result.ModuleForTests(t, "foo.xml", "android_common").Output("foo.xml")
+		fooXmlContents := android.ContentFromFileRuleForTests(t, result.TestContext, fooXml)
+		android.AssertStringDoesContain(t, "", fooXmlContents, `dependency="bar"`)
+	}
+
+	{
+		fooImpl := result.ModuleForTests(t, "foo.impl", "android_common")
+		cmd := fooImpl.Rule("dexpreopt").RuleParams.Command
+
+		clc, err := extractContextJson(cmd)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		deps := clc["any"].([]interface{})
+		android.AssertIntEquals(t, "", 1, len(deps))
+		bar := deps[0].(map[string]interface{})
+		android.AssertStringEquals(t, "", "bar", bar["Name"].(string))
+	}
+
 	for _, name := range []string{"app", "app2"} {
 		app := result.ModuleForTests(t, name, "android_common")
 		cmd := app.Rule("dexpreopt").RuleParams.Command
 
-		var clc map[string]interface{}
-		for _, flag := range strings.Split(cmd, " ") {
-			if value, match := strings.CutPrefix(flag, "--context-json='"); match {
-				value = strings.TrimSuffix(value, "'")
-				if err := json.Unmarshal([]byte(value), &clc); err != nil {
-					t.Error(err)
-					return
-				}
-			}
+		clc, err := extractContextJson(cmd)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		deps := clc["any"].([]interface{})
+		android.AssertIntEquals(t, "", 1, len(deps))
+		foo := deps[0].(map[string]interface{})
+		android.AssertStringEquals(t, "", "foo", foo["Name"].(string))
+		fooDeps := foo["Subcontexts"].([]interface{})
+		android.AssertIntEquals(t, "", 1, len(fooDeps))
+		bar := fooDeps[0].(map[string]interface{})
+		android.AssertStringEquals(t, "", "bar", bar["Name"].(string))
+	}
+}
+
+func TestClassLoaderContext_SdkLibrary2(t *testing.T) {
+	bp := `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			api_packages: ["foo"],
+			sdk_version: "current",
+			libs: ["bar.impl"],
+		}
+
+		java_sdk_library {
+			name: "bar",
+			srcs: ["b.java"],
+			api_packages: ["bar"],
+			sdk_version: "current",
+		}
+
+		android_app {
+			name: "app",
+			srcs: ["app.java"],
+			libs: ["foo.stubs"],
+			uses_libs: ["foo"],
+			sdk_version: "current",
+		}
+	`
+
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo", "bar"),
+	).RunTestWithBp(t, bp)
+
+	{
+		fooXml := result.ModuleForTests(t, "foo.xml", "android_common").Output("foo.xml")
+		fooXmlContents := android.ContentFromFileRuleForTests(t, result.TestContext, fooXml)
+		android.AssertStringDoesContain(t, "", fooXmlContents, `dependency="bar"`)
+	}
+
+	{
+		fooImpl := result.ModuleForTests(t, "foo.impl", "android_common")
+		cmd := fooImpl.Rule("dexpreopt").RuleParams.Command
+
+		clc, err := extractContextJson(cmd)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		deps := clc["any"].([]interface{})
+		android.AssertIntEquals(t, "", 1, len(deps))
+		bar := deps[0].(map[string]interface{})
+		android.AssertStringEquals(t, "", "bar", bar["Name"].(string))
+	}
+
+	{
+		app := result.ModuleForTests(t, "app", "android_common")
+		cmd := app.Rule("dexpreopt").RuleParams.Command
+
+		clc, err := extractContextJson(cmd)
+		if err != nil {
+			t.Error(err)
+			return
 		}
 
 		deps := clc["any"].([]interface{})

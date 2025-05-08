@@ -572,7 +572,10 @@ func PrebuiltSelectModuleMutator(ctx BottomUpMutatorContext) {
 			allModules = append(allModules, prebuiltModule)
 		})
 		hideUnflaggedModules(ctx, psi, allModules)
+	}
 
+	if ac, ok := m.(*apexContributions); ok {
+		ac.setApexContributionsInfoProvider(ctx)
 	}
 
 	// If this is `all_apex_contributions`, set a provider containing

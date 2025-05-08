@@ -580,6 +580,9 @@ func runSoong(ctx Context, config Config, enforceNoSoongOutput bool) {
 	soongBuildEnv.Set("TOP", os.Getenv("TOP"))
 	soongBuildEnv.Set("LOG_DIR", config.LogsDir())
 
+	// Never pass SOONG_HONOR_USE_PARTIAL_COMPILE to Soong.
+	soongBuildEnv.Unset("SOONG_HONOR_USE_PARTIAL_COMPILE")
+
 	// For Soong bootstrapping tests
 	if os.Getenv("ALLOW_MISSING_DEPENDENCIES") == "true" {
 		soongBuildEnv.Set("ALLOW_MISSING_DEPENDENCIES", "true")

@@ -490,24 +490,41 @@ func partitionSpecificFsProps(ctx android.EarlyModuleContext, partitions allGene
 					Target: proptools.StringPtr("/storage/self/primary"),
 					Name:   proptools.StringPtr("sdcard"),
 				},
-				{
-					Target: proptools.StringPtr("/system_dlkm/lib/modules"),
-					Name:   proptools.StringPtr("system/lib/modules"),
-				},
-				{
-					Target: proptools.StringPtr("/product"),
-					Name:   proptools.StringPtr("system/product"),
-				},
-				{
-					Target: proptools.StringPtr("/system_ext"),
-					Name:   proptools.StringPtr("system/system_ext"),
-				},
-				{
+			}...,
+		)
+		if ctx.DeviceConfig().VendorPath() == "vendor" {
+			fsProps.Symlinks = append(fsProps.Symlinks,
+				filesystem.SymlinkDefinition{
 					Target: proptools.StringPtr("/vendor"),
 					Name:   proptools.StringPtr("system/vendor"),
 				},
-			}...,
-		)
+			)
+		}
+		if ctx.DeviceConfig().ProductPath() == "product" {
+			fsProps.Symlinks = append(fsProps.Symlinks,
+				filesystem.SymlinkDefinition{
+					Target: proptools.StringPtr("/product"),
+					Name:   proptools.StringPtr("system/product"),
+				},
+			)
+		}
+		if ctx.DeviceConfig().SystemExtPath() == "system_ext" {
+			fsProps.Symlinks = append(fsProps.Symlinks,
+				filesystem.SymlinkDefinition{
+					Target: proptools.StringPtr("/system_ext"),
+					Name:   proptools.StringPtr("system/system_ext"),
+				},
+			)
+		}
+		if ctx.DeviceConfig().SystemDlkmPath() == "system_dlkm" {
+			fsProps.Symlinks = append(fsProps.Symlinks,
+				filesystem.SymlinkDefinition{
+					Target: proptools.StringPtr("/system_dlkm/lib/modules"),
+					Name:   proptools.StringPtr("system/lib/modules"),
+				},
+			)
+		}
+
 		fsProps.Base_dir = proptools.StringPtr("system")
 		fsProps.Dirs = proptools.NewSimpleConfigurable(commonPartitionDirs)
 		fsProps.Security_patch = proptools.StringPtr(ctx.Config().PlatformSecurityPatch())
@@ -534,15 +551,21 @@ func partitionSpecificFsProps(ctx android.EarlyModuleContext, partitions allGene
 		fsProps.Stem = proptools.StringPtr("product.img")
 	case "vendor":
 		fsProps.Gen_aconfig_flags_pb = proptools.BoolPtr(true)
-		fsProps.Symlinks = []filesystem.SymlinkDefinition{
-			filesystem.SymlinkDefinition{
-				Target: proptools.StringPtr("/odm"),
-				Name:   proptools.StringPtr("odm"),
-			},
-			filesystem.SymlinkDefinition{
-				Target: proptools.StringPtr("/vendor_dlkm/lib/modules"),
-				Name:   proptools.StringPtr("lib/modules"),
-			},
+		if ctx.DeviceConfig().OdmPath() == "odm" {
+			fsProps.Symlinks = append(fsProps.Symlinks,
+				filesystem.SymlinkDefinition{
+					Target: proptools.StringPtr("/odm"),
+					Name:   proptools.StringPtr("odm"),
+				},
+			)
+		}
+		if ctx.DeviceConfig().VendorDlkmPath() == "vendor_dlkm" {
+			fsProps.Symlinks = append(fsProps.Symlinks,
+				filesystem.SymlinkDefinition{
+					Target: proptools.StringPtr("/vendor_dlkm/lib/modules"),
+					Name:   proptools.StringPtr("lib/modules"),
+				},
+			)
 		}
 		fsProps.Android_filesystem_deps.System = proptools.StringPtr(partitions.nameForType("system"))
 		if systemExtName := partitions.nameForType("system_ext"); systemExtName != "" {
@@ -551,11 +574,13 @@ func partitionSpecificFsProps(ctx android.EarlyModuleContext, partitions allGene
 		fsProps.Security_patch = proptools.StringPtr(partitionVars.VendorSecurityPatch)
 		fsProps.Stem = proptools.StringPtr("vendor.img")
 	case "odm":
-		fsProps.Symlinks = []filesystem.SymlinkDefinition{
-			filesystem.SymlinkDefinition{
-				Target: proptools.StringPtr("/odm_dlkm/lib/modules"),
-				Name:   proptools.StringPtr("lib/modules"),
-			},
+		if ctx.DeviceConfig().OdmDlkmPath() == "odm_dlkm" {
+			fsProps.Symlinks = append(fsProps.Symlinks,
+				filesystem.SymlinkDefinition{
+					Target: proptools.StringPtr("/odm_dlkm/lib/modules"),
+					Name:   proptools.StringPtr("lib/modules"),
+				},
+			)
 		}
 		fsProps.Security_patch = proptools.StringPtr(partitionVars.OdmSecurityPatch)
 		fsProps.Stem = proptools.StringPtr("odm.img")

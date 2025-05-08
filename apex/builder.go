@@ -574,7 +574,7 @@ func (a *apexBundle) installApexSystemServerFiles(ctx android.ModuleContext) {
 	for _, fi := range a.filesInfo {
 		for _, install := range fi.systemServerDexpreoptInstalls {
 			var installedFile android.InstallPath
-			if performInstalls && ctx.Config().KatiEnabled() {
+			if performInstalls {
 				// android_device will create the install rule in soong-only builds.
 				// Skip creating the installation rule from the base variant
 				// in soong-only builds to prevent duplicate installation rules.
@@ -586,7 +586,7 @@ func (a *apexBundle) installApexSystemServerFiles(ctx android.ModuleContext) {
 			}
 			a.extraInstalledFiles = append(a.extraInstalledFiles, installedFile)
 			a.extraInstalledPairs = append(a.extraInstalledPairs, installPair{install.OutputPathOnHost, installedFile})
-			ctx.PackageFile(install.InstallDirOnDevice, install.InstallFileOnDevice, install.OutputPathOnHost)
+			ctx.PackageFileWithFakeFullInstall(install.InstallDirOnDevice, install.InstallFileOnDevice, install.OutputPathOnHost)
 		}
 		if performInstalls {
 			for _, dexJar := range fi.systemServerDexJars {

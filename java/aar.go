@@ -1295,6 +1295,7 @@ func (a *AARImport) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddVariationDependencies(nil, staticLibTag, a.properties.Static_libs.GetOrDefault(ctx, nil)...)
 
 	a.usesLibrary.deps(ctx, false)
+	a.EmbeddableSdkLibraryComponent.setComponentDependencyInfoProvider(ctx)
 }
 
 type JniPackageInfo struct {

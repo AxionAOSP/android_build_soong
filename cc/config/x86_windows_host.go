@@ -71,6 +71,12 @@ var (
 		"-Wl,--nxcompat",
 
 		"-Wl,--Xlink=-Brepro", // Enable deterministic build
+
+		// Additional libraries required for generated static rustlibs
+		"-lssp",
+		"-lgcc_s",
+		"-ladvapi32",
+		"-lntdll",
 	}
 
 	windowsX86Cflags = []string{
