@@ -24,7 +24,7 @@ of java files to be passed for incremental javac compilation.
 * deps file, containing the cross-module dependencies for javac.
 * javacTarget path to the output jar of javac
 * srcDepsProto, path to a proto file representing dependencies across java source files.
-* localHeaderJars optional space separated file paths representing header jars for java sources.
+* localHeaderJars *(optional)* rsp file containing space separated header jar path(s) for java sources.
 
 ## Output
 * [javacTarget].inc.rsp file, representing list of java source files for incremental compilation.
@@ -35,7 +35,7 @@ of java files to be passed for incremental javac compilation.
 
 ## Usage
 ```
-incremental_javac_input --srcs [srcRspFile] --deps [depsRspFile] --javacTarget [javacTargetPath] --srcDepsProto [srcDepsProtoPath] --localHeaderJars [headerJarPath1] [headerJarPath2]
+incremental_javac_input --srcs [srcRspFile] --deps [depsRspFile] --javacTarget [javacTargetPath] --srcDepsProto [srcDepsProtoPath] --localHeaderJars [localHeaderJarsRspFile]
 ```
 
 ## Notes

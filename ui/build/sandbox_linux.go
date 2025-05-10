@@ -26,8 +26,7 @@ import (
 )
 
 type Sandbox struct {
-	Enabled              bool
-	DisableWhenUsingGoma bool
+	Enabled bool
 
 	AllowBuildBrokenUsesNetwork bool
 }
@@ -42,8 +41,7 @@ var (
 	katiSandbox     = basicSandbox
 	soongSandbox    = basicSandbox
 	ninjaSandbox    = Sandbox{
-		Enabled:              true,
-		DisableWhenUsingGoma: true,
+		Enabled: true,
 
 		AllowBuildBrokenUsesNetwork: true,
 	}
@@ -65,11 +63,6 @@ var sandboxConfig struct {
 
 func (c *Cmd) sandboxSupported() bool {
 	if !c.Sandbox.Enabled {
-		return false
-	}
-
-	// Goma is incompatible with PID namespaces and Mount namespaces. b/122767582
-	if c.Sandbox.DisableWhenUsingGoma && c.config.UseGoma() {
 		return false
 	}
 

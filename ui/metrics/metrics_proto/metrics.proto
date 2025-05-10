@@ -154,11 +154,8 @@ message BuildConfig {
     HINT_FROM_SOONG = 4;
   }
 
-  optional bool use_goma = 1;
 
   optional bool use_rbe = 2;
-
-  optional bool force_use_goma = 3;
 
   // Whether the Bazel is acting as the Ninja executor for this build.
   optional bool bazel_as_ninja = 4;
@@ -187,6 +184,9 @@ message BuildConfig {
   // Whether this build uses soong-only (no kati) mode (either via environment variable,
   // command line flag or product config.
   optional bool soong_only = 10;
+
+  reserved 1;
+  reserved 3;
 }
 
 message SoongEnvVars {

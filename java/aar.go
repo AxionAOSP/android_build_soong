@@ -274,6 +274,10 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext android.SdkConte
 		linkFlags = append(linkFlags, "--enable-sparse-encoding")
 	}
 
+	if ctx.Config().ReleaseUseUncompressedFonts() {
+		linkFlags = append(linkFlags, "--no-compress-fonts")
+	}
+
 	// Find implicit or explicit asset and resource dirs
 	assets := android.PathsRelativeToModuleSourceDir(android.SourceInput{
 		Context:     ctx,

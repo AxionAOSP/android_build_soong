@@ -233,6 +233,11 @@ func (p partialCompileFlags) updateEnableIncKotlin(value bool) partialCompileFla
 	return p
 }
 
+func (p partialCompileFlags) updateEnableIncD8(value bool) partialCompileFlags {
+	p.Enable_inc_d8 = value
+	return p
+}
+
 func TestPartialCompile(t *testing.T) {
 	mockConfig := func(value string) *config {
 		c := &config{
@@ -251,7 +256,7 @@ func TestPartialCompile(t *testing.T) {
 		{"false", true, partialCompileFlags{}},
 		{"true", true, enabledPartialCompileFlags},
 		{"true", false, partialCompileFlags{}},
-		{"all", true, partialCompileFlags{}.updateUseD8(true).updateDisableStubValidation(true).updateEnableIncJavac(true).updateEnableIncKotlin(false)},
+		{"all", true, partialCompileFlags{}.updateUseD8(true).updateDisableStubValidation(true).updateEnableIncJavac(true).updateEnableIncKotlin(false).updateEnableIncD8(true)},
 
 		// This verifies both use_d8 and the processing order.
 		{"true,use_d8", true, enabledPartialCompileFlags.updateUseD8(true)},
@@ -282,6 +287,14 @@ func TestPartialCompile(t *testing.T) {
 		{"false,+inc_kotlin", true, partialCompileFlags{}.updateEnableIncKotlin(true)},
 		{"false,+enable_inc_kotlin", true, partialCompileFlags{}.updateEnableIncKotlin(true)},
 		{"false,-disable_inc_kotlin", true, partialCompileFlags{}.updateEnableIncKotlin(true)},
+
+		// enable_inc_d8 can be specified with any of 3 options.
+		{"false,-inc_d8", true, partialCompileFlags{}.updateEnableIncD8(false)},
+		{"false,-enable_inc_d8", true, partialCompileFlags{}.updateEnableIncD8(false)},
+		{"false,+disable_inc_d8", true, partialCompileFlags{}.updateEnableIncD8(false)},
+		{"false,+inc_d8", true, partialCompileFlags{}.updateEnableIncD8(true)},
+		{"false,+enable_inc_d8", true, partialCompileFlags{}.updateEnableIncD8(true)},
+		{"false,-disable_inc_d8", true, partialCompileFlags{}.updateEnableIncD8(true)},
 	}
 
 	for _, test := range tests {

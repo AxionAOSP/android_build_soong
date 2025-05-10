@@ -132,7 +132,7 @@ var (
 			Description: "concatenate sorted file contents to $out",
 		})
 
-	// Used only when USE_GOMA=true is set, to restrict non-goma jobs to the local parallelism value
+	// Used only when USE_RBE=true is set, to restrict non-RBE jobs to the local parallelism value
 	localPool = blueprint.NewBuiltinPool("local_pool")
 
 	// Used only by RuleBuilder to identify remoteable rules. Does not actually get created in ninja.

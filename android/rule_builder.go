@@ -921,9 +921,7 @@ func (r *RuleBuilder) build(name string, desc string) {
 	}
 
 	var pool blueprint.Pool
-	if r.ctx.Config().UseGoma() && r.remoteable.Goma {
-		// When USE_GOMA=true is set and the rule is supported by goma, allow jobs to run outside the local pool.
-	} else if r.ctx.Config().UseRBE() && r.remoteable.RBE {
+	if r.ctx.Config().UseRBE() && r.remoteable.RBE {
 		// When USE_RBE=true is set and the rule is supported by RBE, use the remotePool.
 		pool = remotePool
 	} else if r.highmem {

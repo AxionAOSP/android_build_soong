@@ -337,7 +337,7 @@ func TestGenerateIncrementalInput(t *testing.T) {
 	})
 
 	// --- Subtest: Incremental - File which is dependency to all files is changed along with headers---
-	t.Run("Incremental_DependencyToAllChanged", func(t *testing.T) {
+	t.Run("Incremental_DependencyToAllChangedWithHeaders", func(t *testing.T) {
 		// Arrange: Modify the DepsRspFile or JavaSrcDeps proto
 		modifyFile(t, tf.JavaFile2, "Incremental_DependencyToAllChangedWithHeader")
 		modifyFile(t, tf.HeaderJar, "Incremental_DependencyToAllChangedWithHeader")

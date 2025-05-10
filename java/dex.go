@@ -192,6 +192,112 @@ func (d *dexer) optimizeOrObfuscateEnabled(ctx android.ModuleContext) bool {
 	return d.effectiveOptimizeEnabled(ctx) && (d.dexProperties.Optimize.Optimize.GetOrDefault(ctx, false) || proptools.Bool(d.dexProperties.Optimize.Obfuscate))
 }
 
+// Removes all outputs of d8Inc rule
+var d8IncClean = pctx.AndroidStaticRule("d8Inc-partialcompileclean",
+	blueprint.RuleParams{
+		Command: `rm -rf "${outDir}" "${builtOut}"`,
+	}, "outDir", "d8Flags", "d8Deps", "zipFlags", "mergeZipsFlags", "builtOut",
+)
+
+var d8Inc, d8IncRE = pctx.MultiCommandRemoteStaticRules("d8Inc",
+	blueprint.RuleParams{
+		Command: `mkdir -p "$outDir" && ` +
+			`${config.IncrementalDexInputCmd} ` +
+			`--classesJar $in --dexTarget $out --deps $d8Deps --outputDir $outDir && ` +
+			`$d8Template${config.D8Cmd} ${config.D8Flags} $d8Flags --output $outDir --no-dex-input-jar $in --packages $out.rsp --mod-packages $out.inc.rsp && ` +
+			`$zipTemplate${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
+			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $mergeZipsFlags $out $outDir/classes.dex.jar $in && ` +
+			`if [ -f "$out.input.pc_state.new" ]; then mv "$out.input.pc_state.new" "$out.input.pc_state" && ` +
+			`rm -rf $out.input.pc_state.new; fi && ` +
+			`if [ -f "$out.deps.pc_state.new" ]; then mv "$out.deps.pc_state.new" "$out.deps.pc_state" && ` +
+			`rm -rf $out.deps.pc_state.new; fi && ` +
+			`rm -f "$outDir"/classes*.dex "$outDir/classes.dex.jar"`,
+		CommandDeps: []string{
+			"${config.IncrementalDexInputCmd}",
+			"${config.D8Cmd}",
+			"${config.SoongZipCmd}",
+			"${config.MergeZipsCmd}",
+		},
+	}, map[string]*remoteexec.REParams{
+		"$d8Template": &remoteexec.REParams{
+			Labels:          map[string]string{"type": "compile", "compiler": "d8"},
+			Inputs:          []string{"${config.D8Jar}"},
+			ExecStrategy:    "${config.RED8ExecStrategy}",
+			ToolchainInputs: []string{"${config.JavaCmd}"},
+			Platform:        map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		},
+		"$zipTemplate": &remoteexec.REParams{
+			Labels:       map[string]string{"type": "tool", "name": "soong_zip"},
+			Inputs:       []string{"${config.SoongZipCmd}", "$outDir"},
+			OutputFiles:  []string{"$outDir/classes.dex.jar"},
+			ExecStrategy: "${config.RED8ExecStrategy}",
+			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		},
+	}, []string{"outDir", "d8Flags", "zipFlags", "mergeZipsFlags", "d8Deps"}, nil)
+
+var d8IncR8, d8IncR8RE = pctx.MultiCommandRemoteStaticRules("d8Incr8",
+	blueprint.RuleParams{
+		Command: `mkdir -p "$outDir" && ` +
+			`rm -f "$outDict" && rm -f "$outConfig" && rm -rf "${outUsageDir}" && ` +
+			`mkdir -p $$(dirname ${outUsage}) && ` +
+			`if [ -n "$${SOONG_USE_PARTIAL_COMPILE}" ]; then ` +
+			` for f in "${outConfig}" "${outDict}" "${outUsage}" "${resourcesOutput}"; do ` +
+			`   test -n "$${f}" && test ! -f "$${f}" && mkdir -p "$$(dirname "$${f}")" && touch "$${f}" || true; ` +
+			` done && ` +
+			` ${config.IncrementalDexInputCmd} --classesJar $in --dexTarget $out --deps $d8Deps --outputDir $outDir && ` +
+			` $d8Template${config.D8Cmd} ${config.D8Flags} $d8Flags --output $outDir --no-dex-input-jar $in --packages $out.rsp --mod-packages $out.inc.rsp; ` +
+			`else ` +
+			` rm -rf "$outDir" && mkdir -p "$outDir" && ` +
+			` $r8Template${config.R8Cmd} ${config.R8Flags} $r8Flags -injars $in --output $outDir ` +
+			` --no-data-resources ` +
+			` -printmapping ${outDict} ` +
+			` -printconfiguration ${outConfig} ` +
+			` -printusage ${outUsage} ` +
+			` --deps-file ${out}.d && ` +
+			` touch "${outDict}" "${outConfig}" "${outUsage}"; ` +
+			`fi && ` +
+			`${config.SoongZipCmd} -o ${outUsageZip} -C ${outUsageDir} -f ${outUsage} && ` +
+			`rm -rf ${outUsageDir} && ` +
+			`$zipTemplate${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
+			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $mergeZipsFlags $out $outDir/classes.dex.jar $in && ` +
+			`if [ -f "$out.input.pc_state.new" ]; then mv "$out.input.pc_state.new" "$out.input.pc_state" && ` +
+			`rm -rf $out.input.pc_state.new; fi && ` +
+			`if [ -f "$out.deps.pc_state.new" ]; then mv "$out.deps.pc_state.new" "$out.deps.pc_state" && ` +
+			`rm -rf $out.deps.pc_state.new; fi && ` +
+			`rm -f "$outDir"/classes*.dex "$outDir/classes.dex.jar" `,
+		CommandDeps: []string{
+			"${config.IncrementalDexInputCmd}",
+			"${config.D8Cmd}",
+			"${config.R8Cmd}",
+			"${config.SoongZipCmd}",
+			"${config.MergeZipsCmd}",
+		},
+	}, map[string]*remoteexec.REParams{
+		"$d8Template": &remoteexec.REParams{
+			Labels:          map[string]string{"type": "compile", "compiler": "d8"},
+			Inputs:          []string{"${config.D8Jar}"},
+			ExecStrategy:    "${config.RED8ExecStrategy}",
+			ToolchainInputs: []string{"${config.JavaCmd}"},
+			Platform:        map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		},
+		"$r8Template": &remoteexec.REParams{
+			Labels:          map[string]string{"type": "compile", "compiler": "r8"},
+			Inputs:          []string{"$implicits", "${config.R8Jar}"},
+			OutputFiles:     []string{"${outUsage}", "${outConfig}", "${outDict}", "${resourcesOutput}", "${outR8ArtProfile}"},
+			ExecStrategy:    "${config.RER8ExecStrategy}",
+			ToolchainInputs: []string{"${config.JavaCmd}"},
+			Platform:        map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		},
+		"$zipTemplate": &remoteexec.REParams{
+			Labels:       map[string]string{"type": "tool", "name": "soong_zip"},
+			Inputs:       []string{"${config.SoongZipCmd}", "$outDir"},
+			OutputFiles:  []string{"$outDir/classes.dex.jar"},
+			ExecStrategy: "${config.RED8ExecStrategy}",
+			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		},
+	}, []string{"outDir", "outDict", "outConfig", "outUsage", "outUsageZip", "outUsageDir",
+		"d8Flags", "d8Deps", "r8Flags", "zipFlags", "mergeZipsFlags", "resourcesOutput", "outR8ArtProfile"}, []string{"implicits"})
+
 var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
@@ -220,7 +326,7 @@ var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
 			ExecStrategy: "${config.RED8ExecStrategy}",
 			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 		},
-	}, []string{"outDir", "d8Flags", "zipFlags", "mergeZipsFlags"}, nil)
+	}, []string{"outDir", "d8Flags", "d8Deps", "zipFlags", "mergeZipsFlags"}, nil)
 
 // Include all of the args for d8r8, so that we can generate the partialcompileclean target's build using the same list.
 var d8r8Clean = pctx.AndroidStaticRule("d8r8-partialcompileclean",
@@ -228,7 +334,7 @@ var d8r8Clean = pctx.AndroidStaticRule("d8r8-partialcompileclean",
 		Command: `rm -rf "${outDir}" "${outDict}" "${outConfig}" "${outUsage}" "${outUsageZip}" "${outUsageDir}" ` +
 			`"${resourcesOutput}" "${outR8ArtProfile}" ${builtOut}`,
 	}, "outDir", "outDict", "outConfig", "outUsage", "outUsageZip", "outUsageDir", "builtOut",
-	"d8Flags", "r8Flags", "zipFlags", "mergeZipsFlags", "resourcesOutput", "outR8ArtProfile", "implicits",
+	"d8Flags", "d8Deps", "r8Flags", "zipFlags", "mergeZipsFlags", "resourcesOutput", "outR8ArtProfile", "implicits",
 )
 
 var d8r8, d8r8RE = pctx.MultiCommandRemoteStaticRules("d8r8",
@@ -287,7 +393,7 @@ var d8r8, d8r8RE = pctx.MultiCommandRemoteStaticRules("d8r8",
 			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 		},
 	}, []string{"outDir", "outDict", "outConfig", "outUsage", "outUsageZip", "outUsageDir",
-		"d8Flags", "r8Flags", "zipFlags", "mergeZipsFlags", "resourcesOutput", "outR8ArtProfile"}, []string{"implicits"})
+		"d8Flags", "d8Deps", "r8Flags", "zipFlags", "mergeZipsFlags", "resourcesOutput", "outR8ArtProfile"}, []string{"implicits"})
 
 var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 	blueprint.RuleParams{
@@ -423,24 +529,27 @@ func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
 	return flags, deps
 }
 
-func (d *dexer) d8Flags(ctx android.ModuleContext, dexParams *compileDexParams) (d8Flags []string, d8Deps android.Paths, artProfileOutput *android.OutputPath) {
+func (d *dexer) d8Flags(ctx android.ModuleContext, dexParams *compileDexParams, useD8Inc bool) (d8Flags []string, d8Deps android.Paths, artProfileOutput *android.OutputPath) {
 	flags := dexParams.flags
-	d8Flags = append(d8Flags, flags.bootClasspath.FormRepeatedClassPath("--lib ")...)
-	d8Flags = append(d8Flags, flags.dexClasspath.FormRepeatedClassPath("--lib ")...)
+	// classpath optimizations are optional when using d8 incrementally, offering
+	// further speed-up.
+	if !useD8Inc {
+		d8Flags = append(d8Flags, flags.bootClasspath.FormRepeatedClassPath("--lib ")...)
+		d8Flags = append(d8Flags, flags.dexClasspath.FormRepeatedClassPath("--lib ")...)
+		d8Deps = append(d8Deps, flags.bootClasspath...)
+		d8Deps = append(d8Deps, flags.dexClasspath...)
 
-	d8Deps = append(d8Deps, flags.bootClasspath...)
-	d8Deps = append(d8Deps, flags.dexClasspath...)
-
-	if flags, deps, profileOutput := d.addArtProfile(ctx, dexParams); profileOutput != nil {
-		d8Flags = append(d8Flags, flags...)
-		d8Deps = append(d8Deps, deps...)
-		artProfileOutput = profileOutput
+		if flags, deps, profileOutput := d.addArtProfile(ctx, dexParams); profileOutput != nil {
+			d8Flags = append(d8Flags, flags...)
+			d8Deps = append(d8Deps, deps...)
+			artProfileOutput = profileOutput
+		}
 	}
 
 	return d8Flags, d8Deps, artProfileOutput
 }
 
-func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams, debugMode bool) (r8Flags []string, r8Deps android.Paths, artProfileOutput *android.OutputPath) {
+func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams, debugMode, useD8Inc bool) (r8Flags []string, r8Deps android.Paths, artProfileOutput *android.OutputPath) {
 	flags := dexParams.flags
 	opt := d.dexProperties.Optimize
 
@@ -586,10 +695,12 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams, 
 		}
 	}
 
-	if flags, deps, profileOutput := d.addArtProfile(ctx, dexParams); profileOutput != nil {
-		r8Flags = append(r8Flags, flags...)
-		r8Deps = append(r8Deps, deps...)
-		artProfileOutput = profileOutput
+	if !useD8Inc {
+		if flags, deps, profileOutput := d.addArtProfile(ctx, dexParams); profileOutput != nil {
+			r8Flags = append(r8Flags, flags...)
+			r8Deps = append(r8Deps, deps...)
+			artProfileOutput = profileOutput
+		}
 	}
 
 	if ctx.Config().UseR8StoreStoreFenceConstructorInlining() {
@@ -655,6 +766,8 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 
 	useR8 := d.effectiveOptimizeEnabled(ctx)
 	useD8 := !useR8 || ctx.Config().PartialCompileFlags().Use_d8
+	// d8Inc is applicable only when d8 is allowed.
+	useD8Inc := useD8 && ctx.Config().PartialCompileFlags().Enable_inc_d8
 	rbeR8 := ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_R8")
 	rbeD8 := ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_D8")
 	var rule blueprint.Rule
@@ -686,7 +799,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 		}...)
 		description = "r8"
 		debugMode := android.InList("--debug", commonFlags)
-		r8Flags, r8Deps, r8ArtProfileOutputPath := d.r8Flags(ctx, dexParams, debugMode)
+		r8Flags, r8Deps, r8ArtProfileOutputPath := d.r8Flags(ctx, dexParams, debugMode, useD8Inc)
 		deps = append(deps, r8Deps...)
 		args["r8Flags"] = strings.Join(append(commonFlags, r8Flags...), " ")
 		if r8ArtProfileOutputPath != nil {
@@ -713,23 +826,50 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 	}
 	if useD8 {
 		description = "d8"
-		d8Flags, d8Deps, d8ArtProfileOutputPath := d.d8Flags(ctx, dexParams)
+		d8Flags, d8Deps, d8ArtProfileOutputPath := d.d8Flags(ctx, dexParams, useD8Inc)
 		deps = append(deps, d8Deps...)
 		deps = append(deps, commonDeps...)
 		args["d8Flags"] = strings.Join(append(commonFlags, d8Flags...), " ")
 		if d8ArtProfileOutputPath != nil {
 			artProfileOutputPath = d8ArtProfileOutputPath
 		}
+		// The file containing dependencies of the current module
+		// Any change in them may warrant changes in the incremental dex compilation
+		// source set.
+		d8DepsFile := javalibJar.ReplaceExtension(ctx, "jar.deps.rsp")
+		android.WriteFileRule(ctx, d8DepsFile, strings.Join(deps.Strings(), "\n"))
+		deps = append(deps, d8DepsFile)
+		args["d8Deps"] = d8DepsFile.String()
 		// If we are generating both d8 and r8, only use RBE when both are enabled.
 		switch {
+		// r8 is the selected rule, useD8Inc is the override
+		case useR8 && rule == r8 && useD8Inc:
+			rule = d8IncR8
+			description = "d8IncR8"
+		// r8 is the selected rule, useD8 is the override
 		case useR8 && rule == r8:
 			rule = d8r8
 			description = "d8r8"
+		// rbeR8 is the selected rule, useD8Inc is the override
+		case useR8 && rule == r8RE && useD8Inc:
+			rule = d8IncR8RE
+			description = "d8IncR8"
+		// rbeR8 is the selected rule, useD8 is the override
 		case useR8 && rule == r8RE && rbeD8:
 			rule = d8r8RE
 			description = "d8r8"
+		// rbeD8 is the selected rule, useD8Inc is the override
+		case rbeD8 && useD8Inc:
+			rule = d8IncRE
+			description = "d8Inc"
+		// rbeD8 is the selected rule
 		case rbeD8:
 			rule = d8RE
+		// D8 is the selected rule, useD8Inc is the override
+		case useD8Inc:
+			rule = d8Inc
+			description = "d8Inc"
+		// D8 is the selected rule
 		default:
 			rule = d8
 		}
@@ -749,12 +889,26 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 		Implicits:       deps,
 		Args:            args,
 	})
-	if useR8 && useD8 {
+	// Run cleanup when d8r8 or d8IncR8 was used
+	if useR8 && (useD8 || useD8Inc) {
 		// Generate the rule for partial compile clean.
 		args["builtOut"] = javalibJar.String()
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        d8r8Clean,
 			Description: "d8r8Clean",
+			Output:      cleanPhonyPath,
+			Args:        args,
+			PhonyOutput: true,
+		})
+		ctx.Phony("partialcompileclean", cleanPhonyPath)
+	}
+	// Run cleanup when d8Inc was used
+	if !useR8 && useD8Inc {
+		// Generate the rule for partial compile clean.
+		args["builtOut"] = javalibJar.String()
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        d8IncClean,
+			Description: "d8IncClean",
 			Output:      cleanPhonyPath,
 			Args:        args,
 			PhonyOutput: true,

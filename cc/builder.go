@@ -43,7 +43,7 @@ var (
 	pctx = android.NewPackageContext("android/soong/cc")
 
 	// Rule to invoke gcc with given command, flags, and dependencies. Outputs a .d depfile.
-	cc = pctx.AndroidRemoteStaticRule("cc", android.RemoteRuleSupports{Goma: true, RBE: true},
+	cc = pctx.AndroidRemoteStaticRule("cc", android.RemoteRuleSupports{RBE: true},
 		blueprint.RuleParams{
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,

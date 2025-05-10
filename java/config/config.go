@@ -161,6 +161,7 @@ func init() {
 	pctx.HostBinToolVariable("GenKotlinBuildFileCmd", "gen-kotlin-build-file")
 	pctx.HostBinToolVariable("FindInputDeltaCmd", "find_input_delta")
 	pctx.HostBinToolVariable("IncrementalJavacInputCmd", "incremental_javac_input")
+	pctx.HostBinToolVariable("IncrementalDexInputCmd", "incremental_dex_input")
 	pctx.HostBinToolVariable("DependencyMapperJavacCmd", "dependency-mapper")
 
 	pctx.SourcePathVariable("JarArgsCmd", "build/soong/scripts/jar-args.sh")

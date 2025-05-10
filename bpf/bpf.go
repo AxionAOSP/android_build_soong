@@ -37,7 +37,7 @@ func init() {
 var (
 	pctx = android.NewPackageContext("android/soong/bpf")
 
-	ccRule = pctx.AndroidRemoteStaticRule("ccRule", android.RemoteRuleSupports{Goma: true},
+	ccRule = pctx.AndroidRemoteStaticRule("ccRule", android.RemoteRuleSupports{},
 		blueprint.RuleParams{
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,

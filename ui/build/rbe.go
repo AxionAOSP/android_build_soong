@@ -16,9 +16,11 @@ package build
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"android/soong/remoteexec"
@@ -209,4 +211,27 @@ func PrintOutDirWarning(ctx Context, config Config) {
 		fmt.Fprintln(ctx.Writer, "See http://go/android_rbe_out_dir for a workaround.")
 		fmt.Fprintln(ctx.Writer, "")
 	}
+}
+
+// ulimit returns ulimit result for |opt|.
+// if the resource is unlimited, it returns math.MaxInt32 so that a caller do
+// not need special handling of the returned value.
+//
+// Note that since go syscall package do not have RLIMIT_NPROC constant,
+// we use bash ulimit instead.
+func ulimitOrFatal(ctx Context, config Config, opt string) int {
+	commandText := fmt.Sprintf("ulimit %s", opt)
+	cmd := Command(ctx, config, commandText, "bash", "-c", commandText)
+	output := strings.TrimRight(string(cmd.CombinedOutputOrFatal()), "\n")
+	ctx.Verbose(output + "\n")
+	ctx.Verbose("done\n")
+
+	if output == "unlimited" {
+		return math.MaxInt32
+	}
+	num, err := strconv.Atoi(output)
+	if err != nil {
+		ctx.Fatalf("ulimit returned unexpected value: %s: %v\n", opt, err)
+	}
+	return num
 }

@@ -53,7 +53,7 @@ const nonIncKotlinCmd = `rm -rf "$classesDir" "$headerClassesDir" "$srcJarDir" "
 
 const moveDeltaStateFile = `mv $newStateFile $priorStateFile && rm $sourceDeltaFile`
 
-var kotlinc = pctx.AndroidRemoteStaticRule("kotlinc", android.RemoteRuleSupports{Goma: true},
+var kotlinc = pctx.AndroidRemoteStaticRule("kotlinc", android.RemoteRuleSupports{},
 	blueprint.RuleParams{
 		Command: inputDeltaCmd + ` && ` + nonIncKotlinCmd + ` && ` + moveDeltaStateFile,
 		CommandDeps: []string{
@@ -79,7 +79,7 @@ var kotlinc = pctx.AndroidRemoteStaticRule("kotlinc", android.RemoteRuleSupports
 	"newStateFile", "priorStateFile", "sourceDeltaFile", "name")
 
 // TODO: does incremental work with RBE?
-var kotlinIncremental = pctx.AndroidRemoteStaticRule("kotlin-incremental", android.RemoteRuleSupports{Goma: false},
+var kotlinIncremental = pctx.AndroidRemoteStaticRule("kotlin-incremental", android.RemoteRuleSupports{},
 	blueprint.RuleParams{
 		Command: // Incremental
 
@@ -352,7 +352,7 @@ func getAssociateJars(ctx android.ModuleContext, associates []string) android.Pa
 	return associateJars
 }
 
-var kaptStubs = pctx.AndroidRemoteStaticRule("kaptStubs", android.RemoteRuleSupports{Goma: true},
+var kaptStubs = pctx.AndroidRemoteStaticRule("kaptStubs", android.RemoteRuleSupports{},
 	blueprint.RuleParams{
 		Command: `rm -rf "$srcJarDir" "$kotlinBuildFile" "$kaptDir" && ` +
 			`mkdir -p "$srcJarDir" "$kaptDir/sources" "$kaptDir/classes" && ` +

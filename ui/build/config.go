@@ -71,7 +71,6 @@ type Config struct{ *configImpl }
 type configImpl struct {
 	// Some targets that are implemented in soong_build
 	arguments     []string
-	goma          bool
 	environ       *Environment
 	distDir       string
 	buildDateTime string
@@ -466,11 +465,6 @@ func newConfig(ctx Context, isDumpVar bool, args ...string) Config {
 		"SOONG_ONLY",
 	)
 
-	if ret.UseGoma() || ret.ForceUseGoma() {
-		ctx.Println("Goma for Android has been deprecated and replaced with RBE. See go/rbe_for_android for instructions on how to use RBE.")
-		ctx.Fatalln("USE_GOMA / FORCE_USE_GOMA flag is no longer supported.")
-	}
-
 	// Tell python not to spam the source tree with .pyc files.
 	ret.environ.Set("PYTHONDONTWRITEBYTECODE", "1")
 
@@ -685,8 +679,6 @@ func buildConfig(config Config) *smpb.BuildConfig {
 		ensure().UsePartialCompile = proto.String(value)
 	}
 	c := &smpb.BuildConfig{
-		ForceUseGoma:          proto.Bool(config.ForceUseGoma()),
-		UseGoma:               proto.Bool(config.UseGoma()),
 		UseRbe:                proto.Bool(config.UseRBE()),
 		NinjaWeightListSource: getNinjaWeightListSourceInMetric(config.NinjaWeightListSource()),
 		SoongEnvVars:          soongEnvVars,
@@ -1376,42 +1368,6 @@ func (c *configImpl) TotalRAM() uint64 {
 	return c.totalRAM
 }
 
-// ForceUseGoma determines whether we should override Goma deprecation
-// and use Goma for the current build or not.
-func (c *configImpl) ForceUseGoma() bool {
-	if v, ok := c.environ.Get("FORCE_USE_GOMA"); ok {
-		v = strings.TrimSpace(v)
-		if v != "" && v != "false" {
-			return true
-		}
-	}
-	return false
-}
-
-func (c *configImpl) UseGoma() bool {
-	if v, ok := c.environ.Get("USE_GOMA"); ok {
-		v = strings.TrimSpace(v)
-		if v != "" && v != "false" {
-			return true
-		}
-	}
-	return false
-}
-
-func (c *configImpl) StartGoma() bool {
-	if !c.UseGoma() {
-		return false
-	}
-
-	if v, ok := c.environ.Get("NOSTART_GOMA"); ok {
-		v = strings.TrimSpace(v)
-		if v != "" && v != "false" {
-			return false
-		}
-	}
-	return true
-}
-
 func (c *configImpl) canSupportRBE() bool {
 	// Only supported on linux
 	if runtime.GOOS != "linux" {
@@ -1631,7 +1587,7 @@ func (c *configImpl) GoogleProdCredsExist() bool {
 // UseRemoteBuild indicates whether to use a remote build acceleration system
 // to speed up the build.
 func (c *configImpl) UseRemoteBuild() bool {
-	return c.UseGoma() || c.UseRBE()
+	return c.UseRBE()
 }
 
 // StubbyExists checks whether the stubby binary exists on the machine running
@@ -1644,7 +1600,7 @@ func (c *configImpl) StubbyExists() bool {
 }
 
 // RemoteParallel controls how many remote jobs (i.e., commands which contain
-// gomacc) are run in parallel.  Note the parallelism of all other jobs is
+// rewrapper) are run in parallel.  Note the parallelism of all other jobs is
 // still limited by Parallel()
 func (c *configImpl) RemoteParallel() int {
 	if !c.UseRemoteBuild() {
