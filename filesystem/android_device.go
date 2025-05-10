@@ -843,7 +843,11 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 				Textf("echo mkbootimg_args='--header_version %s' >> %s", a.getBootimgHeaderVersion(ctx, a.partitionProps.Boot_partition_name), miscInfo).
 				// TODO: Use boot's header version for recovery for now since cuttlefish does not set `BOARD_RECOVERY_MKBOOTIMG_ARGS`
 				Textf(" && echo recovery_mkbootimg_args='--header_version %s' >> %s", a.getBootimgHeaderVersion(ctx, a.partitionProps.Boot_partition_name), miscInfo)
+		} else if a.partitionProps.Vendor_boot_partition_name != nil {
+			builder.Command().
+				Textf("echo mkbootimg_args='--header_version %s' >> %s", a.getBootimgHeaderVersion(ctx, a.partitionProps.Vendor_boot_partition_name), miscInfo)
 		}
+
 		if a.partitionProps.Init_boot_partition_name != nil {
 			builder.Command().
 				Textf("echo mkbootimg_init_args='--header_version' %s >> %s", a.getBootimgHeaderVersion(ctx, a.partitionProps.Init_boot_partition_name), miscInfo)
@@ -1323,7 +1327,7 @@ func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) andro
 			ImplicitOutput(testTimestamp)
 	} else {
 		precompiledSepolicyWithoutVendor := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Precompiled_sepolicy_without_vendor))
-		rule.Command().BuiltTool("treble_labeling_tests").
+		cmd := rule.Command().BuiltTool("treble_labeling_tests").
 			FlagWithInput("--platform_apks ", platformAppsList).
 			FlagWithInput("--vendor_apks ", vendorAppsList).
 			FlagWithInput("--precompiled_sepolicy_without_vendor ", precompiledSepolicyWithoutVendor).
@@ -1333,8 +1337,14 @@ func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) andro
 			FlagWithInputList("--vendor_file_contexts ", vendorFileContexts, " ").
 			FlagWithInput("--aapt2_path ", ctx.Config().HostToolPath(ctx, "aapt2")).
 			Implicits(platformApps).
-			Implicits(vendorApps).
-			FlagWithOutput("> ", testTimestamp)
+			Implicits(vendorApps)
+
+		trackingListFile := ctx.Config().SELinuxTrebleLabelingTrackingListFile(ctx)
+		if trackingListFile != nil {
+			cmd.FlagWithInput("--tracking_list_file ", trackingListFile)
+		}
+
+		cmd.FlagWithOutput("> ", testTimestamp)
 	}
 
 	rule.Build("treble_labeling_test", "SELinux Treble Labeling Test")

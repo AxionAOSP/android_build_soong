@@ -149,6 +149,7 @@ func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	if proptools.BoolDefault(r.robolectricProperties.Strict_mode, true) {
 		extraTestRunnerOptions = append(extraTestRunnerOptions, tradefed.Option{Name: "java-flags", Value: "-Drobolectric.strict.mode=true"})
 	}
+	extraTestRunnerOptions = append(extraTestRunnerOptions, r.testProperties.Test_options.Test_runner_options...)
 
 	var extraOptions []tradefed.Option
 	var javaHome = ctx.Config().Getenv("ANDROID_JAVA_HOME")

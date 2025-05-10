@@ -251,7 +251,7 @@ func TestPartialCompile(t *testing.T) {
 		{"false", true, partialCompileFlags{}},
 		{"true", true, enabledPartialCompileFlags},
 		{"true", false, partialCompileFlags{}},
-		{"all", true, partialCompileFlags{}.updateUseD8(true).updateDisableStubValidation(true).updateEnableIncJavac(true).updateEnableIncKotlin(true)},
+		{"all", true, partialCompileFlags{}.updateUseD8(true).updateDisableStubValidation(true).updateEnableIncJavac(true).updateEnableIncKotlin(false)},
 
 		// This verifies both use_d8 and the processing order.
 		{"true,use_d8", true, enabledPartialCompileFlags.updateUseD8(true)},

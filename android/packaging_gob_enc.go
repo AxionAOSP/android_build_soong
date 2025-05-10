@@ -25,7 +25,7 @@ func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	if err = gobtools.EncodeStruct(buf, &r.srcPath); err != nil {
+	if err = gobtools.EncodeInterface(buf, &r.srcPath); err != nil {
 		return err
 	}
 
@@ -37,12 +37,12 @@ func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	unilst5 := r.effectiveLicenseFiles.ToSlice()
-	if err = gobtools.EncodeSimple(buf, int32(len(unilst5))); err != nil {
+	val1 := r.effectiveLicenseFiles.ToSlice()
+	if err = gobtools.EncodeSimple(buf, int32(len(val1))); err != nil {
 		return err
 	}
-	for i := 0; i < len(unilst5); i++ {
-		if err = gobtools.EncodeStruct(buf, &unilst5[i]); err != nil {
+	for val2 := 0; val2 < len(val1); val2++ {
+		if err = gobtools.EncodeInterface(buf, &val1[val2]); err != nil {
 			return err
 		}
 	}
@@ -55,12 +55,12 @@ func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	unilst9 := r.aconfigPaths.ToSlice()
-	if err = gobtools.EncodeSimple(buf, int32(len(unilst9))); err != nil {
+	val3 := r.aconfigPaths.ToSlice()
+	if err = gobtools.EncodeSimple(buf, int32(len(val3))); err != nil {
 		return err
 	}
-	for i := 0; i < len(unilst9); i++ {
-		if err = gobtools.EncodeStruct(buf, &unilst9[i]); err != nil {
+	for val4 := 0; val4 < len(val3); val4++ {
+		if err = gobtools.EncodeInterface(buf, &val3[val4]); err != nil {
 			return err
 		}
 	}
@@ -69,12 +69,12 @@ func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	unilst12 := r.overrides.ToSlice()
-	if err = gobtools.EncodeSimple(buf, int32(len(unilst12))); err != nil {
+	val5 := r.overrides.ToSlice()
+	if err = gobtools.EncodeSimple(buf, int32(len(val5))); err != nil {
 		return err
 	}
-	for i := 0; i < len(unilst12); i++ {
-		if err = gobtools.EncodeString(buf, unilst12[i]); err != nil {
+	for val6 := 0; val6 < len(val5); val6++ {
+		if err = gobtools.EncodeString(buf, val5[val6]); err != nil {
 			return err
 		}
 	}
@@ -114,8 +114,7 @@ func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	err = gobtools.DecodeStruct(buf, &r.srcPath)
-	if err != nil {
+	if err = gobtools.DecodeInterface(buf, &r.srcPath); err != nil {
 		return err
 	}
 
@@ -129,22 +128,21 @@ func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	var unilst23 []Path
-	var val23 int32
-	err = gobtools.DecodeSimple[int32](buf, &val23)
+	var val6 []Path
+	var val7 int32
+	err = gobtools.DecodeSimple[int32](buf, &val7)
 	if err != nil {
 		return err
 	}
-	if val23 > 0 {
-		unilst23 = make([]Path, val23)
-		for i := 0; i < int(val23); i++ {
-			err = gobtools.DecodeStruct(buf, &unilst23[i])
-			if err != nil {
+	if val7 > 0 {
+		val6 = make([]Path, val7)
+		for val8 := 0; val8 < int(val7); val8++ {
+			if err = gobtools.DecodeInterface(buf, &val6[val8]); err != nil {
 				return err
 			}
 		}
 	}
-	r.effectiveLicenseFiles = uniquelist.Make(unilst23)
+	r.effectiveLicenseFiles = uniquelist.Make(val6)
 
 	err = gobtools.DecodeString(buf, &r.partition)
 	if err != nil {
@@ -156,44 +154,42 @@ func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	var unilst27 []Path
-	var val27 int32
-	err = gobtools.DecodeSimple[int32](buf, &val27)
+	var val13 []Path
+	var val14 int32
+	err = gobtools.DecodeSimple[int32](buf, &val14)
 	if err != nil {
 		return err
 	}
-	if val27 > 0 {
-		unilst27 = make([]Path, val27)
-		for i := 0; i < int(val27); i++ {
-			err = gobtools.DecodeStruct(buf, &unilst27[i])
+	if val14 > 0 {
+		val13 = make([]Path, val14)
+		for val15 := 0; val15 < int(val14); val15++ {
+			if err = gobtools.DecodeInterface(buf, &val13[val15]); err != nil {
+				return err
+			}
+		}
+	}
+	r.aconfigPaths = uniquelist.Make(val13)
+
+	if err = gobtools.DecodeStruct(buf, &r.archType); err != nil {
+		return err
+	}
+
+	var val19 []string
+	var val20 int32
+	err = gobtools.DecodeSimple[int32](buf, &val20)
+	if err != nil {
+		return err
+	}
+	if val20 > 0 {
+		val19 = make([]string, val20)
+		for val21 := 0; val21 < int(val20); val21++ {
+			err = gobtools.DecodeString(buf, &val19[val21])
 			if err != nil {
 				return err
 			}
 		}
 	}
-	r.aconfigPaths = uniquelist.Make(unilst27)
-
-	err = gobtools.DecodeStruct(buf, &r.archType)
-	if err != nil {
-		return err
-	}
-
-	var unilst30 []string
-	var val30 int32
-	err = gobtools.DecodeSimple[int32](buf, &val30)
-	if err != nil {
-		return err
-	}
-	if val30 > 0 {
-		unilst30 = make([]string, val30)
-		for i := 0; i < int(val30); i++ {
-			err = gobtools.DecodeString(buf, &unilst30[i])
-			if err != nil {
-				return err
-			}
-		}
-	}
-	r.overrides = uniquelist.Make(unilst30)
+	r.overrides = uniquelist.Make(val19)
 
 	err = gobtools.DecodeString(buf, &r.owner)
 	if err != nil {
@@ -205,8 +201,7 @@ func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	err = gobtools.DecodeStruct(buf, &r.fullInstallPath)
-	if err != nil {
+	if err = gobtools.DecodeStruct(buf, &r.fullInstallPath); err != nil {
 		return err
 	}
 

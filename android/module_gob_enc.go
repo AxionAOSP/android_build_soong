@@ -20,7 +20,7 @@ func (r katiInstall) GobEncode() ([]byte, error) {
 func (r katiInstall) Encode(buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeStruct(buf, &r.from); err != nil {
+	if err = gobtools.EncodeInterface(buf, &r.from); err != nil {
 		return err
 	}
 
@@ -28,23 +28,33 @@ func (r katiInstall) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	if err = gobtools.EncodeStruct(buf, &r.implicitDeps); err != nil {
+	if err = gobtools.EncodeSimple(buf, int32(len(r.implicitDeps))); err != nil {
 		return err
 	}
+	for val1 := 0; val1 < len(r.implicitDeps); val1++ {
+		if err = gobtools.EncodeInterface(buf, &r.implicitDeps[val1]); err != nil {
+			return err
+		}
+	}
 
-	if err = gobtools.EncodeStruct(buf, &r.orderOnlyDeps); err != nil {
+	if err = gobtools.EncodeSimple(buf, int32(len(r.orderOnlyDeps))); err != nil {
 		return err
+	}
+	for val2 := 0; val2 < len(r.orderOnlyDeps); val2++ {
+		if err = gobtools.EncodeInterface(buf, &r.orderOnlyDeps[val2]); err != nil {
+			return err
+		}
 	}
 
 	if err = gobtools.EncodeSimple(buf, r.executable); err != nil {
 		return err
 	}
 
-	isNil6 := r.extraFiles == nil
-	if err = gobtools.EncodeSimple(buf, isNil6); err != nil {
+	val3 := r.extraFiles == nil
+	if err = gobtools.EncodeSimple(buf, val3); err != nil {
 		return err
 	}
-	if !isNil6 {
+	if !val3 {
 		if err = gobtools.EncodeStruct(buf, &*r.extraFiles); err != nil {
 			return err
 		}
@@ -64,24 +74,40 @@ func (r *katiInstall) GobDecode(b []byte) error {
 func (r *katiInstall) Decode(buf *bytes.Reader) error {
 	var err error
 
-	err = gobtools.DecodeStruct(buf, &r.from)
-	if err != nil {
+	if err = gobtools.DecodeInterface(buf, &r.from); err != nil {
 		return err
 	}
 
-	err = gobtools.DecodeStruct(buf, &r.to)
-	if err != nil {
+	if err = gobtools.DecodeStruct(buf, &r.to); err != nil {
 		return err
 	}
 
-	err = gobtools.DecodeStruct(buf, &r.implicitDeps)
+	var val5 int32
+	err = gobtools.DecodeSimple[int32](buf, &val5)
 	if err != nil {
 		return err
 	}
+	if val5 > 0 {
+		r.implicitDeps = make([]Path, val5)
+		for val6 := 0; val6 < int(val5); val6++ {
+			if err = gobtools.DecodeInterface(buf, &r.implicitDeps[val6]); err != nil {
+				return err
+			}
+		}
+	}
 
-	err = gobtools.DecodeStruct(buf, &r.orderOnlyDeps)
+	var val10 int32
+	err = gobtools.DecodeSimple[int32](buf, &val10)
 	if err != nil {
 		return err
+	}
+	if val10 > 0 {
+		r.orderOnlyDeps = make([]Path, val10)
+		for val11 := 0; val11 < int(val10); val11++ {
+			if err = gobtools.DecodeInterface(buf, &r.orderOnlyDeps[val11]); err != nil {
+				return err
+			}
+		}
 	}
 
 	err = gobtools.DecodeSimple[bool](buf, &r.executable)
@@ -89,14 +115,13 @@ func (r *katiInstall) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	var isNil14 bool
-	if err = gobtools.DecodeSimple(buf, &isNil14); err != nil {
+	var val15 bool
+	if err = gobtools.DecodeSimple(buf, &val15); err != nil {
 		return err
 	}
-	if !isNil14 {
+	if !val15 {
 		var val14 extraFilesZip
-		err = gobtools.DecodeStruct(buf, &val14)
-		if err != nil {
+		if err = gobtools.DecodeStruct(buf, &val14); err != nil {
 			return err
 		}
 		r.extraFiles = &val14
@@ -123,7 +148,7 @@ func (r extraFilesZip) GobEncode() ([]byte, error) {
 func (r extraFilesZip) Encode(buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeStruct(buf, &r.zip); err != nil {
+	if err = gobtools.EncodeInterface(buf, &r.zip); err != nil {
 		return err
 	}
 
@@ -141,13 +166,11 @@ func (r *extraFilesZip) GobDecode(b []byte) error {
 func (r *extraFilesZip) Decode(buf *bytes.Reader) error {
 	var err error
 
-	err = gobtools.DecodeStruct(buf, &r.zip)
-	if err != nil {
+	if err = gobtools.DecodeInterface(buf, &r.zip); err != nil {
 		return err
 	}
 
-	err = gobtools.DecodeStruct(buf, &r.dir)
-	if err != nil {
+	if err = gobtools.DecodeStruct(buf, &r.dir); err != nil {
 		return err
 	}
 

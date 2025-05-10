@@ -34,30 +34,35 @@ func TestCipdPackage(t *testing.T) {
 	}
 	`
 
-	fixture := android.GroupFixturePreparers(
+	result := android.GroupFixturePreparers(
 		android.PrepareForTestWithAndroidBuildComponents,
 		android.FixtureRegisterWithContext(RegisterCipdComponents),
-	)
+	).RunTestWithBp(t, bp)
 
-	export := fixture.RunTestWithBp(t, bp).ModuleForTests(t, "cipd_package1", "").Rule("cipd_export")
-	wantInput := "out/soong/.intermediates/cipd_package1/ensure.txt"
-	if export.Input.String() != wantInput {
-		t.Errorf("export.Input.String() = %v, want %v", export.Input.String(), wantInput)
+	module := result.ModuleForTests(t, "cipd_package1", "")
+	export := module.Rule("cipd_export")
+
+	intermediateDir := "out/soong/.intermediates/cipd_package1"
+	wantEnsureFile := intermediateDir + "/ensure.txt"
+	if export.Input.String() != wantEnsureFile {
+		t.Errorf("export.Input.String() = %v, want %v", export.Input.String(), wantEnsureFile)
 	}
 	if len(export.Inputs) != 0 {
 		t.Errorf("len(export.Inputs) = %v, want 0", len(export.Inputs))
 	}
-	wantRoot := "out/soong/.intermediates/cipd_package1/package"
-	wantOutputs := []string{
+
+	wantRoot := intermediateDir + "/package"
+	wantExportOutputs := []string{
 		wantRoot + "/package1_file1",
 		wantRoot + "/package1_file2",
 	}
-	var gotOutputs []string
+
+	var gotExportOutputs []string
 	for _, output := range export.Outputs {
-		gotOutputs = append(gotOutputs, output.String())
+		gotExportOutputs = append(gotExportOutputs, output.String())
 	}
-	if !slices.Equal(wantOutputs, gotOutputs) {
-		t.Errorf("export.Outputs = %v, want %v", gotOutputs, wantOutputs)
+	if !slices.Equal(wantExportOutputs, gotExportOutputs) {
+		t.Errorf("export.Outputs = %v, want %v", gotExportOutputs, wantExportOutputs)
 	}
 	if export.Output != nil {
 		t.Errorf("export.Output = %v, want nil", export.Output)
@@ -67,5 +72,30 @@ func TestCipdPackage(t *testing.T) {
 	}
 	if len(export.Args) != 1 {
 		t.Errorf("len(export.Args) = %v, want 1", len(export.Args))
+	}
+
+	zipRule := module.Rule("soong_zip_from_dir")
+	wantZipFile := intermediateDir + "/package.zip"
+	if zipRule.Output.String() != wantZipFile {
+		t.Errorf("zipRule.Output = %q, want %q", zipRule.Output.String(), wantZipFile)
+	}
+
+	if zipRule.Input.String() != wantEnsureFile {
+		t.Errorf("zipRule.Input.String() = %q, want %q", zipRule.Input.String(), wantEnsureFile)
+	}
+	if len(zipRule.Args) != 1 {
+		t.Fatalf("len(zipRule.Args) = %v, want 1 (was %v)", len(zipRule.Args), zipRule.Args)
+	}
+	wantTempZipDir := intermediateDir + "/zip_temp_pkg_dir"
+	if zipRule.Args["tempZipDir"] != wantTempZipDir {
+		t.Errorf("zipRule.Args[\"tempZipDir\"] = %q, want %q", zipRule.Args["tempZipDir"], wantTempZipDir)
+	}
+
+	zipTaggedOutputs := module.OutputFiles(result.TestContext, t, "zip")
+	if len(zipTaggedOutputs) != 1 {
+		t.Errorf("len(module.OutputFiles(..., \"zip\")) = %d, want 1", len(zipTaggedOutputs))
+	}
+	if val := zipTaggedOutputs[0].String(); val != wantZipFile {
+		t.Errorf("module.OutputFiles(..., \"zip\")[0] = %q, want %q", val, wantZipFile)
 	}
 }

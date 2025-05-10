@@ -36,6 +36,8 @@ var (
 
 	PrebuiltOS = pctx.VariableConfigMethod("PrebuiltOS", android.Config.PrebuiltOS)
 	_          = pctx.SourcePathVariable("cipd", "prebuilts/cipd/${PrebuiltOS}/cipd")
+	soong_zip  = pctx.HostBinToolVariable("soong_zip", "soong_zip")
+
 	// CIPD can be expensive for network and disk i/o, so limit the number of concurrent
 	// fetches.
 	cipdPool = pctx.StaticPool("cipdPool", blueprint.PoolParams{
@@ -49,6 +51,18 @@ var (
 			CommandDeps: []string{"$cipd"},
 			Pool:        cipdPool,
 		}, "root",
+	)
+
+	soongZipFromDirRule = pctx.AndroidStaticRule("soong_zip_from_dir",
+		blueprint.RuleParams{
+			Command: "rm -rf $tempZipDir && " +
+				"$cipd export -ensure-file $in -root $tempZipDir && " +
+				"$soong_zip -write_if_changed -o $out -C $tempZipDir -D $tempZipDir && " +
+				"rm -rf $tempZipDir",
+			CommandDeps: []string{"$cipd", "$soong_zip"},
+			Pool:        cipdPool,
+			Restat:      true,
+		}, "tempZipDir",
 	)
 )
 
@@ -84,27 +98,44 @@ func (p *cipdPackageModule) GenerateAndroidBuildActions(ctx android.ModuleContex
 	android.CopyFileRule(ctx,
 		android.PathForModuleSrc(ctx, p.properties.Resolved_versions_file),
 		resolvedVersionsFile.OutputPath)
+
 	ensureContents := fmt.Sprintf("$ResolvedVersions %s\n", resolvedVersionsTxt)
 	version := p.properties.Version.Get(ctx)
 	ensureContents += fmt.Sprintf("%s %s\n", p.properties.Package, version.Get())
 	android.WriteFileRule(ctx, ensureFile, ensureContents)
 
-	outFiles := make(android.WritablePaths, len(p.properties.Files))
-	for i, f := range p.properties.Files {
-		outFiles[i] = outPath.Join(ctx, f)
+	if len(p.properties.Files) > 0 {
+		outFiles := make(android.WritablePaths, len(p.properties.Files))
+		for i, f := range p.properties.Files {
+			outFiles[i] = outPath.Join(ctx, f)
+		}
+
+		ctx.Build(pctx, android.BuildParams{
+			Rule:     cipdExportRule,
+			Input:    ensureFile,
+			Outputs:  outFiles,
+			Implicit: resolvedVersionsFile,
+			Args: map[string]string{
+				"root": outPath.String(),
+			},
+		})
+		ctx.SetOutputFiles(outFiles.Paths(), "")
 	}
+
+	outputZipFile := android.PathForModuleOut(ctx, "package.zip")
+	tempZipDir := android.PathForModuleOut(ctx, "zip_temp_pkg_dir")
+	// This rule runs `cipd export` (potentially again) to ensure the zip is
+	// creatabled regardless of whether individual files are also requested.
 	ctx.Build(pctx, android.BuildParams{
-		Rule:     cipdExportRule,
+		Rule:     soongZipFromDirRule,
 		Input:    ensureFile,
-		Outputs:  outFiles,
+		Output:   outputZipFile,
 		Implicit: resolvedVersionsFile,
 		Args: map[string]string{
-			"root": outPath.String(),
+			"tempZipDir": tempZipDir.String(),
 		},
 	})
-
-	// TODO(b/413721925): Support zip file output as detailed in go/soong-cipd-support.
-	ctx.SetOutputFiles(outFiles.Paths(), "")
+	ctx.SetOutputFiles(android.Paths{outputZipFile}, "zip")
 }
 
 // cipd_package module installs the given CIPD package version.

@@ -455,7 +455,7 @@ var allPartialCompileFlags = partialCompileFlags{
 	Use_d8:                  true,
 	Disable_stub_validation: true,
 	Enable_inc_javac:        true,
-	Enable_inc_kotlin:       true,
+	Enable_inc_kotlin:       false,
 }
 
 type deviceConfig struct {
@@ -2534,4 +2534,13 @@ func (c *config) OdmManifestFiles() []string {
 
 func (c *config) EnforceSELinuxTrebleLabeling() bool {
 	return Bool(c.productVariables.EnforceSELinuxTrebleLabeling)
+}
+
+func (c *config) SELinuxTrebleLabelingTrackingListFile(ctx PathContext) Path {
+	path := String(c.productVariables.SELinuxTrebleLabelingTrackingListFile)
+	if path == "" {
+		return nil
+	}
+
+	return PathForSource(ctx, path)
 }

@@ -556,6 +556,8 @@ type ProductVariables struct {
 	ProductEnableLogcatPersistence bool `json:",omitempty"`
 
 	EnforceSELinuxTrebleLabeling *bool `json:",omitempty"`
+
+	SELinuxTrebleLabelingTrackingListFile *string `json:",omitempty"`
 }
 
 type CompatibilityTestcaseJSON struct {
