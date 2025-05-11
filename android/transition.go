@@ -411,3 +411,11 @@ func (c *outgoingTransitionContextImpl) DeviceConfig() DeviceConfig {
 func (c *outgoingTransitionContextImpl) provider(provider blueprint.AnyProviderKey) (any, bool) {
 	return c.bp.Provider(provider)
 }
+
+// UsesUnbundledVariantDepTag is an interface that dependency tags can implement to indicate they
+// want the variant of the module that would be used for unbundled builds. This is used by
+// unbundled_builder. Historically, make did not know/care about individual variants, so when
+// you listed apps in TARGET_BUILD_APPS, make would build whatever variant was available.
+type UsesUnbundledVariantDepTag interface {
+	UsesUnbundledVariant()
+}

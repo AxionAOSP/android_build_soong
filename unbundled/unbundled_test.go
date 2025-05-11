@@ -49,7 +49,7 @@ func TestProguardZipWithOverrideApp(t *testing.T) {
 		android.FixtureAddTextFile("build/soong/foo.java", ""),
 	).RunTest(t)
 
-	m := testResult.ModuleForTests(t, "unbundled_builder", "android_arm64_armv8-a")
+	m := testResult.ModuleForTests(t, "unbundled_builder", "")
 	rule := m.Rule("proguard_dict_zip")
 
 	// Test that foo and fooOverride get placed in different locations in the zip

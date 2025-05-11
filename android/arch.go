@@ -485,6 +485,25 @@ func (o *osTransitionMutator) IncomingTransition(ctx IncomingTransitionContext, 
 		return ""
 	}
 
+	// If the reverse dependency is the unbundled_builder, building the apps listed in
+	// TARGET_BUILD_APPS, prefer the android os, otherwise use the host os.
+	if _, ok := ctx.DepTag().(UsesUnbundledVariantDepTag); ok {
+		if allOsInfo, ok := ModuleProvider(ctx, allOsProvider); ok {
+			for _, variation := range allOsInfo.Variations {
+				if allOsInfo.Os[variation] == Android {
+					return variation
+				}
+			}
+			for _, variation := range allOsInfo.Variations {
+				if allOsInfo.Os[variation] == ctx.Config().BuildOS {
+					return variation
+				}
+			}
+			// will cause a missing variant error
+			return "os_variant_for_unbundled_not_found"
+		}
+	}
+
 	return incomingVariation
 }
 
@@ -702,6 +721,15 @@ func (a *archTransitionMutator) IncomingTransition(ctx IncomingTransitionContext
 	if multilib == "common" {
 		return "common"
 	}
+
+	// If the reverse dependency is the unbundled_builder, building the apps listed in
+	// TARGET_BUILD_APPS, use the primary arch of this module.
+	if _, ok := ctx.DepTag().(UsesUnbundledVariantDepTag); ok {
+		if allArchInfo, ok := ModuleProvider(ctx, allArchProvider); ok {
+			return allArchInfo.Primary
+		}
+	}
+
 	return incomingVariation
 }
 
