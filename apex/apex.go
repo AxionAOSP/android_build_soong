@@ -551,6 +551,12 @@ type apexBundle struct {
 	// Required modules, filled out during GenerateAndroidBuildActions and used in AndroidMk
 	required []string
 
+	// Host required modules, filled out during GenerateAndroidBuildActions and used in AndroidMk
+	hostRequired []string
+
+	// Target required modules, filled out during GenerateAndroidBuildActions and used in AndroidMk
+	targetRequired []string
+
 	// appinfo of the apk-in-apex of this module
 	appInfos java.AppInfos
 }
@@ -1644,7 +1650,7 @@ func (a *apexBundle) WalkPayloadDeps(ctx android.BaseModuleContext, do android.P
 		if dt, ok := depTag.(*dependencyTag); ok && !dt.payload {
 			return false
 		}
-		if depTag == android.RequiredDepTag {
+		if android.IsRequiredDepTag(depTag) {
 			return false
 		}
 
@@ -2142,7 +2148,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 		}
 	} else if depTag == android.DarwinUniversalVariantTag {
 		// nothing
-	} else if depTag == android.RequiredDepTag {
+	} else if android.IsRequiredDepTag(depTag) {
 		// nothing
 	} else if commonInfo.IsInstallableToApex {
 		ctx.ModuleErrorf("unexpected tag %s for indirect dependency %q", android.PrettyPrintTag(depTag), depName)
@@ -2261,8 +2267,13 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	a.providePrebuiltInfo(ctx)
 
-	a.required = a.RequiredModuleNames(ctx)
+	requiredDeps := android.CollectRequiredDeps(ctx)
+
+	a.required = requiredDeps.RequiredDepsNames(ctx)
 	a.required = append(a.required, a.VintfFragmentModuleNames(ctx)...)
+
+	a.hostRequired = requiredDeps.HostRequiredDepsNames(ctx)
+	a.targetRequired = requiredDeps.TargetRequiredDepsNames(ctx)
 
 	a.setOutputFiles(ctx)
 	a.enforcePartitionTagOnApexSystemServerJar(ctx)

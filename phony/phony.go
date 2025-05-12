@@ -57,11 +57,11 @@ func (p *phony) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	p.hostRequiredModuleNames = ctx.HostRequiredModuleNames()
 	p.targetRequiredModuleNames = ctx.TargetRequiredModuleNames()
 
-	ctx.VisitDirectDepsProxyWithTag(android.RequiredDepTag, func(dep android.ModuleProxy) {
+	for _, dep := range android.CollectRequiredDeps(ctx).AllRequiredDeps() {
 		if o, ok := android.OtherModuleProvider(ctx, dep, android.OutputFilesProvider); ok {
 			p.outputDeps = append(p.outputDeps, o.DefaultOutputFiles...)
 		}
-	})
+	}
 
 	ctx.Phony(p.Name(), p.outputDeps...)
 }

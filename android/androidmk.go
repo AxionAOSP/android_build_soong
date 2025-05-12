@@ -511,7 +511,7 @@ type fillInEntriesContext interface {
 	HasMutatorFinished(mutatorName string) bool
 }
 
-func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod Module) {
+func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod Module, commonModuleInfo *CommonModuleInfo) {
 	a.entryContext = ctx
 	a.EntryMap = make(map[string][]string)
 	base := mod.base()
@@ -526,10 +526,9 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod Module) {
 	if a.Include == "" {
 		a.Include = "$(BUILD_PREBUILT)"
 	}
-	a.Required = append(a.Required, mod.RequiredModuleNames(ctx)...)
-	a.Required = append(a.Required, mod.VintfFragmentModuleNames(ctx)...)
-	a.Host_required = append(a.Host_required, mod.HostRequiredModuleNames()...)
-	a.Target_required = append(a.Target_required, mod.TargetRequiredModuleNames()...)
+	a.Required = append(a.Required, commonModuleInfo.RequiredModuleNames...)
+	a.Host_required = append(a.Host_required, commonModuleInfo.HostRequiredModuleNames...)
+	a.Target_required = append(a.Target_required, commonModuleInfo.TargetRequiredModuleNames...)
 
 	for _, distString := range a.GetDistForGoals(mod) {
 		fmt.Fprintln(&a.header, distString)
@@ -888,7 +887,7 @@ func distsToDistContributions(dists []dist) *distContributions {
 
 // getSoongOnlyDataFromMods gathers data from the given modules needed in soong-only builds.
 // Currently, this is the dist contributions, and the module-info.json contents.
-func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []ModuleOrProxy) ([]distContributions, []*ModuleInfoJSON) {
+func getSoongOnlyDataFromMods(ctx SingletonContext, mods []ModuleOrProxy) ([]distContributions, []*ModuleInfoJSON) {
 	var allDistContributions []distContributions
 	var moduleInfoJSONs []*ModuleInfoJSON
 	for _, mod := range mods {
@@ -916,6 +915,8 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []ModuleOrProxy) ([
 				allDistContributions = append(allDistContributions, *contribution)
 			}
 		} else {
+			commonModuleInfo := OtherModulePointerProviderOrDefault(ctx, mod, CommonModuleInfoProvider)
+
 			if x, ok := mod.(AndroidMkDataProvider); ok {
 				data := x.AndroidMk()
 
@@ -923,7 +924,7 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []ModuleOrProxy) ([
 					data.Include = "$(BUILD_PREBUILT)"
 				}
 
-				data.fillInData(ctx, mod.(Module))
+				data.fillInData(ctx, mod.(Module), commonModuleInfo)
 				if data.Entries.disabled() {
 					continue
 				}
@@ -937,7 +938,7 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []ModuleOrProxy) ([
 			if x, ok := mod.(AndroidMkEntriesProvider); ok {
 				entriesList := x.AndroidMkEntries()
 				for _, entries := range entriesList {
-					entries.fillInEntries(ctx, mod.(Module))
+					entries.fillInEntries(ctx, mod.(Module), commonModuleInfo)
 					if entries.disabled() {
 						continue
 					}
@@ -1045,7 +1046,7 @@ func translateAndroidMkModule(ctx SingletonContext, w io.Writer, moduleInfoJSONs
 	return err
 }
 
-func (data *AndroidMkData) fillInData(ctx fillInEntriesContext, mod Module) {
+func (data *AndroidMkData) fillInData(ctx fillInEntriesContext, mod Module, commonModuleInfo *CommonModuleInfo) {
 	// Get the preamble content through AndroidMkEntries logic.
 	data.Entries = AndroidMkEntries{
 		Class:           data.Class,
@@ -1057,7 +1058,7 @@ func (data *AndroidMkData) fillInData(ctx fillInEntriesContext, mod Module) {
 		Host_required:   data.Host_required,
 		Target_required: data.Target_required,
 	}
-	data.Entries.fillInEntries(ctx, mod)
+	data.Entries.fillInEntries(ctx, mod, commonModuleInfo)
 
 	// copy entries back to data since it is used in Custom
 	data.Required = data.Entries.Required
@@ -1081,7 +1082,9 @@ func translateAndroidModule(ctx SingletonContext, w io.Writer, moduleInfoJSONs *
 		data.Include = "$(BUILD_PREBUILT)"
 	}
 
-	data.fillInData(ctx, mod)
+	commonModuleInfo := OtherModuleProviderOrDefault(ctx, mod, CommonModuleInfoProvider)
+
+	data.fillInData(ctx, mod, commonModuleInfo)
 	aconfigUpdateAndroidMkData(ctx, mod, &data)
 
 	prefix := ""
@@ -1172,10 +1175,10 @@ func translateAndroidMkEntriesModule(ctx SingletonContext, w io.Writer, moduleIn
 	aconfigUpdateAndroidMkEntries(ctx, mod, &entriesList)
 
 	moduleInfoJSON, providesModuleInfoJSON := OtherModuleProvider(ctx, mod, ModuleInfoJSONProvider)
-
+	commonModuleInfo := OtherModuleProviderOrDefault(ctx, mod, CommonModuleInfoProvider)
 	// Any new or special cases here need review to verify correct propagation of license information.
 	for _, entries := range entriesList {
-		entries.fillInEntries(ctx, mod)
+		entries.fillInEntries(ctx, mod, commonModuleInfo)
 		entries.write(w)
 
 		if providesModuleInfoJSON && !entries.disabled() {
@@ -1490,7 +1493,6 @@ func (a *AndroidMkInfo) fillInEntries(ctx fillInEntriesContext, mod ModuleOrProx
 		a.Include = "$(BUILD_PREBUILT)"
 	}
 	a.Required = append(a.Required, commonInfo.RequiredModuleNames...)
-	a.Required = append(a.Required, commonInfo.VintfFragmentModuleNames...)
 	a.Host_required = append(a.Host_required, commonInfo.HostRequiredModuleNames...)
 	a.Target_required = append(a.Target_required, commonInfo.TargetRequiredModuleNames...)
 

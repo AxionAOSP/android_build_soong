@@ -1250,8 +1250,9 @@ func AndroidMkEntriesForTest(t *testing.T, ctx *TestContext, mod Module) []Andro
 
 	entriesList := p.AndroidMkEntries()
 	aconfigUpdateAndroidMkEntries(ctx, mod, &entriesList)
+	commonModuleInfo := OtherModulePointerProviderOrDefault(ctx, mod, CommonModuleInfoProvider)
 	for i := range entriesList {
-		entriesList[i].fillInEntries(ctx, mod)
+		entriesList[i].fillInEntries(ctx, mod, commonModuleInfo)
 	}
 	return entriesList
 }
@@ -1289,7 +1290,7 @@ func AndroidMkDataForTest(t *testing.T, ctx *TestContext, mod Module) AndroidMkD
 		t.Fatal("module does not implement AndroidMkDataProvider: " + mod.Name())
 	}
 	data := p.AndroidMk()
-	data.fillInData(ctx, mod)
+	data.fillInData(ctx, mod, OtherModulePointerProviderOrDefault(ctx, mod, CommonModuleInfoProvider))
 	aconfigUpdateAndroidMkData(ctx, mod, &data)
 	return data
 }

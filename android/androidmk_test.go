@@ -116,7 +116,7 @@ func customModuleFactory() Module {
 
 	module.AddProperties(&module.properties)
 
-	InitAndroidModule(module)
+	InitAndroidArchModule(module, HostAndDeviceSupported, MultilibCommon)
 	return module
 }
 
@@ -125,18 +125,22 @@ func customModuleFactory() Module {
 func buildContextAndCustomModuleFoo(t *testing.T, bp string) (*TestContext, *customModule) {
 	t.Helper()
 	result := GroupFixturePreparers(
+		PrepareForTestWithArchMutator,
 		// Enable androidmk Singleton
 		PrepareForTestWithAndroidMk,
+		PrepareForTestWithOverrides,
 		FixtureRegisterWithContext(func(ctx RegistrationContext) {
 			ctx.RegisterModuleType("custom", customModuleFactory)
 		}),
 		FixtureModifyProductVariables(func(variables FixtureProductVariables) {
 			variables.DeviceProduct = proptools.StringPtr("bar")
+			variables.DeviceArch = proptools.StringPtr("arm64")
+			variables.DeviceName = proptools.StringPtr("bar")
 		}),
 		FixtureWithRootAndroidBp(bp),
 	).RunTest(t)
 
-	module := result.ModuleForTests(t, "foo", "").Module().(*customModule)
+	module := result.ModuleForTests(t, "foo", "android_common").Module().(*customModule)
 	return result.TestContext, module
 }
 
@@ -148,10 +152,16 @@ func TestAndroidMkSingleton_PassesUpdatedAndroidMkDataToCustomCallback(t *testin
 
 	bp := `
 	custom {
+		name: "bar",
+	}
+	custom {
+		name: "baz",
+		host_supported: true,
+	}
+	custom {
 		name: "foo",
 		required: ["bar"],
 		host_required: ["baz"],
-		target_required: ["qux"],
 	}
 	`
 
@@ -164,7 +174,6 @@ func TestAndroidMkSingleton_PassesUpdatedAndroidMkDataToCustomCallback(t *testin
 	}
 	assertEqual([]string{"bar"}, m.data.Required)
 	assertEqual([]string{"baz"}, m.data.Host_required)
-	assertEqual([]string{"qux"}, m.data.Target_required)
 }
 
 func TestGenerateDistContributionsForMake(t *testing.T) {

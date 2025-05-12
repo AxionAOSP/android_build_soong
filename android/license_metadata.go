@@ -75,7 +75,7 @@ func buildLicenseMetadata(ctx *moduleContext, licenseMetadataFile WritablePath) 
 		}
 		// The required dependencies just say modules A and B should be installed together.
 		// It doesn't mean that one is built using the other.
-		if ctx.OtherModuleDependencyTag(dep) == RequiredDepTag {
+		if IsRequiredDepTag(ctx.OtherModuleDependencyTag(dep)) {
 			return
 		}
 
