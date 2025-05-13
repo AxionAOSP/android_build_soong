@@ -225,9 +225,15 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 }
 
 func (a *apexBundle) writeRequiredModules(w io.Writer, moduleNames []string) {
-	android.AndroidMkEmitAssignList(w, "LOCAL_REQUIRED_MODULES", moduleNames, a.makeModulesToInstall, a.required)
-	android.AndroidMkEmitAssignList(w, "LOCAL_TARGET_REQUIRED_MODULES", a.targetRequired)
-	android.AndroidMkEmitAssignList(w, "LOCAL_HOST_REQUIRED_MODULES", a.hostRequired)
+	var required []string
+	var targetRequired []string
+	var hostRequired []string
+	required = append(required, a.required...)
+	targetRequired = append(targetRequired, a.TargetRequiredModuleNames()...)
+	hostRequired = append(hostRequired, a.HostRequiredModuleNames()...)
+	android.AndroidMkEmitAssignList(w, "LOCAL_REQUIRED_MODULES", moduleNames, a.makeModulesToInstall, required)
+	android.AndroidMkEmitAssignList(w, "LOCAL_TARGET_REQUIRED_MODULES", targetRequired)
+	android.AndroidMkEmitAssignList(w, "LOCAL_HOST_REQUIRED_MODULES", hostRequired)
 }
 
 func (a *apexBundle) androidMkForType() android.AndroidMkData {

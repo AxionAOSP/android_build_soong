@@ -2296,11 +2296,11 @@ func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		j.androidMkNamesOfJniLibs = append(j.androidMkNamesOfJniLibs, commonInfo.BaseModuleName+":"+commonInfo.Target.Arch.ArchType.Bitness())
 	})
 	// Check that native libraries are not listed in `required`. Prompt users to use `jni_libs` instead.
-	for _, dep := range android.CollectRequiredDeps(ctx).AllRequiredDeps() {
+	ctx.VisitDirectDepsProxyWithTag(android.RequiredDepTag, func(dep android.ModuleProxy) {
 		if _, hasSharedLibraryInfo := android.OtherModuleProvider(ctx, dep, cc.SharedLibraryInfoProvider); hasSharedLibraryInfo {
 			ctx.ModuleErrorf("cc_library %s is no longer supported in `required` of java_binary modules. Please use jni_libs instead.", dep.Name())
 		}
-	}
+	})
 
 	// Compile the jar
 	if j.binaryProperties.Main_class != nil {

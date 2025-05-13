@@ -570,27 +570,14 @@ type TeamDepTagType struct {
 
 var teamDepTag = TeamDepTagType{}
 
-type requiredType int
-
-const (
-	required requiredType = iota
-	hostRequired
-	targetRequired
-)
-
 // Dependency tag for required, host_required, and target_required modules.
-type requiredDepTagType struct {
+var RequiredDepTag = struct {
 	blueprint.BaseDependencyTag
 	InstallAlwaysNeededDependencyTag
 	// Requiring disabled module has been supported (as a side effect of this being implemented
 	// in Make). We may want to make it an error, but for now, let's keep the existing behavior.
 	AlwaysAllowDisabledModuleDependencyTag
-	requiredType requiredType
-}
-
-var requiredDepTag = requiredDepTagType{requiredType: required}
-var hostRequiredDepTag = requiredDepTagType{requiredType: hostRequired}
-var targetRequiredDepTag = requiredDepTagType{requiredType: targetRequired}
+}{}
 
 // CommonTestOptions represents the common `test_options` properties in
 // Android.bp.
@@ -1056,105 +1043,9 @@ func (m *ModuleBase) baseOverridablePropertiesDepsMutator(ctx BottomUpMutatorCon
 	}
 }
 
-// Determines if the dependency tag is one of requiredDepTag, hostRequiredDepTag or targetRequiredDepTag
-func IsRequiredDepTag(tag blueprint.DependencyTag) bool {
-	_, ok := tag.(requiredDepTagType)
-	return ok
-}
-
-func ModuleNamesFromModulesList(ctx BaseModuleContext, modules []ModuleProxy) []string {
-	ret := make([]string, len(modules))
-	for i, module := range modules {
-		moduleName := ctx.OtherModuleName(module)
-		if prebuiltInfo := OtherModuleProviderOrDefault(ctx, module, PrebuiltInfoProvider); prebuiltInfo.IsPrebuilt {
-			moduleName = RemoveOptionalPrebuiltPrefix(moduleName)
-		}
-		ret[i] = moduleName
-	}
-	return FirstUniqueStrings(ret)
-}
-
-// Struct containing the list of *required modules that are actually added as deps.
-// This may not match the list of modules listed in the module properties, as some modules
-// may be filtered out if no matching variants were found.
-type RequiredDeps struct {
-	required       []ModuleProxy
-	hostRequired   []ModuleProxy
-	targetRequired []ModuleProxy
-}
-
-// List of all modules that are added as dependencies via required, host_required or
-// target_required properties.
-func (r *RequiredDeps) AllRequiredDeps() []ModuleProxy {
-	return slices.Concat(r.required, r.hostRequired, r.targetRequired)
-}
-
-// Names of all modules that are added as dependencies via required, host_required or
-// target_required properties. Note that prebuilt_ prefix are removed.
-func (r *RequiredDeps) AllRequiredDepsNames(ctx BaseModuleContext) []string {
-	return ModuleNamesFromModulesList(ctx, r.AllRequiredDeps())
-}
-
-// List of modules that are added as dependencies via required property.
-func (r *RequiredDeps) RequiredDeps() []ModuleProxy {
-	return r.required
-}
-
-// Names of modules that are added as dependencies via required property.
-// Note that prebuilt_ prefix are removed.
-func (r *RequiredDeps) RequiredDepsNames(ctx BaseModuleContext) []string {
-	return ModuleNamesFromModulesList(ctx, r.RequiredDeps())
-}
-
-// List of modules that are added as dependencies via host_required property.
-func (r *RequiredDeps) HostRequiredDeps() []ModuleProxy {
-	return r.hostRequired
-}
-
-// Names of modules that are added as dependencies via host_required property.
-// Note that prebuilt_ prefix are removed.
-func (r *RequiredDeps) HostRequiredDepsNames(ctx BaseModuleContext) []string {
-	return ModuleNamesFromModulesList(ctx, r.HostRequiredDeps())
-}
-
-// List of modules that are added as dependencies via target_required property.
-func (r *RequiredDeps) TargetRequiredDeps() []ModuleProxy {
-	return r.targetRequired
-}
-
-// Names of modules that are added as dependencies via target_required property.
-// Note that prebuilt_ prefix are removed.
-func (r *RequiredDeps) TargetRequiredDepsNames(ctx BaseModuleContext) []string {
-	return ModuleNamesFromModulesList(ctx, r.TargetRequiredDeps())
-}
-
-// Collects direct deps added via *required dependency tags and returns [RequiredDeps] struct pointer.
-// Can be called in modules and mutators. When called in mutators, note that the returned struct can
-// be empty, as the required deps are added in a post deps mutator.
-func CollectRequiredDeps(ctx BaseModuleContext) *RequiredDeps {
-	ret := &RequiredDeps{}
-	ctx.VisitDirectDepsProxyWithTag(requiredDepTag, func(dep ModuleProxy) {
-		if !InList(dep, ret.required) {
-			ret.required = append(ret.required, dep)
-		}
-	})
-	ctx.VisitDirectDepsProxyWithTag(hostRequiredDepTag, func(dep ModuleProxy) {
-		if !InList(dep, ret.hostRequired) {
-			ret.hostRequired = append(ret.hostRequired, dep)
-		}
-	})
-	ctx.VisitDirectDepsProxyWithTag(targetRequiredDepTag, func(dep ModuleProxy) {
-		if !InList(dep, ret.targetRequired) {
-			ret.targetRequired = append(ret.targetRequired, dep)
-		}
-	})
-
-	return ret
-}
-
 // addRequiredDeps adds required, target_required, and host_required as dependencies.
 func addRequiredDeps(ctx BottomUpMutatorContext) {
-	addDep := func(target Target, depName string, depTag requiredDepTagType) {
+	addDep := func(target Target, depName string) {
 		if !blueprint.IsValidModuleName(depName) {
 			ctx.PropertyErrorf("required", "%s is not a valid module", depName)
 		}
@@ -1185,7 +1076,7 @@ func addRequiredDeps(ctx BottomUpMutatorContext) {
 
 		variation := target.Variations()
 		if ctx.OtherModuleFarDependencyVariantExists(variation, depName) {
-			ctx.AddFarVariationDependencies(variation, depTag, depName)
+			ctx.AddFarVariationDependencies(variation, RequiredDepTag, depName)
 		}
 	}
 
@@ -1200,12 +1091,12 @@ func addRequiredDeps(ctx BottomUpMutatorContext) {
 	if ctx.Device() {
 		for _, depName := range append(ctx.Module().RequiredModuleNames(ctx), ctx.Module().VintfFragmentModuleNames(ctx)...) {
 			for _, target := range deviceTargets {
-				addDep(target, depName, requiredDepTag)
+				addDep(target, depName)
 			}
 		}
 		for _, depName := range ctx.Module().HostRequiredModuleNames() {
 			for _, target := range hostTargets {
-				addDep(target, depName, hostRequiredDepTag)
+				addDep(target, depName)
 			}
 		}
 	}
@@ -1218,12 +1109,12 @@ func addRequiredDeps(ctx BottomUpMutatorContext) {
 				if ctx.Target().HostCross != target.HostCross {
 					continue
 				}
-				addDep(target, depName, requiredDepTag)
+				addDep(target, depName)
 			}
 		}
 		for _, depName := range ctx.Module().TargetRequiredModuleNames() {
 			for _, target := range deviceTargets {
-				addDep(target, depName, targetRequiredDepTag)
+				addDep(target, depName)
 			}
 		}
 	}
@@ -2215,8 +2106,6 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 	var installFiles InstallFilesInfo
 
-	var requiredDeps *RequiredDeps
-	var requiredNames, hostRequiredNames, targetRequiredNames []string
 	if m.Enabled(ctx) {
 		// ensure all direct android.Module deps are enabled
 		ctx.VisitDirectDepsProxy(func(m ModuleProxy) {})
@@ -2281,10 +2170,6 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			return
 		}
 
-		requiredDeps = CollectRequiredDeps(ctx)
-		requiredNames = requiredDeps.RequiredDepsNames(ctx)
-		hostRequiredNames = requiredDeps.HostRequiredDepsNames(ctx)
-		targetRequiredNames = requiredDeps.TargetRequiredDepsNames(ctx)
 		m.module.GenerateAndroidBuildActions(ctx)
 		if ctx.Failed() {
 			return
@@ -2404,7 +2289,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			}
 			moduleInfoJSON.CompatibilitySuites = suites
 
-			required := append(requiredNames, m.VintfFragmentModuleNames(ctx)...)
+			required := append(m.RequiredModuleNames(ctx), m.VintfFragmentModuleNames(ctx)...)
 			required = append(required, moduleInfoJSON.ExtraRequired...)
 
 			registerName := moduleInfoJSON.RegisterNameOverride
@@ -2480,9 +2365,9 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		NoFullInstall:                    proptools.Bool(m.commonProperties.No_full_install),
 		InVendorRamdisk:                  m.InVendorRamdisk(),
 		ExemptFromRequiredApplicableLicensesProperty: exemptFromRequiredApplicableLicensesProperty(m.module),
-		RequiredModuleNames:                          requiredNames,
-		HostRequiredModuleNames:                      hostRequiredNames,
-		TargetRequiredModuleNames:                    targetRequiredNames,
+		RequiredModuleNames:                          m.module.RequiredModuleNames(ctx),
+		HostRequiredModuleNames:                      m.module.HostRequiredModuleNames(),
+		TargetRequiredModuleNames:                    m.module.TargetRequiredModuleNames(),
 		VintfFragmentModuleNames:                     m.module.VintfFragmentModuleNames(ctx),
 		Dists:                                        m.Dists(),
 		ExportedToMake:                               m.ExportedToMake(),

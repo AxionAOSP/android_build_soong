@@ -194,7 +194,7 @@ func getAllTestModules(ctx android.ModuleContext) []android.ModuleOrProxy {
 			// handle direct deps
 			ret = append(ret, child)
 			return true
-		} else if !android.EqualModules(parent, ctx.Module()) && android.IsRequiredDepTag(ctx.OtherModuleDependencyTag(child)) {
+		} else if !android.EqualModules(parent, ctx.Module()) && ctx.OtherModuleDependencyTag(child) == android.RequiredDepTag {
 			// handle the "required" from deps
 			ret = append(ret, child)
 			return true

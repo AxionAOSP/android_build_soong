@@ -3600,7 +3600,7 @@ func (c *Module) checkDoubleLoadableLibraries(ctx android.ModuleContext) {
 		if depTag == StubImplDepTag {
 			return false
 		}
-		if android.IsRequiredDepTag(depTag) {
+		if depTag == android.RequiredDepTag {
 			return false
 		}
 
@@ -3744,7 +3744,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			return
 		}
 
-		if android.IsRequiredDepTag(depTag) {
+		if depTag == android.RequiredDepTag {
 			return
 		}
 

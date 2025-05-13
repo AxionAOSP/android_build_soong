@@ -16,15 +16,15 @@
 #
 
 import argparse
-import glob
 import os
 import shutil
+import stat
 import struct
 import subprocess
 import sys
 import zipfile
 
-from ninja_determinism_test import Product, get_top
+from ninja_determinism_test import Product, get_top, transitively_included_ninja_files
 
 def run_build_target_files_zip(product: Product, soong_only: bool) -> bool:
     """Runs a build and returns if it succeeded or not."""
@@ -93,6 +93,13 @@ def get_local_file_sha256_fields(zip_filepath: os.PathLike) -> dict[str, bytes]:
 
             if found_sha_in_file:
                 sha256_checksums[member_info.filename] = found_sha_in_file
+            elif member_info.external_attr != 0:
+                # Upper 16 bits of external_attr are UNIX permissions.
+                # If the file is a symlink then add its target as the value of the map.
+                mode = (member_info.external_attr >> 16) & 0xFFFF
+                if stat.S_ISLNK(mode):
+                    target = zip_ref.read(member_info.filename)
+                    sha256_checksums[member_info.filename] = target
             else:
                 print(f"{member_info.filename} sha not found", file=sys.stderr)
 
@@ -107,13 +114,10 @@ def find_build_id() -> str | None:
 
     return build_id
 
-def zip_ninja_files(subdistdir: str):
+def zip_ninja_files(subdistdir: str, product: Product):
     out_dir = os.getenv('OUT_DIR', 'out')
     root_dir = os.path.dirname(out_dir)
-    files_to_zip = [
-        *glob.glob(os.path.join(out_dir, "*.ninja"), recursive=False),          # ninja files in out/
-        *glob.glob(os.path.join(out_dir, "soong", "*.ninja"), recursive=False), # ninja files in out/soong/
-    ]
+    files_to_zip = transitively_included_ninja_files(out_dir, os.path.join(out_dir, f'combined-{product.product}.ninja'), {})
 
     zip_filename = os.path.join(subdistdir, "ninja_files.zip")
     with zipfile.ZipFile(zip_filename, 'w', compression=zipfile.ZIP_DEFLATED) as zipf:
@@ -129,7 +133,7 @@ def move_artifacts_to_subfolder(product: Product, soong_only: bool):
     if os.path.exists(subdistdir):
         shutil.rmtree(subdistdir)
     os.makedirs(subdistdir)
-    zip_ninja_files(subdistdir)
+    zip_ninja_files(subdistdir, product)
 
     build_id = find_build_id()
 

@@ -226,41 +226,8 @@ func TestPrebuiltEtcCannotDstsWithFilenameFromSrc(t *testing.T) {
 		`)
 }
 
-type testModule struct {
-	android.ModuleBase
-}
-
-func testModuleFactory() android.Module {
-	module := &testModule{}
-	module.AddProperties()
-	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
-	return module
-}
-
-func (t *testModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
-
 func TestPrebuiltEtcAndroidMk(t *testing.T) {
-	result := android.GroupFixturePreparers(
-		prepareForPrebuiltEtcTest,
-		android.PrepareForTestWithOverrides,
-		android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
-			ctx.RegisterModuleType("test", testModuleFactory)
-		}),
-	).RunTestWithBp(t, `
-		test {
-			name: "modA",
-		}
-		test {
-			name: "moduleB",
-		}
-		test {
-			name: "hostModA",
-			host_supported: true,
-		}
-		test {
-			name: "hostModB",
-			host_supported: true,
-		}
+	result := prepareForPrebuiltEtcTest.RunTestWithBp(t, `
 		prebuilt_etc {
 			name: "foo",
 			src: "foo.conf",
@@ -268,17 +235,19 @@ func TestPrebuiltEtcAndroidMk(t *testing.T) {
 			filename_from_src: true,
 			required: ["modA", "moduleB"],
 			host_required: ["hostModA", "hostModB"],
+			target_required: ["targetModA"],
 		}
 	`)
 
 	expected := map[string][]string{
-		"LOCAL_MODULE":                {"foo"},
-		"LOCAL_MODULE_CLASS":          {"ETC"},
-		"LOCAL_MODULE_OWNER":          {"abc"},
-		"LOCAL_INSTALLED_MODULE_STEM": {"foo.conf"},
-		"LOCAL_REQUIRED_MODULES":      {"modA", "moduleB"},
-		"LOCAL_HOST_REQUIRED_MODULES": {"hostModA", "hostModB"},
-		"LOCAL_SOONG_MODULE_TYPE":     {"prebuilt_etc"},
+		"LOCAL_MODULE":                  {"foo"},
+		"LOCAL_MODULE_CLASS":            {"ETC"},
+		"LOCAL_MODULE_OWNER":            {"abc"},
+		"LOCAL_INSTALLED_MODULE_STEM":   {"foo.conf"},
+		"LOCAL_REQUIRED_MODULES":        {"modA", "moduleB"},
+		"LOCAL_HOST_REQUIRED_MODULES":   {"hostModA", "hostModB"},
+		"LOCAL_TARGET_REQUIRED_MODULES": {"targetModA"},
+		"LOCAL_SOONG_MODULE_TYPE":       {"prebuilt_etc"},
 	}
 
 	mod := result.Module("foo", "android_arm64_armv8-a").(*PrebuiltEtc)

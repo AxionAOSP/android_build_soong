@@ -199,6 +199,34 @@ func TestKotlin(t *testing.T) {
 	}
 }
 
+func TestSortKotlincFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Successful sorting of kotlincFlags", func(t *testing.T) {
+		t.Parallel()
+		bp := `
+			java_library {
+				name: "Foo",
+				srcs: ["Foo.kt"],
+				kotlincflags: ["-Ja", "-Xb", "-JCz", "-JCy", "-JCx", "-Xd"]
+			}
+		`
+		result := android.GroupFixturePreparers(
+			PrepareForTestWithJavaDefaultModules,
+		).RunTestWithBp(t, bp)
+
+		module := result.ModuleForTests(t, "Foo", "android_common")
+		kotlincRule := module.Rule("kotlinc")
+		expectedFlags := "-Ja -JCz -JCy -JCx -Xb -Xd"
+
+		kotlincFlags := kotlincRule.Args["kotlincFlags"]
+		if !strings.Contains(kotlincFlags, expectedFlags) {
+			t.Errorf("kotlincFlags expected to have -J flags sorted first:\n  Flags: %s\n  Expected: %s", kotlincFlags, expectedFlags)
+		}
+	})
+
+}
+
 func TestKapt(t *testing.T) {
 	t.Parallel()
 	bp := `

@@ -26,9 +26,6 @@ func TestRequired(t *testing.T) {
 	t.Parallel()
 	ctx, _ := testJava(t, `
 		java_library {
-			name: "libfoo",
-		}
-		java_library {
 			name: "foo",
 			srcs: ["a.java"],
 			required: ["libfoo"],
@@ -79,9 +76,6 @@ func TestHostdex(t *testing.T) {
 func TestHostdexRequired(t *testing.T) {
 	t.Parallel()
 	ctx, _ := testJava(t, `
-		java_library {
-			name: "libfoo",
-		}
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],

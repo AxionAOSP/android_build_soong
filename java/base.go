@@ -1416,6 +1416,23 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		}
 
 		if len(kotlincFlags) > 0 {
+			// Flags with `-J` as a prefix are meant to be passed to java directly.
+			// When running the kotlin-incremental-client, flags are first parsed by a bash
+			// script that eagerly takes all the leading arguments that start with `-J` and feeds
+			// them to java. Any `-J` arguments that occur elsewhere (i.e. after a non-J argument)
+			// fail to pass through to java as expected.
+			slices.SortStableFunc(kotlincFlags, func(a, b string) int {
+				aHasPrefix := strings.HasPrefix(a, "-J")
+				bHasPrefix := strings.HasPrefix(b, "-J")
+
+				// If only a has the prefix, it should come before b
+				if aHasPrefix && !bHasPrefix {
+					return -1
+				} else if bHasPrefix && !aHasPrefix {
+					return 1
+				}
+				return 0 // Otherwise maintain their order
+			})
 			// optimization.
 			ctx.Variable(pctx, "kotlincFlags", strings.Join(kotlincFlags, " "))
 			flags.kotlincFlags += "$kotlincFlags"
