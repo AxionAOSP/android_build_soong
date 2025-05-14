@@ -25,6 +25,8 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 func init() {
 	android.RegisterSdkMemberType(ccBinarySdkMemberType)
 
@@ -38,6 +40,7 @@ var ccBinarySdkMemberType = &binarySdkMemberType{
 	},
 }
 
+// @auto-generate: gob
 type binarySdkMemberType struct {
 	android.SdkMemberTypeBase
 }

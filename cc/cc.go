@@ -36,6 +36,9 @@ import (
 	"android/soong/fuzz"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
+// @auto-generate: gob
 type CcMakeVarsInfo struct {
 	WarningsAllowed string
 	UsingWnoError   string
@@ -44,6 +47,7 @@ type CcMakeVarsInfo struct {
 
 var CcMakeVarsInfoProvider = blueprint.NewProvider[*CcMakeVarsInfo]()
 
+// @auto-generate: gob
 type CcObjectInfo struct {
 	ObjFiles   android.Paths
 	TidyFiles  android.Paths
@@ -52,6 +56,7 @@ type CcObjectInfo struct {
 
 var CcObjectInfoProvider = blueprint.NewProvider[CcObjectInfo]()
 
+// @auto-generate: gob
 type AidlInterfaceInfo struct {
 	// list of aidl_interface sources
 	Sources []string
@@ -63,6 +68,7 @@ type AidlInterfaceInfo struct {
 	Flags []string
 }
 
+// @auto-generate: gob
 type CompilerInfo struct {
 	Srcs android.Paths
 	// list of module-specific flags that will be used for C and C++ compiles.
@@ -71,6 +77,7 @@ type CompilerInfo struct {
 	LibraryDecoratorInfo *LibraryDecoratorInfo
 }
 
+// @auto-generate: gob
 type LinkerInfo struct {
 	WholeStaticLibs []string
 	// list of modules that should be statically linked into this module.
@@ -91,11 +98,13 @@ type LinkerInfo struct {
 	PrebuiltLibraryLinkerInfo *PrebuiltLibraryLinkerInfo
 }
 
+// @auto-generate: gob
 type BinaryDecoratorInfo struct {
 	StaticExecutable bool
 	Nocrt            bool
 }
 
+// @auto-generate: gob
 type LibraryDecoratorInfo struct {
 	ExportIncludeDirs []string
 	InjectBsslHash    bool
@@ -111,15 +120,18 @@ type LibraryDecoratorInfo struct {
 	SAbiDiff            android.Paths
 }
 
+// @auto-generate: gob
 type SnapshotInfo struct {
 	SnapshotAndroidMkSuffix string
 }
 
+// @auto-generate: gob
 type TestBinaryInfo struct {
 	Gtest bool
 }
 type BenchmarkDecoratorInfo struct{}
 
+// @auto-generate: gob
 type StubDecoratorInfo struct {
 	AbiDumpPath  android.OutputPath
 	HasAbiDump   bool
@@ -127,6 +139,7 @@ type StubDecoratorInfo struct {
 	InstallPath  android.Path
 }
 
+// @auto-generate: gob
 type ObjectLinkerInfo struct {
 	// Location of the object in the sysroot. Empty if the object is not
 	// included in the NDK.
@@ -135,19 +148,23 @@ type ObjectLinkerInfo struct {
 	SystemSharedLibs []string
 }
 
+// @auto-generate: gob
 type PrebuiltLibraryLinkerInfo struct {
 	VndkFileName string
 }
 
+// @auto-generate: gob
 type LibraryInfo struct {
 	BuildStubs       bool
 	AllStubsVersions []string
 }
 
+// @auto-generate: gob
 type InstallerInfo struct {
 	StubDecoratorInfo *StubDecoratorInfo
 }
 
+// @auto-generate: gob
 type LocalOrGlobalFlagsInfo struct {
 	CommonFlags []string // Flags that apply to C, C++, and assembly source files
 	CFlags      []string // Flags that apply to C and C++ source files
@@ -155,16 +172,19 @@ type LocalOrGlobalFlagsInfo struct {
 	CppFlags    []string // Flags that apply to C++ source files
 }
 
+// @auto-generate: gob
 type SanitizeInfo struct {
 	IsUnsanitizedVariant bool
 	Sanitize             SanitizeUserProps
 }
 
+// @auto-generate: gob
 type StlInfo struct {
 	Stl *string
 }
 
 // Common info about the cc module.
+// @auto-generate: gob
 type CcInfo struct {
 	IsPrebuilt             bool
 	CmakeSnapshotSupported bool
@@ -192,6 +212,7 @@ type CcInfo struct {
 
 var CcInfoProvider = blueprint.NewProvider[*CcInfo]()
 
+// @auto-generate: gob
 type LinkableInfo struct {
 	// StaticExecutable returns true if this is a binary module with "static_executable: true".
 	StaticExecutable     bool

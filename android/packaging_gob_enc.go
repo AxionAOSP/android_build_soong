@@ -8,6 +8,10 @@ import (
 	"github.com/google/blueprint/uniquelist"
 )
 
+func init() {
+	PackagingSpecGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(PackagingSpec) })
+}
+
 func (r PackagingSpec) GobEncode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -25,7 +29,7 @@ func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	if err = gobtools.EncodeInterface(buf, &r.srcPath); err != nil {
+	if err = gobtools.EncodeInterface(buf, r.srcPath); err != nil {
 		return err
 	}
 
@@ -42,7 +46,7 @@ func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val2 := 0; val2 < len(val1); val2++ {
-		if err = gobtools.EncodeInterface(buf, &val1[val2]); err != nil {
+		if err = gobtools.EncodeInterface(buf, val1[val2]); err != nil {
 			return err
 		}
 	}
@@ -60,7 +64,7 @@ func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val4 := 0; val4 < len(val3); val4++ {
-		if err = gobtools.EncodeInterface(buf, &val3[val4]); err != nil {
+		if err = gobtools.EncodeInterface(buf, val3[val4]); err != nil {
 			return err
 		}
 	}
@@ -114,8 +118,12 @@ func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	if err = gobtools.DecodeInterface(buf, &r.srcPath); err != nil {
+	if val3, err := gobtools.DecodeInterface(buf); err != nil {
 		return err
+	} else if val3 == nil {
+		r.srcPath = nil
+	} else {
+		r.srcPath = val3.(Path)
 	}
 
 	err = gobtools.DecodeString(buf, &r.symlinkTarget)
@@ -128,21 +136,25 @@ func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	var val6 []Path
-	var val7 int32
-	err = gobtools.DecodeSimple[int32](buf, &val7)
+	var val7 []Path
+	var val8 int32
+	err = gobtools.DecodeSimple[int32](buf, &val8)
 	if err != nil {
 		return err
 	}
-	if val7 > 0 {
-		val6 = make([]Path, val7)
-		for val8 := 0; val8 < int(val7); val8++ {
-			if err = gobtools.DecodeInterface(buf, &val6[val8]); err != nil {
+	if val8 > 0 {
+		val7 = make([]Path, val8)
+		for val9 := 0; val9 < int(val8); val9++ {
+			if val11, err := gobtools.DecodeInterface(buf); err != nil {
 				return err
+			} else if val11 == nil {
+				val7[val9] = nil
+			} else {
+				val7[val9] = val11.(Path)
 			}
 		}
 	}
-	r.effectiveLicenseFiles = uniquelist.Make(val6)
+	r.effectiveLicenseFiles = uniquelist.Make(val7)
 
 	err = gobtools.DecodeString(buf, &r.partition)
 	if err != nil {
@@ -154,42 +166,46 @@ func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	var val13 []Path
-	var val14 int32
-	err = gobtools.DecodeSimple[int32](buf, &val14)
+	var val15 []Path
+	var val16 int32
+	err = gobtools.DecodeSimple[int32](buf, &val16)
 	if err != nil {
 		return err
 	}
-	if val14 > 0 {
-		val13 = make([]Path, val14)
-		for val15 := 0; val15 < int(val14); val15++ {
-			if err = gobtools.DecodeInterface(buf, &val13[val15]); err != nil {
+	if val16 > 0 {
+		val15 = make([]Path, val16)
+		for val17 := 0; val17 < int(val16); val17++ {
+			if val19, err := gobtools.DecodeInterface(buf); err != nil {
 				return err
+			} else if val19 == nil {
+				val15[val17] = nil
+			} else {
+				val15[val17] = val19.(Path)
 			}
 		}
 	}
-	r.aconfigPaths = uniquelist.Make(val13)
+	r.aconfigPaths = uniquelist.Make(val15)
 
 	if err = gobtools.DecodeStruct(buf, &r.archType); err != nil {
 		return err
 	}
 
-	var val19 []string
-	var val20 int32
-	err = gobtools.DecodeSimple[int32](buf, &val20)
+	var val22 []string
+	var val23 int32
+	err = gobtools.DecodeSimple[int32](buf, &val23)
 	if err != nil {
 		return err
 	}
-	if val20 > 0 {
-		val19 = make([]string, val20)
-		for val21 := 0; val21 < int(val20); val21++ {
-			err = gobtools.DecodeString(buf, &val19[val21])
+	if val23 > 0 {
+		val22 = make([]string, val23)
+		for val24 := 0; val24 < int(val23); val24++ {
+			err = gobtools.DecodeString(buf, &val22[val24])
 			if err != nil {
 				return err
 			}
 		}
 	}
-	r.overrides = uniquelist.Make(val19)
+	r.overrides = uniquelist.Make(val22)
 
 	err = gobtools.DecodeString(buf, &r.owner)
 	if err != nil {
@@ -216,4 +232,10 @@ func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
 	}
 
 	return nil
+}
+
+var PackagingSpecGobRegId int16
+
+func (r PackagingSpec) GetTypeId() int16 {
+	return PackagingSpecGobRegId
 }

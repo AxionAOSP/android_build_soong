@@ -22,12 +22,15 @@ import (
 	"github.com/google/blueprint"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 var phonyMapOnceKey = NewOnceKey("phony")
 
 type phonyMap map[string]Paths
 
 var phonyMapLock sync.Mutex
 
+// @auto-generate: gob
 type ModulePhonyInfo struct {
 	Phonies map[string]Paths
 }

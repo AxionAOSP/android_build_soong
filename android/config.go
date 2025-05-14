@@ -463,7 +463,7 @@ var allPartialCompileFlags = partialCompileFlags{
 	Use_d8:                  true,
 	Disable_stub_validation: true,
 	Enable_inc_javac:        true,
-	Enable_inc_kotlin:       false,
+	Enable_inc_kotlin:       true,
 	Enable_inc_d8:           true,
 }
 
@@ -2283,10 +2283,6 @@ func (c *deviceConfig) GenerateAidlNdkPlatformBackend() bool {
 
 func (c *deviceConfig) AconfigContainerValidation() string {
 	return c.config.productVariables.AconfigContainerValidation
-}
-
-func (c *deviceConfig) ProductEnableLogcatPersistence() bool {
-	return c.config.productVariables.ProductEnableLogcatPersistence
 }
 
 func (c *config) IgnorePrefer32OnDevice() bool {

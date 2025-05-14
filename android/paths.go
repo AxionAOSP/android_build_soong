@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/gobtools"
 	"github.com/google/blueprint/pathtools"
 )
 
@@ -364,14 +363,10 @@ func ResPathWithName(ctx ModuleOutPathContext, p Path, name string) ModuleResPat
 }
 
 // OptionalPath is a container that may or may not contain a valid Path.
+// @auto-generate: gob
 type OptionalPath struct {
 	path          Path   // nil if invalid.
 	invalidReason string // Not applicable if path != nil. "" if the reason is unknown.
-}
-
-type optionalPathGob struct {
-	Path          Path
-	InvalidReason string
 }
 
 // OptionalPathForPath returns an OptionalPath containing the path.
@@ -383,26 +378,6 @@ func OptionalPathForPath(path Path) OptionalPath {
 func InvalidOptionalPath(reason string) OptionalPath {
 
 	return OptionalPath{invalidReason: reason}
-}
-
-func (p *OptionalPath) ToGob() *optionalPathGob {
-	return &optionalPathGob{
-		Path:          p.path,
-		InvalidReason: p.invalidReason,
-	}
-}
-
-func (p *OptionalPath) FromGob(data *optionalPathGob) {
-	p.path = data.Path
-	p.invalidReason = data.InvalidReason
-}
-
-func (p OptionalPath) GobEncode() ([]byte, error) {
-	return gobtools.CustomGobEncode[optionalPathGob](&p)
-}
-
-func (p *OptionalPath) GobDecode(data []byte) error {
-	return gobtools.CustomGobDecode[optionalPathGob](data, p)
 }
 
 // Valid returns whether there is a valid path

@@ -1897,6 +1897,7 @@ func (m *ModuleBase) archModuleContextFactory(ctx archModuleContextFactoryContex
 
 }
 
+// @auto-generate: gob
 type InstallFilesInfo struct {
 	InstallFiles    InstallPaths
 	CheckbuildFiles Paths

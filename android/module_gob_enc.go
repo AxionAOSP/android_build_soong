@@ -7,6 +7,423 @@ import (
 	"github.com/google/blueprint/gobtools"
 )
 
+func init() {
+	InstallFilesInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(InstallFilesInfo) })
+	katiInstallGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(katiInstall) })
+	extraFilesZipGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(extraFilesZip) })
+}
+
+func (r InstallFilesInfo) GobEncode() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	if err := r.Encode(buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (r InstallFilesInfo) Encode(buf *bytes.Buffer) error {
+	var err error
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.InstallFiles))); err != nil {
+		return err
+	}
+	for val1 := 0; val1 < len(r.InstallFiles); val1++ {
+		if err = gobtools.EncodeStruct(buf, &r.InstallFiles[val1]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.CheckbuildFiles))); err != nil {
+		return err
+	}
+	for val2 := 0; val2 < len(r.CheckbuildFiles); val2++ {
+		if err = gobtools.EncodeInterface(buf, r.CheckbuildFiles[val2]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.UncheckedModule); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.PackagingSpecs))); err != nil {
+		return err
+	}
+	for val3 := 0; val3 < len(r.PackagingSpecs); val3++ {
+		if err = gobtools.EncodeStruct(buf, &r.PackagingSpecs[val3]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.KatiInstalls))); err != nil {
+		return err
+	}
+	for val4 := 0; val4 < len(r.KatiInstalls); val4++ {
+		if err = gobtools.EncodeStruct(buf, &r.KatiInstalls[val4]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.KatiSymlinks))); err != nil {
+		return err
+	}
+	for val5 := 0; val5 < len(r.KatiSymlinks); val5++ {
+		if err = gobtools.EncodeStruct(buf, &r.KatiSymlinks[val5]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.TestData))); err != nil {
+		return err
+	}
+	for val6 := 0; val6 < len(r.TestData); val6++ {
+		if err = gobtools.EncodeStruct(buf, &r.TestData[val6]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeStruct(buf, &r.TransitivePackagingSpecs); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeInterface(buf, r.LicenseMetadataFile); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeStruct(buf, &r.TransitiveInstallFiles); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.KatiInitRcInstalls))); err != nil {
+		return err
+	}
+	for val7 := 0; val7 < len(r.KatiInitRcInstalls); val7++ {
+		if err = gobtools.EncodeStruct(buf, &r.KatiInitRcInstalls[val7]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.KatiVintfInstalls))); err != nil {
+		return err
+	}
+	for val8 := 0; val8 < len(r.KatiVintfInstalls); val8++ {
+		if err = gobtools.EncodeStruct(buf, &r.KatiVintfInstalls[val8]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.InitRcPaths))); err != nil {
+		return err
+	}
+	for val9 := 0; val9 < len(r.InitRcPaths); val9++ {
+		if err = gobtools.EncodeInterface(buf, r.InitRcPaths[val9]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.VintfFragmentsPaths))); err != nil {
+		return err
+	}
+	for val10 := 0; val10 < len(r.VintfFragmentsPaths); val10++ {
+		if err = gobtools.EncodeInterface(buf, r.VintfFragmentsPaths[val10]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.InstalledInitRcPaths))); err != nil {
+		return err
+	}
+	for val11 := 0; val11 < len(r.InstalledInitRcPaths); val11++ {
+		if err = gobtools.EncodeStruct(buf, &r.InstalledInitRcPaths[val11]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.InstalledVintfFragmentsPaths))); err != nil {
+		return err
+	}
+	for val12 := 0; val12 < len(r.InstalledVintfFragmentsPaths); val12++ {
+		if err = gobtools.EncodeStruct(buf, &r.InstalledVintfFragmentsPaths[val12]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.DistFiles))); err != nil {
+		return err
+	}
+	for k, v := range r.DistFiles {
+		if err = gobtools.EncodeString(buf, k); err != nil {
+			return err
+		}
+		if err = gobtools.EncodeSimple(buf, int32(len(v))); err != nil {
+			return err
+		}
+		for val13 := 0; val13 < len(v); val13++ {
+			if err = gobtools.EncodeInterface(buf, v[val13]); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (r *InstallFilesInfo) GobDecode(b []byte) error {
+	buf := bytes.NewReader(b)
+	return r.Decode(buf)
+}
+
+func (r *InstallFilesInfo) Decode(buf *bytes.Reader) error {
+	var err error
+
+	var val3 int32
+	err = gobtools.DecodeSimple[int32](buf, &val3)
+	if err != nil {
+		return err
+	}
+	if val3 > 0 {
+		r.InstallFiles = make([]InstallPath, val3)
+		for val4 := 0; val4 < int(val3); val4++ {
+			if err = gobtools.DecodeStruct(buf, &r.InstallFiles[val4]); err != nil {
+				return err
+			}
+		}
+	}
+
+	var val8 int32
+	err = gobtools.DecodeSimple[int32](buf, &val8)
+	if err != nil {
+		return err
+	}
+	if val8 > 0 {
+		r.CheckbuildFiles = make([]Path, val8)
+		for val9 := 0; val9 < int(val8); val9++ {
+			if val11, err := gobtools.DecodeInterface(buf); err != nil {
+				return err
+			} else if val11 == nil {
+				r.CheckbuildFiles[val9] = nil
+			} else {
+				r.CheckbuildFiles[val9] = val11.(Path)
+			}
+		}
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.UncheckedModule)
+	if err != nil {
+		return err
+	}
+
+	var val14 int32
+	err = gobtools.DecodeSimple[int32](buf, &val14)
+	if err != nil {
+		return err
+	}
+	if val14 > 0 {
+		r.PackagingSpecs = make([]PackagingSpec, val14)
+		for val15 := 0; val15 < int(val14); val15++ {
+			if err = gobtools.DecodeStruct(buf, &r.PackagingSpecs[val15]); err != nil {
+				return err
+			}
+		}
+	}
+
+	var val19 int32
+	err = gobtools.DecodeSimple[int32](buf, &val19)
+	if err != nil {
+		return err
+	}
+	if val19 > 0 {
+		r.KatiInstalls = make([]katiInstall, val19)
+		for val20 := 0; val20 < int(val19); val20++ {
+			if err = gobtools.DecodeStruct(buf, &r.KatiInstalls[val20]); err != nil {
+				return err
+			}
+		}
+	}
+
+	var val24 int32
+	err = gobtools.DecodeSimple[int32](buf, &val24)
+	if err != nil {
+		return err
+	}
+	if val24 > 0 {
+		r.KatiSymlinks = make([]katiInstall, val24)
+		for val25 := 0; val25 < int(val24); val25++ {
+			if err = gobtools.DecodeStruct(buf, &r.KatiSymlinks[val25]); err != nil {
+				return err
+			}
+		}
+	}
+
+	var val28 int32
+	err = gobtools.DecodeSimple[int32](buf, &val28)
+	if err != nil {
+		return err
+	}
+	if val28 > 0 {
+		r.TestData = make([]DataPath, val28)
+		for val29 := 0; val29 < int(val28); val29++ {
+			if err = gobtools.DecodeStruct(buf, &r.TestData[val29]); err != nil {
+				return err
+			}
+		}
+	}
+
+	err = gobtools.DecodeStruct(buf, &r.TransitivePackagingSpecs)
+	if err != nil {
+		return err
+	}
+
+	if val33, err := gobtools.DecodeInterface(buf); err != nil {
+		return err
+	} else if val33 == nil {
+		r.LicenseMetadataFile = nil
+	} else {
+		r.LicenseMetadataFile = val33.(WritablePath)
+	}
+
+	err = gobtools.DecodeStruct(buf, &r.TransitiveInstallFiles)
+	if err != nil {
+		return err
+	}
+
+	var val37 int32
+	err = gobtools.DecodeSimple[int32](buf, &val37)
+	if err != nil {
+		return err
+	}
+	if val37 > 0 {
+		r.KatiInitRcInstalls = make([]katiInstall, val37)
+		for val38 := 0; val38 < int(val37); val38++ {
+			if err = gobtools.DecodeStruct(buf, &r.KatiInitRcInstalls[val38]); err != nil {
+				return err
+			}
+		}
+	}
+
+	var val42 int32
+	err = gobtools.DecodeSimple[int32](buf, &val42)
+	if err != nil {
+		return err
+	}
+	if val42 > 0 {
+		r.KatiVintfInstalls = make([]katiInstall, val42)
+		for val43 := 0; val43 < int(val42); val43++ {
+			if err = gobtools.DecodeStruct(buf, &r.KatiVintfInstalls[val43]); err != nil {
+				return err
+			}
+		}
+	}
+
+	var val47 int32
+	err = gobtools.DecodeSimple[int32](buf, &val47)
+	if err != nil {
+		return err
+	}
+	if val47 > 0 {
+		r.InitRcPaths = make([]Path, val47)
+		for val48 := 0; val48 < int(val47); val48++ {
+			if val50, err := gobtools.DecodeInterface(buf); err != nil {
+				return err
+			} else if val50 == nil {
+				r.InitRcPaths[val48] = nil
+			} else {
+				r.InitRcPaths[val48] = val50.(Path)
+			}
+		}
+	}
+
+	var val53 int32
+	err = gobtools.DecodeSimple[int32](buf, &val53)
+	if err != nil {
+		return err
+	}
+	if val53 > 0 {
+		r.VintfFragmentsPaths = make([]Path, val53)
+		for val54 := 0; val54 < int(val53); val54++ {
+			if val56, err := gobtools.DecodeInterface(buf); err != nil {
+				return err
+			} else if val56 == nil {
+				r.VintfFragmentsPaths[val54] = nil
+			} else {
+				r.VintfFragmentsPaths[val54] = val56.(Path)
+			}
+		}
+	}
+
+	var val59 int32
+	err = gobtools.DecodeSimple[int32](buf, &val59)
+	if err != nil {
+		return err
+	}
+	if val59 > 0 {
+		r.InstalledInitRcPaths = make([]InstallPath, val59)
+		for val60 := 0; val60 < int(val59); val60++ {
+			if err = gobtools.DecodeStruct(buf, &r.InstalledInitRcPaths[val60]); err != nil {
+				return err
+			}
+		}
+	}
+
+	var val64 int32
+	err = gobtools.DecodeSimple[int32](buf, &val64)
+	if err != nil {
+		return err
+	}
+	if val64 > 0 {
+		r.InstalledVintfFragmentsPaths = make([]InstallPath, val64)
+		for val65 := 0; val65 < int(val64); val65++ {
+			if err = gobtools.DecodeStruct(buf, &r.InstalledVintfFragmentsPaths[val65]); err != nil {
+				return err
+			}
+		}
+	}
+
+	var val68 int32
+	err = gobtools.DecodeSimple[int32](buf, &val68)
+	if err != nil {
+		return err
+	}
+	if val68 > 0 {
+		r.DistFiles = make(map[string]Paths, val68)
+		for val69 := 0; val69 < int(val68); val69++ {
+			var k string
+			var v Paths
+			err = gobtools.DecodeString(buf, &k)
+			if err != nil {
+				return err
+			}
+			var val73 int32
+			err = gobtools.DecodeSimple[int32](buf, &val73)
+			if err != nil {
+				return err
+			}
+			if val73 > 0 {
+				v = make([]Path, val73)
+				for val74 := 0; val74 < int(val73); val74++ {
+					if val76, err := gobtools.DecodeInterface(buf); err != nil {
+						return err
+					} else if val76 == nil {
+						v[val74] = nil
+					} else {
+						v[val74] = val76.(Path)
+					}
+				}
+			}
+			r.DistFiles[k] = v
+		}
+	}
+
+	return nil
+}
+
+var InstallFilesInfoGobRegId int16
+
+func (r InstallFilesInfo) GetTypeId() int16 {
+	return InstallFilesInfoGobRegId
+}
+
 func (r katiInstall) GobEncode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -20,7 +437,7 @@ func (r katiInstall) GobEncode() ([]byte, error) {
 func (r katiInstall) Encode(buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeInterface(buf, &r.from); err != nil {
+	if err = gobtools.EncodeInterface(buf, r.from); err != nil {
 		return err
 	}
 
@@ -32,7 +449,7 @@ func (r katiInstall) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val1 := 0; val1 < len(r.implicitDeps); val1++ {
-		if err = gobtools.EncodeInterface(buf, &r.implicitDeps[val1]); err != nil {
+		if err = gobtools.EncodeInterface(buf, r.implicitDeps[val1]); err != nil {
 			return err
 		}
 	}
@@ -41,7 +458,7 @@ func (r katiInstall) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val2 := 0; val2 < len(r.orderOnlyDeps); val2++ {
-		if err = gobtools.EncodeInterface(buf, &r.orderOnlyDeps[val2]); err != nil {
+		if err = gobtools.EncodeInterface(buf, r.orderOnlyDeps[val2]); err != nil {
 			return err
 		}
 	}
@@ -74,38 +491,50 @@ func (r *katiInstall) GobDecode(b []byte) error {
 func (r *katiInstall) Decode(buf *bytes.Reader) error {
 	var err error
 
-	if err = gobtools.DecodeInterface(buf, &r.from); err != nil {
+	if val2, err := gobtools.DecodeInterface(buf); err != nil {
 		return err
+	} else if val2 == nil {
+		r.from = nil
+	} else {
+		r.from = val2.(Path)
 	}
 
 	if err = gobtools.DecodeStruct(buf, &r.to); err != nil {
 		return err
 	}
 
-	var val5 int32
-	err = gobtools.DecodeSimple[int32](buf, &val5)
+	var val6 int32
+	err = gobtools.DecodeSimple[int32](buf, &val6)
 	if err != nil {
 		return err
 	}
-	if val5 > 0 {
-		r.implicitDeps = make([]Path, val5)
-		for val6 := 0; val6 < int(val5); val6++ {
-			if err = gobtools.DecodeInterface(buf, &r.implicitDeps[val6]); err != nil {
+	if val6 > 0 {
+		r.implicitDeps = make([]Path, val6)
+		for val7 := 0; val7 < int(val6); val7++ {
+			if val9, err := gobtools.DecodeInterface(buf); err != nil {
 				return err
+			} else if val9 == nil {
+				r.implicitDeps[val7] = nil
+			} else {
+				r.implicitDeps[val7] = val9.(Path)
 			}
 		}
 	}
 
-	var val10 int32
-	err = gobtools.DecodeSimple[int32](buf, &val10)
+	var val12 int32
+	err = gobtools.DecodeSimple[int32](buf, &val12)
 	if err != nil {
 		return err
 	}
-	if val10 > 0 {
-		r.orderOnlyDeps = make([]Path, val10)
-		for val11 := 0; val11 < int(val10); val11++ {
-			if err = gobtools.DecodeInterface(buf, &r.orderOnlyDeps[val11]); err != nil {
+	if val12 > 0 {
+		r.orderOnlyDeps = make([]Path, val12)
+		for val13 := 0; val13 < int(val12); val13++ {
+			if val15, err := gobtools.DecodeInterface(buf); err != nil {
 				return err
+			} else if val15 == nil {
+				r.orderOnlyDeps[val13] = nil
+			} else {
+				r.orderOnlyDeps[val13] = val15.(Path)
 			}
 		}
 	}
@@ -115,16 +544,16 @@ func (r *katiInstall) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	var val15 bool
-	if err = gobtools.DecodeSimple(buf, &val15); err != nil {
+	var val18 bool
+	if err = gobtools.DecodeSimple(buf, &val18); err != nil {
 		return err
 	}
-	if !val15 {
-		var val14 extraFilesZip
-		if err = gobtools.DecodeStruct(buf, &val14); err != nil {
+	if !val18 {
+		var val17 extraFilesZip
+		if err = gobtools.DecodeStruct(buf, &val17); err != nil {
 			return err
 		}
-		r.extraFiles = &val14
+		r.extraFiles = &val17
 	}
 
 	err = gobtools.DecodeString(buf, &r.absFrom)
@@ -133,6 +562,12 @@ func (r *katiInstall) Decode(buf *bytes.Reader) error {
 	}
 
 	return nil
+}
+
+var katiInstallGobRegId int16
+
+func (r katiInstall) GetTypeId() int16 {
+	return katiInstallGobRegId
 }
 
 func (r extraFilesZip) GobEncode() ([]byte, error) {
@@ -148,7 +583,7 @@ func (r extraFilesZip) GobEncode() ([]byte, error) {
 func (r extraFilesZip) Encode(buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeInterface(buf, &r.zip); err != nil {
+	if err = gobtools.EncodeInterface(buf, r.zip); err != nil {
 		return err
 	}
 
@@ -166,8 +601,12 @@ func (r *extraFilesZip) GobDecode(b []byte) error {
 func (r *extraFilesZip) Decode(buf *bytes.Reader) error {
 	var err error
 
-	if err = gobtools.DecodeInterface(buf, &r.zip); err != nil {
+	if val2, err := gobtools.DecodeInterface(buf); err != nil {
 		return err
+	} else if val2 == nil {
+		r.zip = nil
+	} else {
+		r.zip = val2.(Path)
 	}
 
 	if err = gobtools.DecodeStruct(buf, &r.dir); err != nil {
@@ -175,4 +614,10 @@ func (r *extraFilesZip) Decode(buf *bytes.Reader) error {
 	}
 
 	return nil
+}
+
+var extraFilesZipGobRegId int16
+
+func (r extraFilesZip) GetTypeId() int16 {
+	return extraFilesZipGobRegId
 }

@@ -34,6 +34,8 @@ import (
 	"android/soong/shared"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 const sboxSandboxBaseDir = "__SBOX_SANDBOX_DIR__"
 const sboxOutSubDir = "out"
 const sboxToolsSubDir = "tools"
@@ -100,6 +102,7 @@ func (rb *RuleBuilder) SetPhonyOutput() {
 }
 
 // RuleBuilderInstall is a tuple of install from and to locations.
+// @auto-generate: gob
 type RuleBuilderInstall struct {
 	From Path
 	To   string
