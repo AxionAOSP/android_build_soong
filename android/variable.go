@@ -686,10 +686,17 @@ type PartitionVariables struct {
 	BuildingVbmetaImage     bool                                `json:",omitempty"`
 	ChainedVbmetaPartitions map[string]ChainedAvbPartitionProps `json:",omitempty"`
 
-	ProductPackages         []string `json:",omitempty"`
-	ProductPackagesDebug    []string `json:",omitempty"`
-	VendorLinkerConfigSrcs  []string `json:",omitempty"`
-	ProductLinkerConfigSrcs []string `json:",omitempty"`
+	ProductPackages                   []string `json:",omitempty"`
+	ProductPackagesDebug              []string `json:",omitempty"`
+	ProductPackagesEng                []string `json:",omitempty"`
+	ProductPackagesDebugAsan          []string `json:",omitempty"`
+	ProductPackagesDebugJavaCoverage  []string `json:",omitempty"`
+	ProductPackagesArm64              []string `json:",omitempty"`
+	ProductPackagesShippingApiLevel29 []string `json:",omitempty"`
+	ProductPackagesShippingApiLevel33 []string `json:",omitempty"`
+	ProductPackagesShippingApiLevel34 []string `json:",omitempty"`
+	VendorLinkerConfigSrcs            []string `json:",omitempty"`
+	ProductLinkerConfigSrcs           []string `json:",omitempty"`
 
 	BoardInfoFiles      []string `json:",omitempty"`
 	BootLoaderBoardName string   `json:",omitempty"`

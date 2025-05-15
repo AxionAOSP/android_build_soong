@@ -259,7 +259,7 @@ func (this ApiLevel) LessThanOrEqualTo(other ApiLevel) bool {
 	return this.CompareTo(other) <= 0
 }
 
-func uncheckedFinalApiLevel(num int) ApiLevel {
+func UncheckedFinalApiLevel(num int) ApiLevel {
 	return ApiLevel{
 		value:     strconv.Itoa(num),
 		number:    num,
@@ -299,32 +299,32 @@ func NewInvalidApiLevel(raw string) ApiLevel {
 }
 
 // The first version that introduced 64-bit ABIs.
-var FirstLp64Version = uncheckedFinalApiLevel(21)
+var FirstLp64Version = UncheckedFinalApiLevel(21)
 
 // Android has had various kinds of packed relocations over the years
 // (http://b/187907243).
 //
 // API level 30 is where the now-standard SHT_RELR is available.
-var FirstShtRelrVersion = uncheckedFinalApiLevel(30)
+var FirstShtRelrVersion = UncheckedFinalApiLevel(30)
 
 // API level 28 introduced SHT_RELR when it was still Android-only, and used an
 // Android-specific relocation.
-var FirstAndroidRelrVersion = uncheckedFinalApiLevel(28)
+var FirstAndroidRelrVersion = UncheckedFinalApiLevel(28)
 
 // API level 23 was when we first had the Chrome relocation packer, which is
 // obsolete and has been removed, but lld can now generate compatible packed
 // relocations itself.
-var FirstPackedRelocationsVersion = uncheckedFinalApiLevel(23)
+var FirstPackedRelocationsVersion = UncheckedFinalApiLevel(23)
 
 // LastWithoutModuleLibCoreSystemModules is the last API level where prebuilts/sdk does not contain
 // a core-for-system-modules.jar for the module-lib API scope.
-var LastWithoutModuleLibCoreSystemModules = uncheckedFinalApiLevel(31)
+var LastWithoutModuleLibCoreSystemModules = UncheckedFinalApiLevel(31)
 
-var ApiLevelR = uncheckedFinalApiLevel(30)
+var ApiLevelR = UncheckedFinalApiLevel(30)
 
-var ApiLevelUpsideDownCake = uncheckedFinalApiLevel(34)
+var ApiLevelUpsideDownCake = UncheckedFinalApiLevel(34)
 
-var ApiLevelVanillaIceCream = uncheckedFinalApiLevel(35)
+var ApiLevelVanillaIceCream = UncheckedFinalApiLevel(35)
 
 // ReplaceFinalizedCodenames returns the API level number associated with that API level
 // if the `raw` input is the codename of an API level has been finalized.
@@ -399,10 +399,10 @@ func ApiLevelFromUserWithConfig(config Config, raw string) (ApiLevel, error) {
 		if err != nil {
 			return NoneApiLevel, fmt.Errorf("%q could not be parsed as an integer and is not a recognized codename", raw)
 		}
-		return uncheckedFinalApiLevel(asInt), nil
+		return UncheckedFinalApiLevel(asInt), nil
 	}
 
-	return uncheckedFinalApiLevel(canonical), nil
+	return UncheckedFinalApiLevel(canonical), nil
 
 }
 
@@ -439,7 +439,7 @@ func ApiLevelForTest(raw string) ApiLevel {
 		panic(fmt.Errorf("%q could not be parsed as an integer and is not a recognized codename", raw))
 	}
 
-	apiLevel := uncheckedFinalApiLevel(asInt)
+	apiLevel := UncheckedFinalApiLevel(asInt)
 	return apiLevel
 }
 

@@ -596,10 +596,10 @@ type apexFile struct {
 	// systemServerDexJars stores the list of dexjars for a system server jar.
 	systemServerDexJars android.Paths
 
-	jacocoReportClassesFile android.Path     // only for javalibs and apps
-	lintInfo                *java.LintInfo   // only for javalibs and apps
-	certificate             java.Certificate // only for apps
-	overriddenPackageName   string           // only for apps
+	jacocoInfo            java.JacocoInfo  // only for javalibs and apps
+	lintInfo              *java.LintInfo   // only for javalibs and apps
+	certificate           java.Certificate // only for apps
+	overriddenPackageName string           // only for apps
 
 	transitiveDep bool
 	isJniLib      bool
@@ -1508,7 +1508,6 @@ type javaModule interface {
 	android.Module
 	BaseModuleName() string
 	DexJarBuildPath(ctx android.ModuleErrorfContext) java.OptionalDexJarPath
-	JacocoReportClassesFile() android.Path
 	Stem() string
 }
 
@@ -1529,7 +1528,7 @@ func apexFileForJavaModuleWithFile(ctx android.ModuleContext, module android.Mod
 	dirInApex := "javalib"
 	commonInfo := android.OtherModulePointerProviderOrDefault(ctx, module, android.CommonModuleInfoProvider)
 	af := newApexFile(ctx, dexImplementationJar, commonInfo.BaseModuleName, dirInApex, javaSharedLib, module)
-	af.jacocoReportClassesFile = javaInfo.JacocoReportClassesFile
+	af.jacocoInfo = javaInfo.JacocoInfo
 	if lintInfo, ok := android.OtherModuleProvider(ctx, module, java.LintProvider); ok {
 		af.lintInfo = lintInfo
 	}
@@ -1584,7 +1583,7 @@ func apexFilesForAndroidApp(ctx android.BaseModuleContext, module android.Module
 	fileToCopy := aapp.OutputFile
 
 	af := newApexFile(ctx, fileToCopy, commonInfo.BaseModuleName, dirInApex, app, module)
-	af.jacocoReportClassesFile = aapp.JacocoReportClassesFile
+	af.jacocoInfo = aapp.JacocoInfo
 	if lintInfo, ok := android.OtherModuleProvider(ctx, module, java.LintProvider); ok {
 		af.lintInfo = lintInfo
 	}
@@ -2255,6 +2254,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.buildApex(ctx)
 	a.buildApexDependencyInfo(ctx)
 	a.buildLintReports(ctx)
+	a.reexportJacocoInfo(ctx)
 
 	// Set a provider for dexpreopt of bootjars
 	a.provideApexExportsInfo(ctx)

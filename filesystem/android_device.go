@@ -284,9 +284,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		deps = append(deps, a.copyFilesToProductOutForSoongOnly(ctx))
 	}
 	trebleLabelingTestTimestamp := a.buildTrebleLabelingTest(ctx)
-	if ctx.Config().EnforceSELinuxTrebleLabeling() {
-		validations = append(validations, trebleLabelingTestTimestamp)
-	}
+	validations = append(validations, trebleLabelingTestTimestamp)
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        android.Touch,
@@ -1342,6 +1340,10 @@ func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) andro
 		trackingListFile := ctx.Config().SELinuxTrebleLabelingTrackingListFile(ctx)
 		if trackingListFile != nil {
 			cmd.FlagWithInput("--tracking_list_file ", trackingListFile)
+		}
+
+		if !ctx.Config().EnforceSELinuxTrebleLabeling() {
+			cmd.Flag("--treat_as_warnings")
 		}
 
 		cmd.FlagWithOutput("> ", testTimestamp)

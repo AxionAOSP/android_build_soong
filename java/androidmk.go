@@ -102,8 +102,8 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.SetPath("LOCAL_SOONG_CLASSES_JAR", library.implementationAndResourcesJar)
 					entries.SetPath("LOCAL_SOONG_HEADER_JAR", library.headerJarFile)
 
-					if library.jacocoReportClassesFile != nil {
-						entries.SetPath("LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR", library.jacocoReportClassesFile)
+					if library.jacocoInfo.ReportClassesFile != nil {
+						entries.SetPath("LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR", library.jacocoInfo.ReportClassesFile)
 					}
 
 					requiredUsesLibs, optionalUsesLibs := library.classLoaderContexts.UsesLibs()
@@ -334,8 +334,8 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 				if app.bundleFile != nil {
 					entries.SetPath("LOCAL_SOONG_BUNDLE", app.bundleFile)
 				}
-				if app.jacocoReportClassesFile != nil {
-					entries.SetPath("LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR", app.jacocoReportClassesFile)
+				if app.jacocoInfo.ReportClassesFile != nil {
+					entries.SetPath("LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR", app.jacocoInfo.ReportClassesFile)
 				}
 				entries.SetOptionalPath("LOCAL_SOONG_PROGUARD_DICT", app.dexer.proguardDictionary)
 				entries.SetOptionalPath("LOCAL_SOONG_PROGUARD_USAGE_ZIP", app.dexer.proguardUsageZip)

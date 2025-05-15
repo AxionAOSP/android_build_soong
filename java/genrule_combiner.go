@@ -226,10 +226,6 @@ func (j *GenruleCombiner) ClassLoaderContexts() dexpreopt.ClassLoaderContextMap 
 	return nil
 }
 
-func (j *GenruleCombiner) JacocoReportClassesFile() android.Path {
-	return nil
-}
-
 func (j *GenruleCombiner) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",

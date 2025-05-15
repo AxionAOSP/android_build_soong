@@ -351,9 +351,9 @@ type JavaInfo struct {
 	// requiring disbling turbine for any modules that depend on it.
 	ExportedPluginDisableTurbine bool
 
-	// JacocoReportClassesFile is the path to a jar containing uninstrumented classes that will be
+	// JacocoInfo contains the path to a jar containing uninstrumented classes that will be
 	// instrumented by jacoco.
-	JacocoReportClassesFile android.Path
+	JacocoInfo JacocoInfo
 
 	// StubsLinkType provides information about whether the provided jars are stub jars or
 	// implementation jars. If the provider is set by java_sdk_library, the link type is "unknown"
@@ -3077,10 +3077,6 @@ func (j *Import) CreatedByJavaSdkLibraryName() *string {
 	return j.properties.Created_by_java_sdk_library_name
 }
 
-func (a *Import) JacocoReportClassesFile() android.Path {
-	return nil
-}
-
 func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddVariationDependencies(nil, libTag, j.properties.Libs...)
 	ctx.AddVariationDependencies(nil, staticLibTag, j.properties.Static_libs.GetOrDefault(ctx, nil)...)
@@ -3555,10 +3551,6 @@ func (j *DexImport) Name() string {
 
 func (j *DexImport) Stem() string {
 	return proptools.StringDefault(j.properties.Stem, j.ModuleBase.Name())
-}
-
-func (a *DexImport) JacocoReportClassesFile() android.Path {
-	return nil
 }
 
 func (j *DexImport) IsInstallable() bool {

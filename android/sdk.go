@@ -38,7 +38,7 @@ func MinApiLevelForSdkSnapshot(commonInfo *CommonModuleInfo) ApiLevel {
 	}
 	if minApiLevel == NoneApiLevel {
 		// The default min API level is 1.
-		minApiLevel = uncheckedFinalApiLevel(1)
+		minApiLevel = UncheckedFinalApiLevel(1)
 	}
 	return minApiLevel
 }

@@ -583,8 +583,8 @@ func (a *AndroidAppImport) OutputFile() android.Path {
 	return a.outputFile
 }
 
-func (a *AndroidAppImport) JacocoReportClassesFile() android.Path {
-	return nil
+func (a *AndroidAppImport) JacocoInfo() JacocoInfo {
+	return JacocoInfo{}
 }
 
 func (a *AndroidAppImport) Certificate() Certificate {

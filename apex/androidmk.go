@@ -148,8 +148,8 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 				fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
 			}
 		}
-		if fi.jacocoReportClassesFile != nil {
-			fmt.Fprintln(w, "LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR :=", fi.jacocoReportClassesFile.String())
+		if fi.jacocoInfo.ReportClassesFile != nil {
+			fmt.Fprintln(w, "LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR :=", fi.jacocoInfo.ReportClassesFile.String())
 		}
 		switch fi.class {
 		case javaSharedLib:

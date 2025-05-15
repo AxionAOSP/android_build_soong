@@ -26,7 +26,7 @@ import (
 
 var (
 	// This is the sdk version when APEX was first introduced
-	SdkVersion_Android10 = uncheckedFinalApiLevel(29)
+	SdkVersion_Android10 = UncheckedFinalApiLevel(29)
 )
 
 // ApexInfo describes the metadata about one or more apexBundles that an apex variant of a module is

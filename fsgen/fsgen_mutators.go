@@ -16,6 +16,7 @@ package fsgen
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -89,17 +90,45 @@ func defaultDepCandidateProps(config android.Config) *depCandidateProps {
 	}
 }
 
+func productInstalledModules(ctx android.LoadHookContext) []string {
+	partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
+	allInstalledModules := partitionVars.ProductPackages
+	if ctx.Config().Debuggable() {
+		allInstalledModules = append(allInstalledModules, partitionVars.ProductPackagesDebug...)
+		if ctx.Config().Eng() {
+			allInstalledModules = append(allInstalledModules, partitionVars.ProductPackagesEng...)
+		}
+		if android.InList("address", ctx.Config().SanitizeDevice()) {
+			allInstalledModules = append(allInstalledModules, partitionVars.ProductPackagesDebugAsan...)
+		}
+		if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") {
+			allInstalledModules = append(allInstalledModules, partitionVars.ProductPackagesDebugJavaCoverage...)
+		}
+	}
+	if android.InList("arm64", []string{ctx.DeviceConfig().DeviceArch(), ctx.DeviceConfig().DeviceSecondaryArch()}) {
+		allInstalledModules = append(allInstalledModules, partitionVars.ProductPackagesArm64...)
+	}
+	if android.UncheckedFinalApiLevel(29).GreaterThanOrEqualTo(ctx.DeviceConfig().ShippingApiLevel()) {
+		allInstalledModules = append(allInstalledModules, partitionVars.ProductPackagesShippingApiLevel29...)
+	}
+	if android.UncheckedFinalApiLevel(33).GreaterThanOrEqualTo(ctx.DeviceConfig().ShippingApiLevel()) {
+		allInstalledModules = append(allInstalledModules, partitionVars.ProductPackagesShippingApiLevel33...)
+	}
+	if android.UncheckedFinalApiLevel(34).GreaterThanOrEqualTo(ctx.DeviceConfig().ShippingApiLevel()) {
+		allInstalledModules = append(allInstalledModules, partitionVars.ProductPackagesShippingApiLevel34...)
+	}
+
+	return allInstalledModules
+}
+
 func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNames []string, avbpubkeyGenerated bool) *FsGenState {
 	return ctx.Config().Once(fsGenStateOnceKey, func() interface{} {
-		partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
+		allInstalledModules := slices.Concat(
+			productInstalledModules(ctx),
+			generatedPrebuiltEtcModuleNames,
+		)
 		candidatesMap := map[string]bool{}
-		for _, candidate := range partitionVars.ProductPackages {
-			candidatesMap[candidate] = true
-		}
-		for _, candidate := range partitionVars.ProductPackagesDebug {
-			candidatesMap[candidate] = true
-		}
-		for _, candidate := range generatedPrebuiltEtcModuleNames {
+		for _, candidate := range allInstalledModules {
 			candidatesMap[candidate] = true
 		}
 		fsGenState := FsGenState{

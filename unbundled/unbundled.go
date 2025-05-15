@@ -24,7 +24,10 @@ import (
 	"github.com/google/blueprint"
 )
 
+var pctx = android.NewPackageContext("android/soong/unbundled")
+
 func init() {
+	pctx.Import("android/soong/android")
 	registerUnbundledBuilder(android.InitRegistrationContext)
 }
 
@@ -131,4 +134,29 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	ctx.DistForGoalWithFilenameTag("apps_only", proguardZips.DictZip, targetProductPrefix+proguardZips.DictZip.Base())
 	ctx.DistForGoalWithFilenameTag("apps_only", proguardZips.DictMapping, targetProductPrefix+proguardZips.DictMapping.Base())
 	ctx.DistForGoalWithFilenameTag("apps_only", proguardZips.UsageZip, targetProductPrefix+proguardZips.UsageZip.Base())
+
+	// Dist jacoco report jar
+	if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") {
+		jacocoZip := android.PathForModuleOut(ctx, "jacoco-report-classes-all.jar")
+		jacocoZipWithoutDeviceTests := android.PathForModuleOut(ctx, "jacoco-report-classes-all-without-device-tests.jar")
+		java.BuildJacocoZip(ctx, appModules, jacocoZipWithoutDeviceTests)
+		if ctx.Config().IsEnvTrue("JACOCO_PACKAGING_INCLUDE_DEVICE_TESTS") {
+			deviceTestsJacocoZip := java.DeviceTestsJacocoReportZip(ctx)
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   android.MergeZips,
+				Output: jacocoZip,
+				Inputs: []android.Path{
+					jacocoZipWithoutDeviceTests,
+					deviceTestsJacocoZip,
+				},
+			})
+		} else {
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   android.Cp,
+				Output: jacocoZip,
+				Input:  jacocoZipWithoutDeviceTests,
+			})
+		}
+		ctx.DistForGoal("apps_only", jacocoZip)
+	}
 }

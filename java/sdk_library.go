@@ -1545,7 +1545,7 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		// Properties required for Library.AndroidMkEntries
 		module.logtagsSrcs = module.implLibraryInfo.LogtagsSrcs
 		module.dexpreopter.builtInstalled = module.implLibraryInfo.BuiltInstalled
-		module.jacocoReportClassesFile = module.implLibraryInfo.JacocoReportClassesFile
+		module.jacocoInfo = module.implLibraryInfo.JacocoInfo
 		module.dexer.proguardDictionary = module.implLibraryInfo.ProguardDictionary
 		module.dexer.proguardUsageZip = module.implLibraryInfo.ProguardUsageZip
 		module.linter.reports = module.implLibraryInfo.LinterReports
@@ -1607,8 +1607,8 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	}
 
 	javaInfo := &JavaInfo{
-		JacocoReportClassesFile: module.jacocoReportClassesFile,
-		CompileDex:              module.dexProperties.Compile_dex,
+		JacocoInfo: module.jacocoInfo,
+		CompileDex: module.dexProperties.Compile_dex,
 	}
 	setExtraJavaInfo(ctx, ctx.Module(), javaInfo)
 	android.SetProvider(ctx, JavaInfoProvider, javaInfo)
@@ -2324,7 +2324,7 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 
 	javaInfo := &JavaInfo{}
 	if module.implLibraryInfo != nil {
-		javaInfo.JacocoReportClassesFile = module.implLibraryInfo.JacocoReportClassesFile
+		javaInfo.JacocoInfo = module.implLibraryInfo.JacocoInfo
 	}
 
 	setExtraJavaInfo(ctx, ctx.Module(), javaInfo)
@@ -2364,16 +2364,7 @@ func (module *SdkLibraryImport) ClassLoaderContexts() dexpreopt.ClassLoaderConte
 	return nil
 }
 
-// to satisfy apex.javaDependency interface
-func (module *SdkLibraryImport) JacocoReportClassesFile() android.Path {
-	if module.implLibraryInfo == nil {
-		return nil
-	} else {
-		return module.implLibraryInfo.JacocoReportClassesFile
-	}
-}
-
-// to satisfy apex.javaDependency interface
+// to satisfy apex.javaModule interface
 func (module *SdkLibraryImport) Stem() string {
 	return module.BaseModuleName()
 }

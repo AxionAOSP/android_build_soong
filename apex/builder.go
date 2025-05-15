@@ -1177,6 +1177,17 @@ func (a *apexBundle) buildLintReports(ctx android.ModuleContext) {
 	a.lintReports = java.BuildModuleLintReportZips(ctx, depSets, validations)
 }
 
+func (a *apexBundle) reexportJacocoInfo(ctx android.ModuleContext) {
+	var jacocoInfos []java.JacocoInfo
+	for _, fi := range a.filesInfo {
+		if fi.jacocoInfo.ReportClassesFile != nil {
+			jacocoInfos = append(jacocoInfos, fi.jacocoInfo)
+		}
+	}
+
+	android.SetProvider(ctx, java.ApexJacocoInfoProvider, jacocoInfos)
+}
+
 func (a *apexBundle) buildCannedFsConfig(ctx android.ModuleContext) android.Path {
 	var readOnlyPaths = []string{"apex_manifest.json", "apex_manifest.pb"}
 	var executablePaths []string // this also includes dirs

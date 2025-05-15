@@ -199,10 +199,6 @@ func (d *DeviceHostConverter) ClassLoaderContexts() dexpreopt.ClassLoaderContext
 	return nil
 }
 
-func (d *DeviceHostConverter) JacocoReportClassesFile() android.Path {
-	return nil
-}
-
 func (d *DeviceHostConverter) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",

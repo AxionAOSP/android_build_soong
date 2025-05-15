@@ -193,6 +193,9 @@ func Banner(config Config, make_vars map[string]string) string {
 			}
 		}
 	}
+
+	// Normally config.soongOnlyRequested already takes into account PRODUCT_SOONG_ONLY,
+	// except when doing `get_build_var report_config`, which is run during envsetup.
 	if config.skipKatiControlledByFlags {
 		fmt.Fprintf(b, "SOONG_ONLY=%t\n", config.soongOnlyRequested)
 	} else { // default for this product
@@ -346,6 +349,8 @@ func runMakeProductConfig(ctx Context, config Config) {
 			config.skipKatiNinja = true
 		}
 	}
+
+	ctx.Metrics.SetSoongOnly(config.soongOnlyRequested)
 
 	// Print the banner like make did
 	if !env.IsEnvTrue("ANDROID_QUIET_BUILD") {

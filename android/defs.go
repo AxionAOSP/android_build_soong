@@ -132,6 +132,14 @@ var (
 			Description: "concatenate sorted file contents to $out",
 		})
 
+	MergeZips = pctx.AndroidStaticRule("MergeZips",
+		blueprint.RuleParams{
+			Command: `${MergeZipsCmd} -s $out $in`,
+			CommandDeps: []string{
+				"${MergeZipsCmd}",
+			},
+		})
+
 	// Used only when USE_RBE=true is set, to restrict non-RBE jobs to the local parallelism value
 	localPool = blueprint.NewBuiltinPool("local_pool")
 
@@ -148,6 +156,8 @@ func init() {
 	pctx.VariableFunc("RBEWrapper", func(ctx PackageVarContext) string {
 		return ctx.Config().RBEWrapper()
 	})
+
+	pctx.HostBinToolVariable("MergeZipsCmd", "merge_zips")
 }
 
 // CopyFileRule creates a ninja rule to copy path to outPath.
