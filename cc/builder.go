@@ -482,6 +482,17 @@ func (a Objects) Append(b Objects) Objects {
 	}
 }
 
+func (a Objects) Dedup() Objects {
+	return Objects{
+		objFiles:      android.FirstUniquePaths(a.objFiles),
+		tidyFiles:     android.FirstUniquePaths(a.tidyFiles),
+		tidyDepFiles:  android.FirstUniquePaths(a.tidyDepFiles),
+		coverageFiles: android.FirstUniquePaths(a.coverageFiles),
+		sAbiDumpFiles: android.FirstUniquePaths(a.sAbiDumpFiles),
+		kytheFiles:    android.FirstUniquePaths(a.kytheFiles),
+	}
+}
+
 // Generate rules for compiling multiple .c, .cpp, or .S files to individual .o files
 func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, noTidySrcs, timeoutTidySrcs android.Paths,
 	flags builderFlags, pathDeps android.Paths, cFlagsDeps android.Paths, sharedFlags *SharedFlags) Objects {

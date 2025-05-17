@@ -291,7 +291,9 @@ func buildComplianceMetadataProvider(ctx *moduleContext, m *ModuleBase) {
 		if strings.HasPrefix(ctx.ModuleType(), "sdk_library_internal") ||
 			ctx.ModuleType() == "bpf" ||
 			ctx.ModuleType() == "libbpf_prog" ||
-			ctx.ModuleType() == "avbpubkey__loadHookModule" {
+			ctx.ModuleType() == "avbpubkey__loadHookModule" ||
+			(ctx.ModuleType() == "prebuilt_etc" &&
+				slices.Contains([]string{"preloaded-classes", "public.libraries.android.txt"}, ctx.ModuleName())) {
 			for _, s := range ctx.packagingSpecs {
 				installed = append(installed, s.fullInstallPath)
 			}

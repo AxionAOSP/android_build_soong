@@ -15,6 +15,8 @@
 package cc
 
 import (
+	"fmt"
+
 	"android/soong/android"
 	"path/filepath"
 	"strings"
@@ -37,12 +39,14 @@ func NdkTranslationPackageFactory() android.Module {
 type ndkTranslationPackage struct {
 	android.ModuleBase
 	properties ndkTranslationPackageProperties
+
+	output android.Path
 }
 
 type ndkTranslationPackageProperties struct {
 	// Dependencies with native bridge variants that should be packaged.
 	// (e.g. arm and arm64 on an x86_64 device)
-	Native_bridge_deps []string
+	Native_bridge_deps proptools.Configurable[[]string]
 	// Non-native bridge variants that should be packaged.
 	// (e.g. x86 and x86_64 on an x86_64 device)
 	Device_both_deps []string
@@ -70,6 +74,9 @@ type ndkTranslationPackageProperties struct {
 
 	// Path to product.mk generator
 	Product_mk_gen_path *string
+
+	// Whether generate build files for the ndk_translation_packages, default is true.
+	Generate_build_files *bool
 }
 
 type ndkTranslationPackageDepTag struct {
@@ -101,7 +108,7 @@ var (
 func (n *ndkTranslationPackage) DepsMutator(ctx android.BottomUpMutatorContext) {
 	for index, t := range ctx.MultiTargets() {
 		if t.NativeBridge == android.NativeBridgeEnabled {
-			ctx.AddFarVariationDependencies(t.Variations(), ndkTranslationPackageTag, n.properties.Native_bridge_deps...)
+			ctx.AddFarVariationDependencies(t.Variations(), ndkTranslationPackageTag, n.properties.Native_bridge_deps.GetOrDefault(ctx, nil)...)
 		} else if t.Arch.ArchType == android.X86_64 {
 			ctx.AddFarVariationDependencies(t.Variations(), ndkTranslationPackageTag, n.properties.Device_64_deps...)
 			ctx.AddFarVariationDependencies(t.Variations(), ndkTranslationPackageTag, n.properties.Device_both_deps...)
@@ -141,19 +148,23 @@ func (n *ndkTranslationPackage) GenerateAndroidBuildActions(ctx android.ModuleCo
 			files64 = append(files64, info.PackagingSpecs...)
 		}
 	})
-	outBp := n.genAndroidBp(ctx, files)
-	outArm64ArmMk, outArm64Mk := n.genProductMk(ctx, files, files64, extraFiles, extraFiles64)
 
-	outZip := android.PathForModuleOut(ctx, "ndk_translation_package.zip")
+	outZip := android.PathForModuleOut(ctx, ctx.ModuleName()+".zip")
 	builder := android.NewRuleBuilder(pctx, ctx)
 	cmd := builder.Command().
 		BuiltTool("soong_zip").
 		FlagWithOutput("-o ", outZip)
-	for _, buildFile := range []android.Path{outBp, outArm64ArmMk, outArm64Mk} {
-		cmd.
-			FlagWithArg("-C ", filepath.Dir(buildFile.String())).
-			FlagWithInput("-f ", buildFile)
+
+	if proptools.BoolDefault(n.properties.Generate_build_files, true) {
+		outBp := n.genAndroidBp(ctx, files)
+		outArm64ArmMk, outArm64Mk := n.genProductMk(ctx, files, files64, extraFiles, extraFiles64)
+		for _, buildFile := range []android.Path{outBp, outArm64ArmMk, outArm64Mk} {
+			cmd.
+				FlagWithArg("-C ", filepath.Dir(buildFile.String())).
+				FlagWithInput("-f ", buildFile)
+		}
 	}
+
 	for _, file := range files {
 		// Copy to relative path inside the zip
 		cmd.
@@ -161,10 +172,12 @@ func (n *ndkTranslationPackage) GenerateAndroidBuildActions(ctx android.ModuleCo
 			FlagWithInput("-f ", file.SrcPath())
 	}
 
-	builder.Build("ndk_translation_package.zip", "Build ndk_translation_package")
+	builder.Build("ndk_translation_package.zip", fmt.Sprintf("Build ndk_translation_package for %s", ctx.ModuleName()))
 
 	ctx.CheckbuildFile(outZip)
-	ctx.DistForGoal("ndk_translation_package", outZip)
+	n.output = outZip
+
+	ctx.DistForGoal(ctx.ModuleName(), outZip)
 }
 
 // Creates a build rule to generate Android.bp and returns path of the generated file.
@@ -240,4 +253,18 @@ func specsToSrcPaths(specs []android.PackagingSpec) android.Paths {
 		ret = append(ret, spec.SrcPath())
 	}
 	return ret
+}
+
+// The only purpose of this method is to make sure we can build the module directly without dist.
+func (n *ndkTranslationPackage) AndroidMkEntries() []android.AndroidMkEntries {
+	return []android.AndroidMkEntries{
+		android.AndroidMkEntries{
+			Class:      "ETC",
+			OutputFile: android.OptionalPathForPath(n.output),
+			ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+				func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+					entries.SetBool("LOCAL_UNINSTALLABLE_MODULE", true)
+				}},
+		},
+	}
 }

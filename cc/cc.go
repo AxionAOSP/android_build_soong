@@ -4077,6 +4077,10 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	depPaths.GeneratedDeps = android.FirstUniquePaths(depPaths.GeneratedDeps)
 	depPaths.RustRlibDeps = android.FirstUniqueFunc(depPaths.RustRlibDeps, EqRustRlibDeps)
 
+	depPaths.WholeStaticLibObjs = depPaths.WholeStaticLibObjs.Dedup()
+	depPaths.WholeStaticLibsFromPrebuilts = android.FirstUniquePaths(depPaths.WholeStaticLibsFromPrebuilts)
+	depPaths.Objs = depPaths.Objs.Dedup()
+
 	depPaths.ReexportedDirs = android.FirstUniquePaths(depPaths.ReexportedDirs)
 	depPaths.ReexportedSystemDirs = android.FirstUniquePaths(depPaths.ReexportedSystemDirs)
 	depPaths.ReexportedFlags = android.FirstUniqueStrings(depPaths.ReexportedFlags)
