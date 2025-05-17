@@ -59,6 +59,11 @@ var prepareRavenwoodRuntime = android.GroupFixturePreparers(
 			srcs: ["Services.java"],
 		}
 		java_library_static {
+			name: "ravenwood-runtime-extra",
+			stem: "runtime-extra",
+			srcs: ["Extra.java"],
+		}
+		java_library_static {
 			name: "framework-rules.ravenwood",
 			srcs: ["Rules.java"],
 		}
@@ -83,6 +88,7 @@ var prepareRavenwoodRuntime = android.GroupFixturePreparers(
 			libs: [
 				"framework-minus-apex.ravenwood",
 				"framework-services.ravenwood",
+				"ravenwood-runtime-extra",
 			],
 			jni_libs: [
 				"ravenwood-runtime-jni1",
@@ -129,6 +135,7 @@ func TestRavenwoodRuntime(t *testing.T) {
 	runtime := ctx.ModuleForTests(t, "ravenwood-runtime", "android_common")
 	runtime.Output(installPathPrefix + "/ravenwood-runtime/framework-minus-apex.ravenwood.jar")
 	runtime.Output(installPathPrefix + "/ravenwood-runtime/framework-services.ravenwood.jar")
+	runtime.Output(installPathPrefix + "/ravenwood-runtime/runtime-extra.jar")
 	runtime.Output(installPathPrefix + "/ravenwood-runtime/lib64/ravenwood-runtime-jni1.so")
 	runtime.Output(installPathPrefix + "/ravenwood-runtime/lib64/libred.so")
 	runtime.Output(installPathPrefix + "/ravenwood-runtime/lib64/ravenwood-runtime-jni3.so")

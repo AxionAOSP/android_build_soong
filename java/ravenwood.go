@@ -413,7 +413,7 @@ func (r *ravenwoodLibgroup) GenerateAndroidBuildActions(ctx android.ModuleContex
 			continue
 		}
 		libJar := android.OutputFileForModule(ctx, libModule, "")
-		ctx.InstallFile(installPath, lib+".jar", libJar)
+		ctx.InstallFile(installPath, libJar.Base(), libJar)
 	}
 	soInstallPath := android.PathForModuleInstall(ctx, r.BaseModuleName()).Join(ctx, getLibPath(r.forceArchType))
 
