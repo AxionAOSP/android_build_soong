@@ -29,6 +29,8 @@ import (
 // file will produce the rules necessary to convert each unique set of bootclasspath jars into
 // system modules in a runtime image using the jmod and jlink tools.
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 func init() {
 	RegisterSystemModulesBuildComponents(android.InitRegistrationContext)
 
@@ -121,6 +123,7 @@ func SystemModulesFactory() android.Module {
 	return module
 }
 
+// @auto-generate: gob
 type SystemModulesProviderInfo struct {
 	// The aggregated header jars from all jars specified in the libs property.
 	// Used when system module is added as a dependency to bootclasspath.

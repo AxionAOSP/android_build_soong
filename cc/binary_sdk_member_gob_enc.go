@@ -24,10 +24,10 @@ func (r binarySdkMemberType) GobEncode() ([]byte, error) {
 func (r binarySdkMemberType) Encode(buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeStruct(buf, &r.SdkMemberTypeBase); err != nil {
+	if err = r.SdkMemberTypeBase.Encode(buf); err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (r *binarySdkMemberType) GobDecode(b []byte) error {
@@ -38,11 +38,11 @@ func (r *binarySdkMemberType) GobDecode(b []byte) error {
 func (r *binarySdkMemberType) Decode(buf *bytes.Reader) error {
 	var err error
 
-	if err = gobtools.DecodeStruct(buf, &r.SdkMemberTypeBase); err != nil {
+	if err = r.SdkMemberTypeBase.Decode(buf); err != nil {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 var binarySdkMemberTypeGobRegId int16

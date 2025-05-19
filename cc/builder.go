@@ -34,6 +34,8 @@ import (
 	"android/soong/remoteexec"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 const (
 	objectExtension        = ".o"
 	staticLibraryExtension = ".a"
@@ -451,6 +453,7 @@ type StripFlags struct {
 }
 
 // Objects is a collection of file paths corresponding to outputs for C++ related build statements.
+// @auto-generate: gob
 type Objects struct {
 	objFiles      android.Paths
 	tidyFiles     android.Paths

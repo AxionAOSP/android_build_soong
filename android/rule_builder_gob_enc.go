@@ -31,7 +31,7 @@ func (r RuleBuilderInstall) Encode(buf *bytes.Buffer) error {
 	if err = gobtools.EncodeString(buf, r.To); err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (r *RuleBuilderInstall) GobDecode(b []byte) error {
@@ -55,7 +55,7 @@ func (r *RuleBuilderInstall) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 var RuleBuilderInstallGobRegId int16

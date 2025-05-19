@@ -8,6 +8,8 @@ import (
 	"github.com/google/blueprint/depset"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 // PlatformSanitizeable is an interface for sanitizing platform modules.
 type PlatformSanitizeable interface {
 	LinkableInterface
@@ -335,6 +337,7 @@ func HeaderDepTag() blueprint.DependencyTag {
 }
 
 // SharedLibraryInfo is a provider to propagate information about a shared C++ library.
+// @auto-generate: gob
 type SharedLibraryInfo struct {
 	SharedLibrary android.Path
 	Target        android.Target
@@ -373,6 +376,7 @@ type SharedLibraryStubsInfo struct {
 var SharedLibraryStubsProvider = blueprint.NewProvider[SharedLibraryStubsInfo]()
 
 // StaticLibraryInfo is a provider to propagate information about a static C++ library.
+// @auto-generate: gob
 type StaticLibraryInfo struct {
 	StaticLibrary android.Path
 	Objects       Objects
@@ -413,6 +417,7 @@ var FlagExporterInfoProvider = blueprint.NewProvider[FlagExporterInfo]()
 
 var ImplementationDepInfoProvider = blueprint.NewProvider[*ImplementationDepInfo]()
 
+// @auto-generate: gob
 type ImplementationDepInfo struct {
 	ImplementationDeps depset.DepSet[android.Path]
 }

@@ -129,6 +129,8 @@ type SnapshotInfo struct {
 type TestBinaryInfo struct {
 	Gtest bool
 }
+
+// @auto-generate: gob
 type BenchmarkDecoratorInfo struct{}
 
 // @auto-generate: gob
@@ -274,6 +276,7 @@ type LinkableInfo struct {
 	ImplementationModuleName string
 }
 
+// @auto-generate: gob
 type InstallPair struct {
 	Src android.Path
 	Dst android.InstallPath

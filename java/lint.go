@@ -28,6 +28,8 @@ import (
 	"android/soong/remoteexec"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 // lint checks automatically enforced for modules that have different min_sdk_version than
 // sdk_version
 var updatabilityChecks = []string{"NewApi"}
@@ -196,6 +198,7 @@ var allLintDatabasefiles = map[android.SdkKind]lintDatabaseFiles{
 
 var LintProvider = blueprint.NewProvider[*LintInfo]()
 
+// @auto-generate: gob
 type LintInfo struct {
 	HTML              android.Path
 	Text              android.Path

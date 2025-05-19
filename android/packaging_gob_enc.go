@@ -69,7 +69,7 @@ func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
 		}
 	}
 
-	if err = gobtools.EncodeStruct(buf, &r.archType); err != nil {
+	if err = r.archType.Encode(buf); err != nil {
 		return err
 	}
 
@@ -91,7 +91,7 @@ func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	if err = gobtools.EncodeStruct(buf, &r.fullInstallPath); err != nil {
+	if err = r.fullInstallPath.Encode(buf); err != nil {
 		return err
 	}
 
@@ -102,7 +102,7 @@ func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
 	if err = gobtools.EncodeSimple(buf, r.prebuilt); err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (r *PackagingSpec) GobDecode(b []byte) error {
@@ -186,7 +186,7 @@ func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
 	}
 	r.aconfigPaths = uniquelist.Make(val15)
 
-	if err = gobtools.DecodeStruct(buf, &r.archType); err != nil {
+	if err = r.archType.Decode(buf); err != nil {
 		return err
 	}
 
@@ -217,7 +217,7 @@ func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	if err = gobtools.DecodeStruct(buf, &r.fullInstallPath); err != nil {
+	if err = r.fullInstallPath.Decode(buf); err != nil {
 		return err
 	}
 
@@ -231,7 +231,7 @@ func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 var PackagingSpecGobRegId int16

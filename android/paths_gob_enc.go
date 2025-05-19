@@ -43,7 +43,7 @@ func (r OptionalPath) Encode(buf *bytes.Buffer) error {
 	if err = gobtools.EncodeString(buf, r.invalidReason); err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (r *OptionalPath) GobDecode(b []byte) error {
@@ -67,7 +67,7 @@ func (r *OptionalPath) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 var OptionalPathGobRegId int16
@@ -96,7 +96,7 @@ func (r basePath) Encode(buf *bytes.Buffer) error {
 	if err = gobtools.EncodeString(buf, r.rel); err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (r *basePath) GobDecode(b []byte) error {
@@ -117,7 +117,7 @@ func (r *basePath) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 var basePathGobRegId int16
@@ -139,10 +139,10 @@ func (r SourcePath) GobEncode() ([]byte, error) {
 func (r SourcePath) Encode(buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeStruct(buf, &r.basePath); err != nil {
+	if err = r.basePath.Encode(buf); err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (r *SourcePath) GobDecode(b []byte) error {
@@ -153,11 +153,11 @@ func (r *SourcePath) GobDecode(b []byte) error {
 func (r *SourcePath) Decode(buf *bytes.Reader) error {
 	var err error
 
-	if err = gobtools.DecodeStruct(buf, &r.basePath); err != nil {
+	if err = r.basePath.Decode(buf); err != nil {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 var SourcePathGobRegId int16
@@ -179,7 +179,7 @@ func (r OutputPath) GobEncode() ([]byte, error) {
 func (r OutputPath) Encode(buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeStruct(buf, &r.basePath); err != nil {
+	if err = r.basePath.Encode(buf); err != nil {
 		return err
 	}
 
@@ -190,7 +190,7 @@ func (r OutputPath) Encode(buf *bytes.Buffer) error {
 	if err = gobtools.EncodeString(buf, r.fullPath); err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (r *OutputPath) GobDecode(b []byte) error {
@@ -201,7 +201,7 @@ func (r *OutputPath) GobDecode(b []byte) error {
 func (r *OutputPath) Decode(buf *bytes.Reader) error {
 	var err error
 
-	if err = gobtools.DecodeStruct(buf, &r.basePath); err != nil {
+	if err = r.basePath.Decode(buf); err != nil {
 		return err
 	}
 
@@ -215,7 +215,7 @@ func (r *OutputPath) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 var OutputPathGobRegId int16
@@ -237,10 +237,10 @@ func (r toolDepPath) GobEncode() ([]byte, error) {
 func (r toolDepPath) Encode(buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeStruct(buf, &r.basePath); err != nil {
+	if err = r.basePath.Encode(buf); err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (r *toolDepPath) GobDecode(b []byte) error {
@@ -251,11 +251,11 @@ func (r *toolDepPath) GobDecode(b []byte) error {
 func (r *toolDepPath) Decode(buf *bytes.Reader) error {
 	var err error
 
-	if err = gobtools.DecodeStruct(buf, &r.basePath); err != nil {
+	if err = r.basePath.Decode(buf); err != nil {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 var toolDepPathGobRegId int16
@@ -277,10 +277,10 @@ func (r ModuleOutPath) GobEncode() ([]byte, error) {
 func (r ModuleOutPath) Encode(buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeStruct(buf, &r.OutputPath); err != nil {
+	if err = r.OutputPath.Encode(buf); err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (r *ModuleOutPath) GobDecode(b []byte) error {
@@ -291,11 +291,11 @@ func (r *ModuleOutPath) GobDecode(b []byte) error {
 func (r *ModuleOutPath) Decode(buf *bytes.Reader) error {
 	var err error
 
-	if err = gobtools.DecodeStruct(buf, &r.OutputPath); err != nil {
+	if err = r.OutputPath.Decode(buf); err != nil {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 var ModuleOutPathGobRegId int16
@@ -317,10 +317,10 @@ func (r ModuleGenPath) GobEncode() ([]byte, error) {
 func (r ModuleGenPath) Encode(buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeStruct(buf, &r.ModuleOutPath); err != nil {
+	if err = r.ModuleOutPath.Encode(buf); err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (r *ModuleGenPath) GobDecode(b []byte) error {
@@ -331,11 +331,11 @@ func (r *ModuleGenPath) GobDecode(b []byte) error {
 func (r *ModuleGenPath) Decode(buf *bytes.Reader) error {
 	var err error
 
-	if err = gobtools.DecodeStruct(buf, &r.ModuleOutPath); err != nil {
+	if err = r.ModuleOutPath.Decode(buf); err != nil {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 var ModuleGenPathGobRegId int16
@@ -357,10 +357,10 @@ func (r ModuleObjPath) GobEncode() ([]byte, error) {
 func (r ModuleObjPath) Encode(buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeStruct(buf, &r.ModuleOutPath); err != nil {
+	if err = r.ModuleOutPath.Encode(buf); err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (r *ModuleObjPath) GobDecode(b []byte) error {
@@ -371,11 +371,11 @@ func (r *ModuleObjPath) GobDecode(b []byte) error {
 func (r *ModuleObjPath) Decode(buf *bytes.Reader) error {
 	var err error
 
-	if err = gobtools.DecodeStruct(buf, &r.ModuleOutPath); err != nil {
+	if err = r.ModuleOutPath.Decode(buf); err != nil {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 var ModuleObjPathGobRegId int16
@@ -397,10 +397,10 @@ func (r ModuleResPath) GobEncode() ([]byte, error) {
 func (r ModuleResPath) Encode(buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeStruct(buf, &r.ModuleOutPath); err != nil {
+	if err = r.ModuleOutPath.Encode(buf); err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (r *ModuleResPath) GobDecode(b []byte) error {
@@ -411,11 +411,11 @@ func (r *ModuleResPath) GobDecode(b []byte) error {
 func (r *ModuleResPath) Decode(buf *bytes.Reader) error {
 	var err error
 
-	if err = gobtools.DecodeStruct(buf, &r.ModuleOutPath); err != nil {
+	if err = r.ModuleOutPath.Decode(buf); err != nil {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 var ModuleResPathGobRegId int16
@@ -437,7 +437,7 @@ func (r InstallPath) GobEncode() ([]byte, error) {
 func (r InstallPath) Encode(buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeStruct(buf, &r.basePath); err != nil {
+	if err = r.basePath.Encode(buf); err != nil {
 		return err
 	}
 
@@ -460,7 +460,7 @@ func (r InstallPath) Encode(buf *bytes.Buffer) error {
 	if err = gobtools.EncodeString(buf, r.fullPath); err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (r *InstallPath) GobDecode(b []byte) error {
@@ -471,7 +471,7 @@ func (r *InstallPath) GobDecode(b []byte) error {
 func (r *InstallPath) Decode(buf *bytes.Reader) error {
 	var err error
 
-	if err = gobtools.DecodeStruct(buf, &r.basePath); err != nil {
+	if err = r.basePath.Decode(buf); err != nil {
 		return err
 	}
 
@@ -500,7 +500,7 @@ func (r *InstallPath) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 var InstallPathGobRegId int16
@@ -522,10 +522,10 @@ func (r PhonyPath) GobEncode() ([]byte, error) {
 func (r PhonyPath) Encode(buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeStruct(buf, &r.basePath); err != nil {
+	if err = r.basePath.Encode(buf); err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (r *PhonyPath) GobDecode(b []byte) error {
@@ -536,11 +536,11 @@ func (r *PhonyPath) GobDecode(b []byte) error {
 func (r *PhonyPath) Decode(buf *bytes.Reader) error {
 	var err error
 
-	if err = gobtools.DecodeStruct(buf, &r.basePath); err != nil {
+	if err = r.basePath.Decode(buf); err != nil {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 var PhonyPathGobRegId int16
@@ -562,10 +562,10 @@ func (r testPath) GobEncode() ([]byte, error) {
 func (r testPath) Encode(buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeStruct(buf, &r.basePath); err != nil {
+	if err = r.basePath.Encode(buf); err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (r *testPath) GobDecode(b []byte) error {
@@ -576,11 +576,11 @@ func (r *testPath) GobDecode(b []byte) error {
 func (r *testPath) Decode(buf *bytes.Reader) error {
 	var err error
 
-	if err = gobtools.DecodeStruct(buf, &r.basePath); err != nil {
+	if err = r.basePath.Decode(buf); err != nil {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 var testPathGobRegId int16
@@ -613,7 +613,7 @@ func (r DataPath) Encode(buf *bytes.Buffer) error {
 	if err = gobtools.EncodeSimple(buf, r.WithoutRel); err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (r *DataPath) GobDecode(b []byte) error {
@@ -642,7 +642,7 @@ func (r *DataPath) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 var DataPathGobRegId int16

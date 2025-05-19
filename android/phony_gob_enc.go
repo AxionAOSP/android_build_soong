@@ -40,7 +40,7 @@ func (r ModulePhonyInfo) Encode(buf *bytes.Buffer) error {
 			}
 		}
 	}
-	return nil
+	return err
 }
 
 func (r *ModulePhonyInfo) GobDecode(b []byte) error {
@@ -86,7 +86,7 @@ func (r *ModulePhonyInfo) Decode(buf *bytes.Reader) error {
 		}
 	}
 
-	return nil
+	return err
 }
 
 var ModulePhonyInfoGobRegId int16

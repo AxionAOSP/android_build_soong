@@ -303,3 +303,10 @@ all_apex_certs {
         "//cts/hostsidetests/appsecurity",
     ],
 }
+
+system_dev_certificate {
+    name: "system_dev_certificate",
+    visibility: [
+        "//bootable/recovery:__subpackages__",
+    ],
+}

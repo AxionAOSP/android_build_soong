@@ -28,6 +28,8 @@ import (
 	"android/soong/etc"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 var (
 	// Any C flags added by sanitizer which libTooling tools may not
 	// understand also need to be added to ClangLibToolingUnknownCflags in
@@ -231,6 +233,7 @@ func (t SanitizerType) incompatibleWithCfi() bool {
 	return t == Asan || t == Fuzzer || t == Hwasan
 }
 
+// @auto-generate: gob
 type SanitizeUserProps struct {
 	// Prevent use of any sanitizers on this module
 	Never *bool `android:"arch_variant"`
