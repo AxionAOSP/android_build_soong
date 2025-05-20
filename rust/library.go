@@ -641,6 +641,9 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	var fileName string
 	crateRootPath := library.crateRootPath(ctx)
 
+	deps.SrcFiles = append(deps.SrcFiles, crateRootPath)
+	deps.SrcFiles = append(deps.SrcFiles, library.crateSources(ctx)...)
+
 	if library.sourceProvider != nil {
 		deps.srcProviderFiles = append(deps.srcProviderFiles, library.sourceProvider.Srcs()...)
 	}
@@ -701,7 +704,8 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		if library.shared() {
 			// "-Wl,--android-version-script" signals to the rustcLinker script
 			// that the default version script should be removed.
-			flags.LinkFlags = append(flags.LinkFlags, "-Wl,--android-version-script="+android.PathForModuleSrc(ctx, String(library.Properties.Version_script)).String())
+			flags.LinkerScriptFlags = append(flags.LinkerScriptFlags,
+				"-Wl,--android-version-script="+android.PathForModuleSrc(ctx, String(library.Properties.Version_script)).String())
 			deps.LinkerDeps = append(deps.LinkerDeps, android.PathForModuleSrc(ctx, String(library.Properties.Version_script)))
 		} else if !library.static() && !library.rlib() {
 			// We include rlibs here because rust_ffi produces rlib variants

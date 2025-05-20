@@ -8,6 +8,7 @@ bootstrap_go_package {
     deps: [
         "soong-android",
         "soong-cc-config",
+        "soong-remoteexec",
     ],
     srcs: [
         "arm_device.go",

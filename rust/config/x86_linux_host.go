@@ -21,7 +21,13 @@ import (
 )
 
 var (
-	LinuxRustFlags     = []string{}
+	LinuxRustFlags = []string{
+		// These flags are no strictly necessary but included so RBE can discover dependencies.
+		"-L${cc_config.LinuxGccRoot}/${cc_config.LinuxGccTriple}/lib32",
+		"-L${cc_config.LinuxGccRoot}/${cc_config.LinuxGccTriple}/lib64",
+		"-L${cc_config.LinuxGccRoot}/lib/gcc/${cc_config.LinuxGccTriple}/${cc_config.LinuxGccVersion}",
+		"-L${cc_config.LinuxGccRoot}/sysroot/usr/lib",
+	}
 	LinuxMuslRustFlags = []string{
 		// disable rustc's builtin fallbacks for crt objects
 		"-C link_self_contained=no",

@@ -98,16 +98,17 @@ func registerPostDepsMutators(ctx android.RegisterMutatorsContext) {
 }
 
 type Flags struct {
-	GlobalRustFlags []string // Flags that apply globally to rust
-	GlobalLinkFlags []string // Flags that apply globally to linker
-	RustFlags       []string // Flags that apply to rust
-	LinkFlags       []string // Flags that apply to linker
-	ClippyFlags     []string // Flags that apply to clippy-driver, during the linting
-	RustdocFlags    []string // Flags that apply to rustdoc
-	Toolchain       config.Toolchain
-	Coverage        bool
-	Clippy          bool
-	EmitXrefs       bool // If true, emit rules to aid cross-referencing
+	GlobalRustFlags   []string // Flags that apply globally to rust
+	GlobalLinkFlags   []string // Flags that apply globally to linker
+	RustFlags         []string // Flags that apply to rust
+	LinkFlags         []string // Flags that apply to linker
+	LinkerScriptFlags []string // Flags that should be visible to the android linker script
+	ClippyFlags       []string // Flags that apply to clippy-driver, during the linting
+	RustdocFlags      []string // Flags that apply to rustdoc
+	Toolchain         config.Toolchain
+	Coverage          bool
+	Clippy            bool
+	EmitXrefs         bool // If true, emit rules to aid cross-referencing
 }
 
 type BaseProperties struct {
@@ -535,12 +536,16 @@ type PathDeps struct {
 	CrtBegin android.Paths
 	CrtEnd   android.Paths
 
+	SrcFiles android.Paths
+
 	// Paths to generated source files
 	SrcDeps          android.Paths
 	srcProviderFiles android.Paths
 
-	directImplementationDeps     android.Paths
-	transitiveImplementationDeps []depset.DepSet[android.Path]
+	directApexImplementationDeps        android.Paths
+	transitiveApexImplementationDeps    []depset.DepSet[android.Path]
+	directNonApexImplementationDeps     android.Paths
+	transitiveNonApexImplementationDeps []depset.DepSet[android.Path]
 }
 
 type RustLibraries []RustLibrary
@@ -1175,7 +1180,10 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		}
 
 		android.SetProvider(ctx, cc.ImplementationDepInfoProvider, &cc.ImplementationDepInfo{
-			ImplementationDeps: depset.New(depset.PREORDER, deps.directImplementationDeps, deps.transitiveImplementationDeps),
+			ImplementationDeps: depset.New(depset.PREORDER, deps.directApexImplementationDeps, deps.transitiveApexImplementationDeps),
+		})
+		android.SetProvider(ctx, RustImplementationDepInfoProvider, &RustImplementationDepInfo{
+			NonApexImplementationDeps: depset.New(depset.PREORDER, deps.directNonApexImplementationDeps, deps.transitiveNonApexImplementationDeps),
 		})
 
 		ctx.Phony("rust", ctx.RustModule().OutputFile().Path())
@@ -1608,9 +1616,12 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				mod.Properties.AndroidMkDylibs = append(mod.Properties.AndroidMkDylibs, makeLibName)
 				mod.Properties.SnapshotDylibs = append(mod.Properties.SnapshotDylibs, cc.BaseLibName(depName))
 
-				depPaths.directImplementationDeps = append(depPaths.directImplementationDeps, android.OutputFileForModule(ctx, dep, ""))
+				depPaths.directApexImplementationDeps = append(depPaths.directApexImplementationDeps, android.OutputFileForModule(ctx, dep, ""))
 				if info, ok := android.OtherModuleProvider(ctx, dep, cc.ImplementationDepInfoProvider); ok {
-					depPaths.transitiveImplementationDeps = append(depPaths.transitiveImplementationDeps, info.ImplementationDeps)
+					depPaths.transitiveApexImplementationDeps = append(depPaths.transitiveApexImplementationDeps, info.ImplementationDeps)
+				}
+				if info, ok := android.OtherModuleProvider(ctx, dep, RustImplementationDepInfoProvider); ok {
+					depPaths.transitiveNonApexImplementationDeps = append(depPaths.transitiveNonApexImplementationDeps, info.NonApexImplementationDeps)
 				}
 
 				if !rustInfo.CompilerInfo.NoStdlibs {
@@ -1639,9 +1650,13 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				depPaths.depIncludePaths = append(depPaths.depIncludePaths, exportedInfo.IncludeDirs...)
 				depPaths.exportedLinkDirs = append(depPaths.exportedLinkDirs, linkPathFromFilePath(linkableInfo.OutputFile.Path()))
 
-				// rlibs are not installed, so don't add the output file to directImplementationDeps
+				// rlibs are not installed, so don't add the output file to apexDirectImplementationDeps. Track them for RBE however.
+				depPaths.directNonApexImplementationDeps = append(depPaths.directNonApexImplementationDeps, android.OutputFileForModule(ctx, dep, ""))
 				if info, ok := android.OtherModuleProvider(ctx, dep, cc.ImplementationDepInfoProvider); ok {
-					depPaths.transitiveImplementationDeps = append(depPaths.transitiveImplementationDeps, info.ImplementationDeps)
+					depPaths.transitiveApexImplementationDeps = append(depPaths.transitiveApexImplementationDeps, info.ImplementationDeps)
+				}
+				if info, ok := android.OtherModuleProvider(ctx, dep, RustImplementationDepInfoProvider); ok {
+					depPaths.transitiveNonApexImplementationDeps = append(depPaths.transitiveNonApexImplementationDeps, info.NonApexImplementationDeps)
 				}
 
 				if !rustInfo.CompilerInfo.NoStdlibs {
@@ -1667,6 +1682,11 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				mod.Properties.AndroidMkProcMacroLibs = append(mod.Properties.AndroidMkProcMacroLibs, makeLibName)
 				// proc_macro link dirs need to be exported, so collect those here.
 				depPaths.exportedLinkDirs = append(depPaths.exportedLinkDirs, linkPathFromFilePath(linkableInfo.OutputFile.Path()))
+
+				depPaths.directNonApexImplementationDeps = append(depPaths.directNonApexImplementationDeps, android.OutputFileForModule(ctx, dep, ""))
+				if info, ok := android.OtherModuleProvider(ctx, dep, RustImplementationDepInfoProvider); ok {
+					depPaths.transitiveNonApexImplementationDeps = append(depPaths.transitiveNonApexImplementationDeps, info.NonApexImplementationDeps)
+				}
 
 			case depTag == sourceDepTag:
 				if _, ok := mod.sourceProvider.(*protobufDecorator); ok {
@@ -1826,9 +1846,9 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				if !sharedLibraryInfo.IsStubs {
 					// TODO(b/362509506): remove this additional check once all apex_exclude uses are switched to stubs.
 					if !linkableInfo.RustApexExclude {
-						depPaths.directImplementationDeps = append(depPaths.directImplementationDeps, android.OutputFileForModule(ctx, dep, ""))
+						depPaths.directApexImplementationDeps = append(depPaths.directApexImplementationDeps, android.OutputFileForModule(ctx, dep, ""))
 						if info, ok := android.OtherModuleProvider(ctx, dep, cc.ImplementationDepInfoProvider); ok {
-							depPaths.transitiveImplementationDeps = append(depPaths.transitiveImplementationDeps, info.ImplementationDeps)
+							depPaths.transitiveApexImplementationDeps = append(depPaths.transitiveApexImplementationDeps, info.ImplementationDeps)
 						}
 					}
 				}
@@ -1880,7 +1900,9 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			switch {
 			case depTag == cc.CrtBeginDepTag:
 				depPaths.CrtBegin = append(depPaths.CrtBegin, android.OutputFileForModule(ctx, dep, ""))
+				depPaths.directNonApexImplementationDeps = append(depPaths.directNonApexImplementationDeps, android.OutputFileForModule(ctx, dep, ""))
 			case depTag == cc.CrtEndDepTag:
+				depPaths.directNonApexImplementationDeps = append(depPaths.directNonApexImplementationDeps, android.OutputFileForModule(ctx, dep, ""))
 				depPaths.CrtEnd = append(depPaths.CrtEnd, android.OutputFileForModule(ctx, dep, ""))
 			}
 		}
@@ -2369,6 +2391,12 @@ func (k kytheExtractRustSingleton) GenerateBuildActions(ctx android.SingletonCon
 func (c *Module) Partition() string {
 	return ""
 }
+
+type RustImplementationDepInfo struct {
+	NonApexImplementationDeps depset.DepSet[android.Path]
+}
+
+var RustImplementationDepInfoProvider = blueprint.NewProvider[*RustImplementationDepInfo]()
 
 var Bool = proptools.Bool
 var BoolDefault = proptools.BoolDefault

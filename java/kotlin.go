@@ -57,6 +57,7 @@ var kotlinc = pctx.AndroidRemoteStaticRule("kotlinc", android.RemoteRuleSupports
 	blueprint.RuleParams{
 		Command: inputDeltaCmd + ` && ` + nonIncKotlinCmd + ` && ` + moveDeltaStateFile,
 		CommandDeps: []string{
+			"${config.FindInputDeltaCmd}",
 			"${config.KotlincCmd}",
 			"${config.KotlinCompilerJar}",
 			"${config.KotlinPreloaderJar}",
@@ -115,6 +116,7 @@ var kotlinIncremental = pctx.AndroidRemoteStaticRule("kotlin-incremental", andro
 			moveDeltaStateFile,
 
 		CommandDeps: []string{
+			"${config.FindInputDeltaCmd}",
 			"${config.KotlincCmd}",
 			"${config.KotlinIncrementalClientBinary}",
 			"${config.KotlinCompilerJar}",

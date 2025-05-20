@@ -489,14 +489,14 @@ func TestRustVersionScript(t *testing.T) {
 		t.Errorf("missing expected -Wl,--version-script= linker flag for libextended shared lib, linkFlags: %#v",
 			librs.Args["linkFlags"])
 	}
-	if strings.Contains(librs.Args["linkFlags"], "-Wl,--android-version-script=librs.map.txt") {
+	if strings.Contains(librs.Args["linkerScriptFlags"], "-Wl,--android-version-script=librs.map.txt") {
 		t.Errorf("unexpected -Wl,--android-version-script= linker flag for libextended shared lib, linkFlags: %#v",
-			librs.Args["linkFlags"])
+			librs.Args["linkerScriptFlags"])
 	}
 
-	if !strings.Contains(libffi.Args["linkFlags"], "-Wl,--android-version-script=libffi.map.txt") {
+	if !strings.Contains(libffi.Args["linkerScriptFlags"], "-Wl,--android-version-script=libffi.map.txt") {
 		t.Errorf("missing -Wl,--android-version-script= linker flag for libreplaced shared lib, linkFlags: %#v",
-			libffi.Args["linkFlags"])
+			libffi.Args["linkerScriptFlags"])
 	}
 	if strings.Contains(libffi.Args["linkFlags"], "-Wl,--version-script=libffi.map.txt") {
 		t.Errorf("unexpected -Wl,--version-script= linker flag for libextended shared lib, linkFlags: %#v",

@@ -20,6 +20,7 @@ import (
 
 	"android/soong/android"
 	_ "android/soong/cc/config"
+	"android/soong/remoteexec"
 )
 
 var (
@@ -126,6 +127,7 @@ func init() {
 
 	pctx.ImportAs("cc_config", "android/soong/cc/config")
 	pctx.StaticVariable("ClangCmd", "${cc_config.ClangBin}/clang++")
+	pctx.StaticVariable("LlvmDlltool", "${cc_config.ClangBin}/llvm-dlltool")
 
 	pctx.StaticVariable("DeviceGlobalLinkFlags", strings.Join(deviceGlobalLinkFlags, " "))
 
@@ -141,6 +143,10 @@ func init() {
 			"${cc_config.DeviceGlobalLdflags}",
 			"-B${cc_config.ClangBin}",
 		}), " "))
+
+	pctx.StaticVariableWithEnvOverride("RERustPool", "RBE_RUST_POOL", remoteexec.DefaultPool)
+	pctx.StaticVariableWithEnvOverride("RERustExecStrategy", "RBE_RUST_EXEC_STRATEGY", remoteexec.LocalExecStrategy)
+
 }
 
 func HostPrebuiltTag(config android.Config) string {

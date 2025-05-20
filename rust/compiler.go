@@ -76,6 +76,7 @@ type compiler interface {
 	strippedOutputFilePath() android.OptionalPath
 
 	crateRootPath(ctx ModuleContext) android.Path
+	crateSources(ctx ModuleContext) android.Paths
 
 	Aliases() map[string]string
 
@@ -245,6 +246,12 @@ type BaseCompilerProperties struct {
 		// be enabled for production builds unless there's a clear need to disable it.
 		Thin *bool `android:"arch_variant"`
 	} `android:"arch_variant"`
+
+	// Set this to true to use an expansive default set of source file requirements
+	// (all .rs, .h, .xml, and .md files in the module tree).
+	// This is primarily for tracking sources for RBE purposes. Currently defaults
+	// to true, though this may change in the future.
+	Use_expansive_default_srcs *bool
 }
 
 type baseCompiler struct {
@@ -642,6 +649,30 @@ func (compiler *baseCompiler) crateRootPath(ctx ModuleContext) android.Path {
 	} else {
 		return android.PathForModuleSrc(ctx, *compiler.Properties.Crate_root)
 	}
+}
+
+func (compiler *baseCompiler) crateSources(ctx ModuleContext) android.Paths {
+	crateSources := android.PathsForModuleSrc(ctx, compiler.Properties.Srcs)
+
+	// By default use an expansive set of required sources.
+	// Check for UseRBE here since this isn't necessary for local builds and can
+	// break some tests as the MockFS doesn't support globbing in all instances.
+	if BoolDefault(compiler.Properties.Use_expansive_default_srcs, true) && ctx.Config().IsEnvTrue("RBE_RUST") {
+		crateSources = append(crateSources, android.PathsForModuleSrc(ctx,
+			[]string{
+				"*.md",
+				"**/*.md",
+				"*.rs",
+				"**/*.rs",
+				"*.proto",
+				"**/*.proto",
+				"*.xml",
+				"**/*.xml",
+				"*.h",
+				"**/*.h"})...)
+	}
+
+	return crateSources
 }
 
 // Returns the Path for the main source file along with Paths for generated source files from modules listed in srcs.
