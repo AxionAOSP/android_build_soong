@@ -38,6 +38,8 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 func init() {
 	RegisterAndroidMkBuildComponents(InitRegistrationContext)
 }
@@ -806,7 +808,7 @@ func (so *soongOnlyAndroidMkSingleton) soongOnlyBuildActions(ctx SingletonContex
 		ctx.Phony("droidcore-unbundled", moduleInfoJSONPath)
 		allDistContributions = append(allDistContributions, distContributions{
 			copiesForGoals: []*copiesForGoals{{
-				goals: "general-tests droidcore-unbundled haiku",
+				goals: "general-tests droidcore-unbundled haiku module-info",
 				copies: []distCopy{{
 					from: moduleInfoJSONPath,
 					dest: "module-info.json",
@@ -1272,11 +1274,13 @@ func AndroidMkEmitAssignList(w io.Writer, varName string, lists ...[]string) {
 	fmt.Fprintln(w)
 }
 
+// @auto-generate: gob
 type AndroidMkProviderInfo struct {
 	PrimaryInfo AndroidMkInfo
 	ExtraInfo   []AndroidMkInfo
 }
 
+// @auto-generate: gob
 type AndroidMkInfo struct {
 	// Android.mk class string, e.g. EXECUTABLES, JAVA_LIBRARIES, ETC
 	Class string

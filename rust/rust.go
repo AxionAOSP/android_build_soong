@@ -1266,7 +1266,9 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		BaseModuleName: mod.BaseModuleName(),
 		Target:         ctx.Target(),
 	}
-	android.SetProvider(ctx, android.MakeNameInfoProvider, rustMakeLibName(rustInfo, linkableInfo, &myCommonInfo, ctx.ModuleName()))
+	android.SetProvider(ctx, android.MakeNameInfoProvider, android.MakeNameInfo{
+		Name: rustMakeLibName(rustInfo, linkableInfo, &myCommonInfo, ctx.ModuleName()),
+	})
 
 	mod.setOutputFiles(ctx)
 

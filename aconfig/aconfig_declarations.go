@@ -145,7 +145,9 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 
 	values := make(map[string][]string)
 	valuesFiles := make(map[string][]android.Path, 0)
-	providerData := android.AconfigReleaseDeclarationsProviderData{}
+	providerData := android.AconfigReleaseDeclarationsProviderData{
+		Data: map[string]android.AconfigDeclarationsProviderData{},
+	}
 	ctx.VisitDirectDepsProxy(func(dep android.ModuleProxy) {
 		if depData, ok := android.OtherModuleProvider(ctx, dep, valueSetProviderKey); ok {
 			depTag := ctx.OtherModuleDependencyTag(dep)
@@ -191,13 +193,13 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 		inputFiles = append(inputFiles, valuesFiles[config]...)
 		mainlineBetaNamespaceConfig := ctx.Config().ReleaseMainlineBetaNamespaceConfig()
 		args := map[string]string{
-			"release_version":    ctx.Config().ReleaseVersion(),
-			"package":            module.properties.Package,
-			"declarations":       android.JoinPathsWithPrefix(declarationFiles, "--declarations "),
-			"values":             joinAndPrefix(" --values ", values[config]),
-			"default-permission": optionalVariable(" --default-permission ", defaultPermission),
-			"allow-read-write":   optionalVariable(" --allow-read-write ", strconv.FormatBool(allowReadWrite)),
-			"mainline-beta-namespace-config":   optionalVariable(" --mainline-beta-namespace-config ", mainlineBetaNamespaceConfig),
+			"release_version":                ctx.Config().ReleaseVersion(),
+			"package":                        module.properties.Package,
+			"declarations":                   android.JoinPathsWithPrefix(declarationFiles, "--declarations "),
+			"values":                         joinAndPrefix(" --values ", values[config]),
+			"default-permission":             optionalVariable(" --default-permission ", defaultPermission),
+			"allow-read-write":               optionalVariable(" --allow-read-write ", strconv.FormatBool(allowReadWrite)),
+			"mainline-beta-namespace-config": optionalVariable(" --mainline-beta-namespace-config ", mainlineBetaNamespaceConfig),
 		}
 		if len(module.properties.Container) > 0 {
 			args["container"] = "--container " + module.properties.Container
@@ -218,7 +220,7 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 			Description: "aconfig_text",
 		})
 
-		providerData[config] = android.AconfigDeclarationsProviderData{
+		providerData.Data[config] = android.AconfigDeclarationsProviderData{
 			Package:                     module.properties.Package,
 			Container:                   module.properties.Container,
 			Exportable:                  module.properties.Exportable,
@@ -226,7 +228,7 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 			IntermediateDumpOutputPath:  intermediateDumpFilePath,
 		}
 	}
-	android.SetProvider(ctx, android.AconfigDeclarationsProviderKey, providerData[""])
+	android.SetProvider(ctx, android.AconfigDeclarationsProviderKey, providerData.Data[""])
 	android.SetProvider(ctx, android.AconfigReleaseDeclarationsProviderKey, providerData)
 }
 

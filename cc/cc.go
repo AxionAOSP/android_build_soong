@@ -2749,7 +2749,9 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		BaseModuleName: c.BaseModuleName(),
 		Target:         ctx.Target(),
 	}
-	android.SetProvider(ctx, android.MakeNameInfoProvider, MakeLibName(&ccInfo, linkableInfo, &myCommonInfo, ctx.ModuleName()))
+	android.SetProvider(ctx, android.MakeNameInfoProvider, android.MakeNameInfo{
+		Name: MakeLibName(&ccInfo, linkableInfo, &myCommonInfo, ctx.ModuleName()),
+	})
 
 	c.setOutputFiles(ctx)
 

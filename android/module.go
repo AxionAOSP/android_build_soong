@@ -189,6 +189,7 @@ func newPackageId(pkg string) qualifiedModuleName {
 	return qualifiedModuleName{pkg: pkg, name: ""}
 }
 
+// @auto-generate: gob
 type Dist struct {
 	// Copy the output of this module to the $DIST_DIR when `dist` is specified on the
 	// command line and any of these targets are also on the command line, or otherwise
@@ -1937,6 +1938,7 @@ var SourceFilesInfoProvider = blueprint.NewProvider[SourceFilesInfo]()
 
 // ModuleBuildTargetsInfo is used by buildTargetSingleton to create checkbuild and
 // per-directory build targets.
+// @auto-generate: gob
 type ModuleBuildTargetsInfo struct {
 	InstallTarget    WritablePath
 	CheckbuildTarget WritablePath
@@ -1945,6 +1947,7 @@ type ModuleBuildTargetsInfo struct {
 
 var ModuleBuildTargetsProvider = blueprint.NewProvider[ModuleBuildTargetsInfo]()
 
+// @auto-generate: gob
 type CommonModuleInfo struct {
 	Enabled bool
 	// The Target of artifacts that this module variant is responsible for creating.
@@ -2002,6 +2005,7 @@ type CommonModuleInfo struct {
 	ImageVariation   blueprint.Variation
 }
 
+// @auto-generate: gob
 type ApiLevelOrPlatform struct {
 	ApiLevel   *ApiLevel
 	IsPlatform bool
@@ -2009,6 +2013,7 @@ type ApiLevelOrPlatform struct {
 
 var CommonModuleInfoProvider = blueprint.NewProvider[*CommonModuleInfo]()
 
+// @auto-generate: gob
 type HostToolProviderInfo struct {
 	HostToolPath OptionalPath
 }
@@ -2043,6 +2048,8 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		variables:         make(map[string]string),
 		phonies:           make(map[string]Paths),
 	}
+
+	blueprintCtx.RegisterConfigurableEvaluator(ctx)
 
 	if ctx.config.captureBuild {
 		ctx.config.modulesForTests.Insert(ctx.ModuleName(), ctx.Module())
@@ -3215,6 +3222,7 @@ func (o OutputFilesInfo) isEmpty() bool {
 	return o.DefaultOutputFiles == nil && o.TaggedOutputFiles == nil
 }
 
+// @auto-generate: gob
 type OutputFilesInfo struct {
 	// default output files when tag is an empty string ""
 	DefaultOutputFiles Paths

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -69,6 +70,8 @@ func GenerateIncrementalInput(classDir, srcs, deps, javacTarget, srcDeps, localH
 	// the changed sources to build metrics as well as maintains the state of
 	// inputs we require if the partialCompile is switched on again.
 	if !usePartialCompile() {
+		// Remove the output class directory to prevent any stale files
+		os.RemoveAll(classDir)
 		return writeOutput(incInputPath, removedClassesPath, srcList, classesForRemoval)
 	}
 
@@ -114,7 +117,7 @@ func GenerateIncrementalInput(classDir, srcs, deps, javacTarget, srcDeps, localH
 			incInputList, incAllSources = getUsages(usageMap, incInputList, delF, headersChanged)
 		}
 		// use usageMap to add all classes that were generated from removed files.
-		classesForRemoval = generateRemovalList(usageMap, delF)
+		classesForRemoval = generateRemovalList(usageMap, delF, classDir)
 	}
 
 	if incAllSources {
@@ -165,11 +168,13 @@ func getUsages(usageMap map[string]UsageMap, modifiedFiles, deletedFiles []strin
 }
 
 // Returns the list of class files to be removed, as a result of deleting a source file.
-func generateRemovalList(usageMap map[string]UsageMap, delFiles []string) []string {
+func generateRemovalList(usageMap map[string]UsageMap, delFiles []string, classesDir string) []string {
 	var classesForRemoval []string
 	for _, delFile := range delFiles {
 		if _, exists := usageMap[delFile]; exists {
-			classesForRemoval = append(classesForRemoval, usageMap[delFile].GeneratedClasses...)
+			for _, generatedClass := range usageMap[delFile].GeneratedClasses {
+				classesForRemoval = append(classesForRemoval, filepath.Join(classesDir, generatedClass))
+			}
 		}
 	}
 	return classesForRemoval

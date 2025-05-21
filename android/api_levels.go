@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/google/blueprint/gobtools"
 )
+
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
 
 func init() {
 	RegisterParallelSingletonType("api_levels", ApiLevelsSingleton)
@@ -37,6 +37,7 @@ const previewAPILevelBase = 9000
 // Java has these, and they're managed with the SdkKind enum of the SdkSpec. A
 // future cleanup should be to migrate SdkSpec to using ApiLevel instead of its
 // SdkVersion int, and to move SdkSpec into this package.
+// @auto-generate: gob
 type ApiLevel struct {
 	// The string representation of the API level.
 	value string
@@ -52,34 +53,6 @@ type ApiLevel struct {
 
 	// Identifies this API level as either a preview or final API level.
 	isPreview bool
-}
-
-type apiLevelGob struct {
-	Value     string
-	Number    int
-	IsPreview bool
-}
-
-func (a *ApiLevel) ToGob() *apiLevelGob {
-	return &apiLevelGob{
-		Value:     a.value,
-		Number:    a.number,
-		IsPreview: a.isPreview,
-	}
-}
-
-func (a *ApiLevel) FromGob(data *apiLevelGob) {
-	a.value = data.Value
-	a.number = data.Number
-	a.isPreview = data.IsPreview
-}
-
-func (a ApiLevel) GobEncode() ([]byte, error) {
-	return gobtools.CustomGobEncode[apiLevelGob](&a)
-}
-
-func (a *ApiLevel) GobDecode(data []byte) error {
-	return gobtools.CustomGobDecode[apiLevelGob](data, a)
 }
 
 func (this ApiLevel) FinalInt() int {

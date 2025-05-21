@@ -800,7 +800,7 @@ func (p *Prebuilt) usePrebuilt(ctx BaseModuleContext, source Module, prebuilt Mo
 	// Skip prebuilt modules under unexported namespaces so that we won't
 	// end up shadowing non-prebuilt module when prebuilt module under same
 	// name happens to have a `Prefer` property set to true.
-	if ctx.Config().KatiEnabled() && !prebuilt.ExportedToMake() {
+	if !prebuilt.ExportedToMake() {
 		return false
 	}
 

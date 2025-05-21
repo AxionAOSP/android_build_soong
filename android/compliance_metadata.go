@@ -25,8 +25,9 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/gobtools"
 )
+
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
 
 var (
 	// Constants of property names used in compliance metadata of modules
@@ -128,6 +129,7 @@ var (
 // ComplianceMetadataInfo provides all metadata of a module, e.g. name, module type, package, license,
 // dependencies, built/installed files, etc. It is a wrapper on a map[string]string with some utility
 // methods to get/set properties' values.
+// @auto-generate: gob
 type ComplianceMetadataInfo struct {
 	properties             map[string]string
 	filesContained         []string
@@ -135,15 +137,6 @@ type ComplianceMetadataInfo struct {
 	platformGeneratedFiles []string
 	productCopyFiles       []string
 	kernelModuleCopyFiles  []string
-}
-
-type complianceMetadataInfoGob struct {
-	Properties             map[string]string
-	FilesContained         []string
-	PrebuiltFilesCopied    []string
-	PlatformGeneratedFiles []string
-	KernelModuleCopyFiles  []string
-	ProductCopyFiles       []string
 }
 
 func NewComplianceMetadataInfo() *ComplianceMetadataInfo {
@@ -155,34 +148,6 @@ func NewComplianceMetadataInfo() *ComplianceMetadataInfo {
 		kernelModuleCopyFiles:  make([]string, 0),
 		productCopyFiles:       make([]string, 0),
 	}
-}
-
-func (m *ComplianceMetadataInfo) ToGob() *complianceMetadataInfoGob {
-	return &complianceMetadataInfoGob{
-		Properties:             m.properties,
-		FilesContained:         m.filesContained,
-		PrebuiltFilesCopied:    m.prebuiltFilesCopied,
-		PlatformGeneratedFiles: m.platformGeneratedFiles,
-		KernelModuleCopyFiles:  m.kernelModuleCopyFiles,
-		ProductCopyFiles:       m.productCopyFiles,
-	}
-}
-
-func (m *ComplianceMetadataInfo) FromGob(data *complianceMetadataInfoGob) {
-	m.properties = data.Properties
-	m.filesContained = data.FilesContained
-	m.prebuiltFilesCopied = data.PrebuiltFilesCopied
-	m.platformGeneratedFiles = data.PlatformGeneratedFiles
-	m.kernelModuleCopyFiles = data.KernelModuleCopyFiles
-	m.productCopyFiles = data.ProductCopyFiles
-}
-
-func (c *ComplianceMetadataInfo) GobEncode() ([]byte, error) {
-	return gobtools.CustomGobEncode[complianceMetadataInfoGob](c)
-}
-
-func (c *ComplianceMetadataInfo) GobDecode(data []byte) error {
-	return gobtools.CustomGobDecode[complianceMetadataInfoGob](data, c)
 }
 
 func (c *ComplianceMetadataInfo) SetStringValue(propertyName string, value string) {

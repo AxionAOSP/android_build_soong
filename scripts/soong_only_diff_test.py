@@ -32,7 +32,12 @@ def run_build_target_files_zip(product: Product, soong_only: bool) -> bool:
     if soong_only:
         soong_only_arg = '--soong-only'
 
-    with open(os.path.join(os.getenv('OUT_DIR', 'out'), 'build.log'), 'wb') as f:
+    out_dir = os.getenv('OUT_DIR', 'out')
+
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
+
+    with open(os.path.join(out_dir, 'build.log'), 'wb') as f:
         result = subprocess.run([
             'build/soong/soong_ui.bash',
             '--make-mode',

@@ -18,6 +18,8 @@ import (
 	"github.com/google/blueprint"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 func init() {
 	pctx.HostBinToolVariable("symbols_map", "symbols_map")
 }
@@ -37,6 +39,7 @@ var mergeSymbolsMapProtos = pctx.AndroidStaticRule("merge_symbol_map_protos", bl
 })
 
 // Provider for generating symbols.zip
+// @auto-generate: gob
 type SymbolicOutputInfo struct {
 	UnstrippedOutputFile Path
 	SymbolicOutputPath   InstallPath

@@ -194,8 +194,8 @@ func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx a
 			if !ok {
 				return
 			}
-			cacheFiles = append(cacheFiles, decl[rcName].IntermediateCacheOutputPath)
-			packages[decl[rcName].Package]++
+			cacheFiles = append(cacheFiles, decl.Data[rcName].IntermediateCacheOutputPath)
+			packages[decl.Data[rcName].Package]++
 		})
 
 		var numOffendingPkg = 0

@@ -10,6 +10,7 @@ bootstrap_go_package {
     ],
     srcs: [
         "fuzz_common.go",
+        "fuzz_common_gob_enc.go",
     ],
     pluginFor: ["soong_build"],
 }

@@ -23,8 +23,9 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/gobtools"
 )
+
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
 
 func init() {
 	RegisterParallelSingletonType("testsuites", testSuiteFilesFactory)
@@ -41,6 +42,7 @@ type TestSuiteModule interface {
 	TestSuites() []string
 }
 
+// @auto-generate: gob
 type TestSuiteInfo struct {
 	// A suffix to append to the name of the test.
 	// Useful because historically different variants of soong modules became differently-named
@@ -81,6 +83,7 @@ var TestSuiteInfoProvider = blueprint.NewProvider[TestSuiteInfo]()
 // shared libs into test suites. It's not intended as a general-purpose shared lib tracking
 // mechanism. It's added to both test modules (to track their shared libs) and also shared lib
 // modules (to track their transitive shared libs).
+// @auto-generate: gob
 type TestSuiteSharedLibsInfo struct {
 	MakeNames []string
 }
@@ -89,38 +92,20 @@ var TestSuiteSharedLibsInfoProvider = blueprint.NewProvider[TestSuiteSharedLibsI
 
 // MakeNameInfoProvider records the AndroidMk name for the module. This will match the names
 // referenced in TestSuiteSharedLibsInfo
-var MakeNameInfoProvider = blueprint.NewProvider[string]()
+// @auto-generate: gob
+type MakeNameInfo struct {
+	Name string
+}
 
+var MakeNameInfoProvider = blueprint.NewProvider[MakeNameInfo]()
+
+// @auto-generate: gob
 type filePair struct {
 	src Path
 	dst WritablePath
 }
 
-type filePairGob struct {
-	Src Path
-	Dst WritablePath
-}
-
-func (f *filePair) ToGob() *filePairGob {
-	return &filePairGob{
-		Src: f.src,
-		Dst: f.dst,
-	}
-}
-
-func (f *filePair) FromGob(data *filePairGob) {
-	f.src = data.Src
-	f.dst = data.Dst
-}
-
-func (p filePair) GobEncode() ([]byte, error) {
-	return gobtools.CustomGobEncode[filePairGob](&p)
-}
-
-func (p *filePair) GobDecode(data []byte) error {
-	return gobtools.CustomGobDecode[filePairGob](data, p)
-}
-
+// @auto-generate: gob
 type testSuiteInstallsInfo struct {
 	Files              []filePair
 	OneVariantInstalls []filePair
@@ -146,7 +131,7 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	ctx.VisitAllModuleProxies(func(m ModuleProxy) {
 		commonInfo := OtherModuleProviderOrDefault(ctx, m, CommonModuleInfoProvider)
 		testSuiteSharedLibsInfo := OtherModuleProviderOrDefault(ctx, m, TestSuiteSharedLibsInfoProvider)
-		makeName := OtherModuleProviderOrDefault(ctx, m, MakeNameInfoProvider)
+		makeName := OtherModuleProviderOrDefault(ctx, m, MakeNameInfoProvider).Name
 		if makeName != "" && commonInfo.Target.Os.Class == Host {
 			sharedLibGraph[makeName] = append(sharedLibGraph[makeName], testSuiteSharedLibsInfo.MakeNames...)
 		}
@@ -343,7 +328,7 @@ func gatherHostSharedLibs(ctx SingletonContext, sharedLibRoots, sharedLibGraph m
 			}
 			installFilesProvider := OtherModuleProviderOrDefault(ctx, m, InstallFilesProvider)
 			for suite, sharedLibModulesInSuite := range suiteToSharedLibModules {
-				if sharedLibModulesInSuite[makeName] {
+				if sharedLibModulesInSuite[makeName.Name] {
 					for _, f := range installFilesProvider.InstallFiles {
 						if strings.HasSuffix(f.String(), ".so") && strings.HasPrefix(f.String(), hostOut) {
 							hostSharedLibs[suite] = append(hostSharedLibs[suite], f)

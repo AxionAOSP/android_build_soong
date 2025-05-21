@@ -32,6 +32,7 @@ bootstrap_go_package {
         "app_import.go",
         "app_set.go",
         "base.go",
+        "base_gob_enc.go",
         "boot_jars.go",
         "bootclasspath.go",
         "bootclasspath_fragment.go",

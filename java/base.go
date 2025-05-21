@@ -15,7 +15,6 @@
 package java
 
 import (
-	"encoding/gob"
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -32,6 +31,8 @@ import (
 	"android/soong/dexpreopt"
 	"android/soong/java/config"
 )
+
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
 
 // This file contains the definition and the implementation of the base module that most
 // source-based Java module structs embed.
@@ -2796,6 +2797,7 @@ const (
 	RenameUseExclude
 )
 
+// @auto-generate: gob
 type JarJarProviderData struct {
 	// Mapping of class names: original --> renamed.  If the value is "", the class will be
 	// renamed by the next rdep that has the jarjar_prefix attribute (or this module if it has
@@ -2820,12 +2822,11 @@ var overridableJarJarPrefix = "com.android.internal.hidden_from_bootclasspath"
 
 func init() {
 	android.SetJarJarPrefixHandler(mergeJarJarPrefixes)
-
-	gob.Register(BaseJarJarProviderData{})
 }
 
 // BaseJarJarProviderData contains information that will propagate across dependencies regardless of
 // whether they are java modules or not.
+// @auto-generate: gob
 type BaseJarJarProviderData struct {
 	JarJarProviderData JarJarProviderData
 }

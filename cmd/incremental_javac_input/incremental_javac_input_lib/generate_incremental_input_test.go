@@ -88,17 +88,18 @@ func TestGenerateRemovalList(t *testing.T) {
 
 	testCases := []struct {
 		name     string
+		classDir string
 		delFiles []string
 		expected []string
 	}{
-		{"Basic", []string{"file1.java", "file2.java"}, []string{"Class1", "Class2", "Class3"}},
-		{"Empty", []string{}, nil},
-		{"NonExistent", []string{"nonexistent.java"}, nil},
+		{"Basic", "out/classes", []string{"file1.java", "file2.java"}, []string{"out/classes/Class1", "out/classes/Class2", "out/classes/Class3"}},
+		{"Empty", "out/classes", []string{}, nil},
+		{"NonExistent", "out/classes", []string{"nonexistent.java"}, nil},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := generateRemovalList(usageMap, tc.delFiles)
+			actual := generateRemovalList(usageMap, tc.delFiles, tc.classDir)
 			sort.Strings(actual)
 			sort.Strings(tc.expected)
 			if !reflect.DeepEqual(actual, tc.expected) {
@@ -373,7 +374,7 @@ func TestGenerateIncrementalInput(t *testing.T) {
 			tf.incOutputPath(),
 			fmt.Sprintf("%s", tf.JavaFile1), // usages of deleted file
 			tf.remOutputPath(),
-			"org.another.ClassD", // class name corresponding to the deleted file path
+			filepath.Join(tf.ClassDir, "org.another.ClassD"), // class name corresponding to the deleted file path
 		)
 		tf.savePriorState() // Save state if needed for subsequent tests
 	})

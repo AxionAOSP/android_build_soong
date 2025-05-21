@@ -85,29 +85,12 @@ type BuildParams struct {
 	PhonyOutput bool
 }
 
-type ModuleBuildParams BuildParams
-
 type ModuleContext interface {
 	BaseModuleContext
 
 	// BlueprintModuleContext returns the blueprint.ModuleContext that the ModuleContext wraps.  It may only be
 	// used by the golang module types that need to call into the bootstrap module types.
 	BlueprintModuleContext() blueprint.ModuleContext
-
-	// Deprecated: use ModuleContext.Build instead.
-	ModuleBuild(pctx PackageContext, params ModuleBuildParams)
-
-	// Returns a list of paths expanded from globs and modules referenced using ":module" syntax.  The property must
-	// be tagged with `android:"path" to support automatic source module dependency resolution.
-	//
-	// Deprecated: use PathsForModuleSrc or PathsForModuleSrcExcludes instead.
-	ExpandSources(srcFiles, excludes []string) Paths
-
-	// Returns a single path expanded from globs and modules referenced using ":module" syntax.  The property must
-	// be tagged with `android:"path" to support automatic source module dependency resolution.
-	//
-	// Deprecated: use PathForModuleSrc instead.
-	ExpandSource(srcFile, prop string) Path
 
 	ExpandOptionalSource(srcFile *string, prop string) OptionalPath
 
@@ -372,10 +355,6 @@ func (m *moduleContext) ninjaError(params BuildParams, err error) (PackageContex
 			"error": err.Error(),
 		},
 	}
-}
-
-func (m *moduleContext) ModuleBuild(pctx PackageContext, params ModuleBuildParams) {
-	m.Build(pctx, BuildParams(params))
 }
 
 // Convert build parameters from their concrete Android types into their string representations,
@@ -995,22 +974,6 @@ func (m *moduleContext) ComplianceMetadataInfo() *ComplianceMetadataInfo {
 		m.complianceMetadataInfo = NewComplianceMetadataInfo()
 	}
 	return m.complianceMetadataInfo
-}
-
-// Returns a list of paths expanded from globs and modules referenced using ":module" syntax.  The property must
-// be tagged with `android:"path" to support automatic source module dependency resolution.
-//
-// Deprecated: use PathsForModuleSrc or PathsForModuleSrcExcludes instead.
-func (m *moduleContext) ExpandSources(srcFiles, excludes []string) Paths {
-	return PathsForModuleSrcExcludes(m, srcFiles, excludes)
-}
-
-// Returns a single path expanded from globs and modules referenced using ":module" syntax.  The property must
-// be tagged with `android:"path" to support automatic source module dependency resolution.
-//
-// Deprecated: use PathForModuleSrc instead.
-func (m *moduleContext) ExpandSource(srcFile, _ string) Path {
-	return PathForModuleSrc(m, srcFile)
 }
 
 // Returns an optional single path expanded from globs and modules referenced using ":module" syntax if

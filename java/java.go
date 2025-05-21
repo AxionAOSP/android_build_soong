@@ -3574,7 +3574,7 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx, android.RemoveOptionalPrebuiltPrefix(ctx.ModuleName()), android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar"))
 	j.dexpreopter.uncompressedDex = shouldUncompressDex(ctx, android.RemoveOptionalPrebuiltPrefix(ctx.ModuleName()), &j.dexpreopter)
 
-	inputJar := ctx.ExpandSource(j.properties.Jars[0], "jars")
+	inputJar := android.PathForModuleSrc(ctx, j.properties.Jars[0])
 	dexOutputFile := android.PathForModuleOut(ctx, ctx.ModuleName()+".jar")
 
 	if j.dexpreopter.uncompressedDex {

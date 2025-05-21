@@ -314,8 +314,8 @@ func makeLibFlags(deps PathDeps) []string {
 
 func rustStringifyEnvVars(envVars map[string]string) string {
 	envVarStrings := []string{}
-	for key, value := range envVars {
-		envVarStrings = append(envVarStrings, key+"="+value)
+	for _, key := range android.SortedKeys(envVars) {
+		envVarStrings = append(envVarStrings, key+"="+envVars[key])
 	}
 	return strings.Join(envVarStrings, " ")
 }

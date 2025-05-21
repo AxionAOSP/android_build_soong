@@ -28,6 +28,8 @@ import (
 	"android/soong/android"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 type Lang string
 
 const (
@@ -452,6 +454,7 @@ type FuzzPackagedModule struct {
 	Data           android.Paths
 }
 
+// @auto-generate: gob
 type FuzzConfigInfo struct {
 	Vector Vector
 	// How privileged the service being fuzzed is.
@@ -474,6 +477,8 @@ type FuzzConfigInfo struct {
 	// Defaults to false.
 	UseForPresubmit bool
 }
+
+// @auto-generate: gob
 type FuzzPackagedModuleInfo struct {
 	FuzzConfig *FuzzConfigInfo
 	Dictionary android.Path

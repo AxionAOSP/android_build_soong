@@ -23,6 +23,8 @@ import (
 	"github.com/google/blueprint"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 var (
 	mergeAconfigFilesRule = pctx.AndroidStaticRule("mergeAconfigFilesRule",
 		blueprint.RuleParams{
@@ -33,6 +35,7 @@ var (
 )
 
 // Provider published by aconfig_value_set
+// @auto-generate: gob
 type AconfigDeclarationsProviderData struct {
 	Package                     string
 	Container                   string
@@ -43,10 +46,14 @@ type AconfigDeclarationsProviderData struct {
 
 var AconfigDeclarationsProviderKey = blueprint.NewProvider[AconfigDeclarationsProviderData]()
 
-type AconfigReleaseDeclarationsProviderData map[string]AconfigDeclarationsProviderData
+// @auto-generate: gob
+type AconfigReleaseDeclarationsProviderData struct {
+	Data map[string]AconfigDeclarationsProviderData
+}
 
 var AconfigReleaseDeclarationsProviderKey = blueprint.NewProvider[AconfigReleaseDeclarationsProviderData]()
 
+// @auto-generate: gob
 type ModeInfo struct {
 	Container string
 	Mode      string
@@ -76,6 +83,7 @@ func propagateModeInfos(ctx ModuleContext, module ModuleProxy, to, from map[stri
 	}
 }
 
+// @auto-generate: gob
 type aconfigPropagatingDeclarationsInfo struct {
 	AconfigFiles map[string]Paths
 	ModeInfos    map[string]ModeInfo

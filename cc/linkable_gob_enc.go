@@ -43,7 +43,7 @@ func (r SharedLibraryInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	if err = r.ImplementationDeps.Encode(buf); err != nil {
+	if err = r.ImplementationDeps.EncodeString(buf); err != nil {
 		return err
 	}
 
@@ -82,7 +82,7 @@ func (r *SharedLibraryInfo) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	if err = r.ImplementationDeps.Decode(buf); err != nil {
+	if err = r.ImplementationDeps.DecodeString(buf); err != nil {
 		return err
 	}
 
