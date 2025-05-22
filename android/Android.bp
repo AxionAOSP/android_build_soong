@@ -70,7 +70,6 @@ bootstrap_go_package {
         "gen_notice.go",
         "hooks.go",
         "image.go",
-        "init.go",
         "license.go",
         "license_kind.go",
         "license_metadata.go",

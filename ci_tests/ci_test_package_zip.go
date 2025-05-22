@@ -252,12 +252,12 @@ func extendBuilderCommand(ctx android.ModuleContext, m android.ModuleOrProxy, bu
 	info, ok := android.OtherModuleProvider(ctx, m, android.ModuleInfoJSONProvider)
 	if !ok {
 		ctx.OtherModuleErrorf(m, "doesn't set ModuleInfoJSON provider")
-	} else if len(info) != 1 {
+	} else if len(info.Data) != 1 {
 		ctx.OtherModuleErrorf(m, "doesn't provide exactly one ModuleInfoJSON")
 	}
 
-	classes := info[0].GetClass()
-	if len(info[0].Class) != 1 {
+	classes := info.Data[0].GetClass()
+	if len(info.Data[0].Class) != 1 {
 		ctx.OtherModuleErrorf(m, "doesn't have exactly one class in its ModuleInfoJSON")
 	}
 	class := strings.ToLower(classes[0])

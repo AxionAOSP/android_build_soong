@@ -120,7 +120,7 @@ type AndroidAppImportProperties struct {
 
 	// Set this flag to true if the prebuilt apk is already signed. The certificate property must not
 	// be set for presigned modules.
-	Presigned *bool
+	Presigned proptools.Configurable[bool] `android:"replace_instead_of_append"`
 
 	// Name of the signing certificate lineage file or filegroup module.
 	Lineage *string `android:"path"`
@@ -155,7 +155,7 @@ type AndroidAppImportProperties struct {
 	Relative_install_path *string
 
 	// Whether the prebuilt apk can be installed without additional processing. Default is false.
-	Preprocessed *bool
+	Preprocessed proptools.Configurable[bool] `android:"replace_instead_of_append"`
 
 	// Whether or not to skip checking the preprocessed apk for proper alignment and uncompressed
 	// JNI libs and dex files. Default is false
@@ -287,7 +287,7 @@ func (a *AndroidAppImport) uncompressEmbeddedJniLibs(
 	ctx android.ModuleContext, inputPath android.Path, outputPath android.WritablePath) {
 	// Test apps don't need their JNI libraries stored uncompressed. As a matter of fact, messing
 	// with them may invalidate pre-existing signature data.
-	if ctx.InstallInTestcases() && (Bool(a.properties.Presigned) || Bool(a.properties.Preprocessed)) {
+	if ctx.InstallInTestcases() && (a.properties.Presigned.GetOrDefault(ctx, false) || a.properties.Preprocessed.GetOrDefault(ctx, false)) {
 		ctx.Build(pctx, android.BuildParams{
 			Rule:   android.Cp,
 			Output: outputPath,
@@ -318,7 +318,7 @@ func (a *AndroidAppImport) extractSubApk(
 
 // Returns whether this module should have the dex file stored uncompressed in the APK.
 func (a *AndroidAppImport) shouldUncompressDex(ctx android.ModuleContext) bool {
-	if ctx.Config().UnbundledBuild() || proptools.Bool(a.properties.Preprocessed) {
+	if ctx.Config().UnbundledBuild() || a.properties.Preprocessed.GetOrDefault(ctx, false) {
 		return false
 	}
 
@@ -382,19 +382,18 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		a.hideApexVariantFromMake = true
 	}
 
-	if Bool(a.properties.Preprocessed) {
-		if a.properties.Presigned != nil && !*a.properties.Presigned {
+	if a.properties.Preprocessed.GetOrDefault(ctx, false) {
+		if !a.properties.Presigned.GetOrDefault(ctx, true) {
 			ctx.ModuleErrorf("Setting preprocessed: true implies presigned: true, so you cannot set presigned to false")
 		}
-		t := true
-		a.properties.Presigned = &t
+		a.properties.Presigned.AppendSimpleValue(true)
 	}
 
 	numCertPropsSet := 0
 	if a.properties.Certificate.GetOrDefault(ctx, "") != "" {
 		numCertPropsSet++
 	}
-	if Bool(a.properties.Presigned) {
+	if a.properties.Presigned.GetOrDefault(ctx, false) {
 		numCertPropsSet++
 	}
 	if Bool(a.properties.Default_dev_cert) {
@@ -440,7 +439,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	installDir := android.PathForModuleInstall(ctx, pathFragments...)
 	a.dexpreopter.isApp = true
 	a.dexpreopter.installPath = installDir.Join(ctx, a.BaseModuleName()+".apk")
-	a.dexpreopter.isPresignedPrebuilt = Bool(a.properties.Presigned)
+	a.dexpreopter.isPresignedPrebuilt = a.properties.Presigned.GetOrDefault(ctx, false)
 	a.dexpreopter.uncompressedDex = a.shouldUncompressDex(ctx)
 
 	a.dexpreopter.enforceUsesLibs = a.usesLibrary.enforceUsesLibraries(ctx)
@@ -478,7 +477,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 
 	// Sign or align the package if package has not been preprocessed
 
-	if proptools.Bool(a.properties.Preprocessed) {
+	if a.properties.Preprocessed.GetOrDefault(ctx, false) {
 		validationStamp := a.validatePresignedApk(ctx, srcApk)
 		output := android.PathForModuleOut(ctx, apkFilename)
 		ctx.Build(pctx, android.BuildParams{
@@ -489,7 +488,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		})
 		a.outputFile = output
 		a.certificate = PresignedCertificate
-	} else if !Bool(a.properties.Presigned) {
+	} else if !a.properties.Presigned.GetOrDefault(ctx, false) {
 		// If the certificate property is empty at this point, default_dev_cert must be set to true.
 		// Which makes processMainCert's behavior for the empty cert string WAI.
 		_, _, certificates := collectAppDeps(ctx, a, false, false)
@@ -556,7 +555,7 @@ func (a *AndroidAppImport) validatePresignedApk(ctx android.ModuleContext, srcAp
 	if proptools.Bool(a.properties.Skip_preprocessed_apk_checks) {
 		extraArgs = append(extraArgs, "--skip-preprocessed-apk-checks")
 	}
-	if proptools.Bool(a.properties.Preprocessed) {
+	if a.properties.Preprocessed.GetOrDefault(ctx, false) {
 		extraArgs = append(extraArgs, "--preprocessed")
 	}
 

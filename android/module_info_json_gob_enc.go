@@ -11,6 +11,7 @@ func init() {
 	CoreModuleInfoJSONGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(CoreModuleInfoJSON) })
 	ExtraModuleInfoJSONGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ExtraModuleInfoJSON) })
 	ModuleInfoJSONGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ModuleInfoJSON) })
+	ModuleInfoJSONInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ModuleInfoJSONInfo) })
 }
 
 func (r CoreModuleInfoJSON) GobEncode() ([]byte, error) {
@@ -852,4 +853,73 @@ var ModuleInfoJSONGobRegId int16
 
 func (r ModuleInfoJSON) GetTypeId() int16 {
 	return ModuleInfoJSONGobRegId
+}
+
+func (r ModuleInfoJSONInfo) GobEncode() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	if err := r.Encode(buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (r ModuleInfoJSONInfo) Encode(buf *bytes.Buffer) error {
+	var err error
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.Data))); err != nil {
+		return err
+	}
+	for val1 := 0; val1 < len(r.Data); val1++ {
+		val2 := r.Data[val1] == nil
+		if err = gobtools.EncodeSimple(buf, val2); err != nil {
+			return err
+		}
+		if !val2 {
+			if err = (*r.Data[val1]).Encode(buf); err != nil {
+				return err
+			}
+		}
+	}
+	return err
+}
+
+func (r *ModuleInfoJSONInfo) GobDecode(b []byte) error {
+	buf := bytes.NewReader(b)
+	return r.Decode(buf)
+}
+
+func (r *ModuleInfoJSONInfo) Decode(buf *bytes.Reader) error {
+	var err error
+
+	var val2 int32
+	err = gobtools.DecodeSimple[int32](buf, &val2)
+	if err != nil {
+		return err
+	}
+	if val2 > 0 {
+		r.Data = make([]*ModuleInfoJSON, val2)
+		for val3 := 0; val3 < int(val2); val3++ {
+			var val5 bool
+			if err = gobtools.DecodeSimple(buf, &val5); err != nil {
+				return err
+			}
+			if !val5 {
+				var val4 ModuleInfoJSON
+				if err = val4.Decode(buf); err != nil {
+					return err
+				}
+				r.Data[val3] = &val4
+			}
+		}
+	}
+
+	return err
+}
+
+var ModuleInfoJSONInfoGobRegId int16
+
+func (r ModuleInfoJSONInfo) GetTypeId() int16 {
+	return ModuleInfoJSONInfoGobRegId
 }

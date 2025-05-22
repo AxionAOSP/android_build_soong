@@ -101,6 +101,10 @@ type GlobalConfig struct {
 	// "true" to force preopt with CMC GC (a.k.a., UFFD GC); "false" to force preopt with CC GC;
 	// "default" to determine the GC type based on the kernel version file.
 	EnableUffdGc string
+
+	// The target's `SDK_INT` (ro.build.version.sdk) string value. "" for undefined/indeterminate.
+	// Conditionally used to set assumed values in AOT-compilation.
+	PlatformSdkVersion string
 }
 
 var allPlatformSystemServerJarsKey = android.NewOnceKey("allPlatformSystemServerJars")
@@ -162,6 +166,7 @@ type GlobalSoongConfig struct {
 	ManifestCheck    android.Path
 	ConstructContext android.Path
 	UffdGcFlag       android.WritablePath
+	AssumeValueFlags android.WritablePath
 }
 
 type ModuleConfig struct {
@@ -561,6 +566,7 @@ func createGlobalSoongConfig(ctx android.ModuleContext) *GlobalSoongConfig {
 		ManifestCheck:    ctx.Config().HostToolPath(ctx, "manifest_check"),
 		ConstructContext: ctx.Config().HostToolPath(ctx, "construct_context"),
 		UffdGcFlag:       getUffdGcFlagPath(ctx),
+		AssumeValueFlags: getAssumeValueFlagsPath(ctx),
 	}
 }
 
@@ -613,6 +619,7 @@ type globalJsonSoongConfig struct {
 	ManifestCheck    string
 	ConstructContext string
 	UffdGcFlag       string
+	AssumeValueFlags string
 }
 
 // ParseGlobalSoongConfig parses the given data assumed to be read from the
@@ -635,6 +642,7 @@ func ParseGlobalSoongConfig(ctx android.PathContext, data []byte) (*GlobalSoongC
 		ManifestCheck:    constructPath(ctx, jc.ManifestCheck),
 		ConstructContext: constructPath(ctx, jc.ConstructContext),
 		UffdGcFlag:       constructWritablePath(ctx, jc.UffdGcFlag),
+		AssumeValueFlags: constructWritablePath(ctx, jc.AssumeValueFlags),
 	}
 
 	return config, nil
@@ -675,6 +683,8 @@ func (s *globalSoongConfigSingleton) GenerateBuildActions(ctx android.SingletonC
 		return
 	}
 
+	buildAssumedValues(ctx, global, config)
+
 	jc := globalJsonSoongConfig{
 		Profman:          config.Profman.String(),
 		Dex2oat:          config.Dex2oat.String(),
@@ -684,6 +694,7 @@ func (s *globalSoongConfigSingleton) GenerateBuildActions(ctx android.SingletonC
 		ManifestCheck:    config.ManifestCheck.String(),
 		ConstructContext: config.ConstructContext.String(),
 		UffdGcFlag:       config.UffdGcFlag.String(),
+		AssumeValueFlags: config.AssumeValueFlags.String(),
 	}
 
 	data, err := json.Marshal(jc)
@@ -715,6 +726,7 @@ func (s *globalSoongConfigSingleton) MakeVars(ctx android.MakeVarsContext) {
 		config.ManifestCheck.String(),
 		config.ConstructContext.String(),
 		config.UffdGcFlag.String(),
+		config.AssumeValueFlags.String(),
 	}, " "))
 }
 
@@ -738,6 +750,27 @@ func buildUffdGcFlag(ctx android.BuilderContext, global *GlobalConfig) {
 		rule.Restat().Build("dexpreopt_uffd_gc_flag", "dexpreopt_uffd_gc_flag")
 	} else {
 		panic(fmt.Sprintf("Unknown value of PRODUCT_ENABLE_UFFD_GC: %s", global.EnableUffdGc))
+	}
+}
+
+func buildAssumedValues(ctx android.BuilderContext, global *GlobalConfig, globalSoong *GlobalSoongConfig) {
+	assumeValueFlags := getAssumeValueFlagsPath(ctx)
+
+	if global.PlatformSdkVersion != "" {
+		maybeAssumedValues := fmt.Sprintf(`'--assume-value=Landroid/os/Build$VERSION;->SDK_INT:%s'`, global.PlatformSdkVersion)
+		rule := android.NewRuleBuilder(pctx, ctx)
+		cmd := rule.Command()
+		// First check dex2oat to see if it supports `--assume-value=` arguments.
+		// If it does, stash the assumed value args in a reusable output file for compilation.
+		// Otherwise, just create an empty placeholder file that becomes a no-op.
+		// TODO(b/204924812): Remove the args check after prebuilt ART modules are updated from source.
+		cmd.Text("if (").Tool(globalSoong.Dex2oat).Text("--help 2>&1 | grep -q -- --assume-value)").
+			Text("; then echo").Text(maybeAssumedValues).Text(">").Output(assumeValueFlags).
+			Text("; else >").Output(assumeValueFlags).
+			Text("; fi")
+		rule.Restat().Build("dexpreopt_assume_value_flags", "dexpreopt_assume_value_flags")
+	} else {
+		android.WriteFileRuleVerbatim(ctx, assumeValueFlags, "")
 	}
 }
 
@@ -795,6 +828,7 @@ func globalSoongConfigForTests(ctx android.BuilderContext) *GlobalSoongConfig {
 		ManifestCheck:    android.PathForTesting("manifest_check"),
 		ConstructContext: android.PathForTesting("construct_context"),
 		UffdGcFlag:       android.PathForOutput(ctx, "dexpreopt_test", "uffd_gc_flag.txt"),
+		AssumeValueFlags: android.PathForOutput(ctx, "dexpreopt_test", "assume_value_flags.txt"),
 	}
 }
 
@@ -809,4 +843,8 @@ func GetDexpreoptDirName(ctx android.PathContext) string {
 
 func getUffdGcFlagPath(ctx android.PathContext) android.WritablePath {
 	return android.PathForOutput(ctx, "dexpreopt/uffd_gc_flag.txt")
+}
+
+func getAssumeValueFlagsPath(ctx android.PathContext) android.WritablePath {
+	return android.PathForOutput(ctx, "dexpreopt/assume_value_flags.txt")
 }

@@ -440,6 +440,7 @@ func (p OptionalPath) String() string {
 }
 
 // Paths is a slice of Path objects, with helpers to operate on the collection.
+// @auto-generate: gob
 type Paths []Path
 
 // RelativeToTop creates a new Paths containing the result of calling Path.RelativeToTop on each

@@ -767,6 +767,7 @@ func (d *dexpreoptBootJars) buildBootZip(ctx android.ModuleContext) {
 		Inputs: []android.Path{
 			bootZipMetadataTmp,
 			globalSoong.UffdGcFlag,
+			globalSoong.AssumeValueFlags,
 			newlineFile,
 		},
 		Output: bootZipMetadata,
@@ -1327,6 +1328,8 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 	if global.BootFlags != "" {
 		cmd.Flag(global.BootFlags)
 	}
+
+	cmd.Text("$(cat").Input(globalSoong.AssumeValueFlags).Text(")")
 
 	if extraFlags != "" {
 		cmd.Flag(extraFlags)

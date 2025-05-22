@@ -127,4 +127,9 @@ func (m *ModuleInfoJSON) GetClass() []string {
 	return m.Class
 }
 
-var ModuleInfoJSONProvider = blueprint.NewProvider[[]*ModuleInfoJSON]()
+// @auto-generate: gob
+type ModuleInfoJSONInfo struct {
+	Data []*ModuleInfoJSON
+}
+
+var ModuleInfoJSONProvider = blueprint.NewProvider[ModuleInfoJSONInfo]()

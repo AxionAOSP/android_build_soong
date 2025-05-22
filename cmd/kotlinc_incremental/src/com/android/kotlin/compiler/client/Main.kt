@@ -231,11 +231,13 @@ fun parseSourceChanges(sourceDeltaFile: File): SourcesChanges.Known {
             }
 
             entry.startsWith("-") -> {
+                /*
                 if (f.exists()) {
-                    throw RuntimeException(
-                        "Supplied file diff contains removed file that exist: $entry"
-                    )
-                }
+                                  throw RuntimeException(
+                                      "Supplied file diff contains removed file that exist: $entry"
+                                  )
+                              }
+                */
                 removedList.add(f.absoluteFile)
             }
 

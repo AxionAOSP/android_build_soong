@@ -9,6 +9,7 @@ import (
 
 func init() {
 	OptionalPathGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(OptionalPath) })
+	PathsGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(Paths) })
 	basePathGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(basePath) })
 	SourcePathGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(SourcePath) })
 	OutputPathGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(OutputPath) })
@@ -74,6 +75,65 @@ var OptionalPathGobRegId int16
 
 func (r OptionalPath) GetTypeId() int16 {
 	return OptionalPathGobRegId
+}
+
+func (r Paths) GobEncode() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	if err := r.Encode(buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (r Paths) Encode(buf *bytes.Buffer) error {
+	var err error
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r))); err != nil {
+		return err
+	}
+	for val1 := 0; val1 < len(r); val1++ {
+		if err = gobtools.EncodeInterface(buf, r[val1]); err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+func (r *Paths) GobDecode(b []byte) error {
+	buf := bytes.NewReader(b)
+	return r.Decode(buf)
+}
+
+func (r *Paths) Decode(buf *bytes.Reader) error {
+	var err error
+
+	var val2 int32
+	err = gobtools.DecodeSimple[int32](buf, &val2)
+	if err != nil {
+		return err
+	}
+	if val2 > 0 {
+		(*r) = make([]Path, val2)
+		for val3 := 0; val3 < int(val2); val3++ {
+			if val5, err := gobtools.DecodeInterface(buf); err != nil {
+				return err
+			} else if val5 == nil {
+				(*r)[val3] = nil
+			} else {
+				(*r)[val3] = val5.(Path)
+			}
+		}
+	}
+
+	return err
+}
+
+var PathsGobRegId int16
+
+func (r Paths) GetTypeId() int16 {
+	return PathsGobRegId
 }
 
 func (r basePath) GobEncode() ([]byte, error) {

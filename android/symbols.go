@@ -46,6 +46,7 @@ type SymbolicOutputInfo struct {
 	ElfMappingProtoPath  InstallPath
 }
 
+// @auto-generate: gob
 type SymbolicOutputInfos []*SymbolicOutputInfo
 
 // SymbolInfosProvider provides necessary information to generate the symbols.zip

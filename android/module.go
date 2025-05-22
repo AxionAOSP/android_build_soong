@@ -2328,7 +2328,9 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			}
 		}
 
-		SetProvider(ctx, ModuleInfoJSONProvider, ctx.moduleInfoJSON)
+		SetProvider(ctx, ModuleInfoJSONProvider, ModuleInfoJSONInfo{
+			Data: ctx.moduleInfoJSON,
+		})
 	}
 
 	m.buildParams = ctx.buildParams

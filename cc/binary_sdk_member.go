@@ -15,7 +15,6 @@
 package cc
 
 import (
-	"encoding/gob"
 	"fmt"
 	"path/filepath"
 
@@ -29,8 +28,6 @@ import (
 
 func init() {
 	android.RegisterSdkMemberType(ccBinarySdkMemberType)
-
-	gob.Register((*binarySdkMemberType)(nil))
 }
 
 var ccBinarySdkMemberType = &binarySdkMemberType{
