@@ -167,14 +167,6 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 					"notice_xml_product": defaultDepCandidateProps(ctx.Config()),
 				},
 				"system_ext": {
-					// VNDK apexes are automatically included.
-					// This hardcoded list will need to be updated if `PRODUCT_EXTRA_VNDK_VERSIONS` is updated.
-					// https://cs.android.com/android/_/android/platform/build/+/adba533072b00c53ac0f198c550a3cbd7a00e4cd:core/main.mk;l=984;bpv=1;bpt=0;drc=174db7b179592cf07cbfd2adb0119486fda911e7
-					"com.android.vndk.v30":  defaultDepCandidateProps(ctx.Config()),
-					"com.android.vndk.v31":  defaultDepCandidateProps(ctx.Config()),
-					"com.android.vndk.v32":  defaultDepCandidateProps(ctx.Config()),
-					"com.android.vndk.v33":  defaultDepCandidateProps(ctx.Config()),
-					"com.android.vndk.v34":  defaultDepCandidateProps(ctx.Config()),
 					"notice_xml_system_ext": defaultDepCandidateProps(ctx.Config()),
 				},
 				"userdata": {},
@@ -237,6 +229,10 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 		(*fsGenState.fsDeps["recovery"])[fmt.Sprintf("recovery-resources-common-%s", getDpi(ctx))] = defaultDepCandidateProps(ctx.Config())
 		(*fsGenState.fsDeps["recovery"])[getRecoveryFontModuleName(ctx)] = defaultDepCandidateProps(ctx.Config())
 		(*fsGenState.fsDeps["recovery"])[createRecoveryBuildProp(ctx)] = defaultDepCandidateProps(ctx.Config())
+
+		for _, vndkVersion := range ctx.DeviceConfig().ExtraVndkVersions() {
+			(*fsGenState.fsDeps["system_ext"])["com.android.vndk.v"+vndkVersion] = defaultDepCandidateProps(ctx.Config())
+		}
 
 		return &fsGenState
 	}).(*FsGenState)
