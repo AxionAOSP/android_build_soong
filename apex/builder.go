@@ -1186,6 +1186,7 @@ func (a *apexBundle) reexportJacocoInfo(ctx android.ModuleContext) {
 	}
 
 	android.SetProvider(ctx, java.ApexJacocoInfoProvider, jacocoInfos)
+	android.SetProvider(ctx, java.BundleProvider, java.BundleInfo{Bundle: a.bundleModuleFile})
 }
 
 func (a *apexBundle) buildCannedFsConfig(ctx android.ModuleContext) android.Path {

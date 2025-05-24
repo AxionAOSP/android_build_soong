@@ -56,6 +56,7 @@ func addPathDepsForProps(ctx BottomUpMutatorContext, props []interface{}) {
 	var pathCommonOsProperties []string
 	var pathHostCommonProperties []string
 	var pathHostFirstProperties []string
+	var pathHostSecondProperties []string
 	for _, ps := range props {
 		pathProperties = append(pathProperties, taggedPropertiesForPropertyStruct(ctx, ps, "path")...)
 		pathDeviceFirstProperties = append(pathDeviceFirstProperties, taggedPropertiesForPropertyStruct(ctx, ps, "path_device_first")...)
@@ -64,6 +65,7 @@ func addPathDepsForProps(ctx BottomUpMutatorContext, props []interface{}) {
 		pathCommonOsProperties = append(pathCommonOsProperties, taggedPropertiesForPropertyStruct(ctx, ps, "path_common_os")...)
 		pathHostCommonProperties = append(pathHostCommonProperties, taggedPropertiesForPropertyStruct(ctx, ps, "path_host_common")...)
 		pathHostFirstProperties = append(pathHostFirstProperties, taggedPropertiesForPropertyStruct(ctx, ps, "path_host_first")...)
+		pathHostSecondProperties = append(pathHostSecondProperties, taggedPropertiesForPropertyStruct(ctx, ps, "path_host_second")...)
 	}
 
 	// Remove duplicates to avoid multiple dependencies.
@@ -74,6 +76,7 @@ func addPathDepsForProps(ctx BottomUpMutatorContext, props []interface{}) {
 	pathCommonOsProperties = FirstUniqueStrings(pathCommonOsProperties)
 	pathHostCommonProperties = FirstUniqueStrings(pathHostCommonProperties)
 	pathHostFirstProperties = FirstUniqueStrings(pathHostFirstProperties)
+	pathHostSecondProperties = FirstUniqueStrings(pathHostSecondProperties)
 
 	// Add dependencies to anything that is a module reference.
 	for _, s := range pathProperties {
@@ -126,6 +129,21 @@ func addPathDepsForProps(ctx BottomUpMutatorContext, props []interface{}) {
 			ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), sourceOrOutputDepTag(m, t), m)
 		}
 	}
+	// properties tagged "path_host_second" get the host 2nd os variant
+	if len(pathHostSecondProperties) > 0 {
+		var targets []Target
+		targets, _ = decodeMultilibTargets("32", ctx.Config().Targets[ctx.Config().BuildOS], false)
+		if len(targets) == 0 {
+			ctx.ModuleErrorf("Could not find a 32 bit host target")
+		} else {
+			for _, s := range pathHostSecondProperties {
+				if m, t := SrcIsModuleWithTag(s); m != "" {
+					ctx.AddVariationDependencies(targets[0].Variations(), sourceOrOutputDepTag(m, t), m)
+				}
+			}
+		}
+	}
+
 	// properties tagged "path_common_os" get the CommonOs variant
 	for _, s := range pathCommonOsProperties {
 		if m, t := SrcIsModuleWithTag(s); m != "" {

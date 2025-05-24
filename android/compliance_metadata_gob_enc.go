@@ -11,16 +11,6 @@ func init() {
 	ComplianceMetadataInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ComplianceMetadataInfo) })
 }
 
-func (r ComplianceMetadataInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r ComplianceMetadataInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -81,11 +71,6 @@ func (r ComplianceMetadataInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *ComplianceMetadataInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *ComplianceMetadataInfo) Decode(buf *bytes.Reader) error {

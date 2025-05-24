@@ -11,16 +11,6 @@ func init() {
 	ApiLevelGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ApiLevel) })
 }
 
-func (r ApiLevel) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r ApiLevel) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -36,11 +26,6 @@ func (r ApiLevel) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *ApiLevel) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *ApiLevel) Decode(buf *bytes.Reader) error {

@@ -11,16 +11,6 @@ func init() {
 	unstableInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(unstableInfo) })
 }
 
-func (r unstableInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r unstableInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -28,11 +18,6 @@ func (r unstableInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *unstableInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *unstableInfo) Decode(buf *bytes.Reader) error {

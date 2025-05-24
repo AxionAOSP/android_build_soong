@@ -159,6 +159,9 @@ type generatorProperties struct {
 	// Same as srcs, but will add dependencies on modules via for host os variation.
 	Host_first_srcs proptools.Configurable[[]string] `android:"path_host_first"`
 
+	// Same as srcs, but will add dependencies on modules via for host 2nd arch os variation.
+	Host_second_srcs proptools.Configurable[[]string] `android:"path_host_second"`
+
 	// input files to exclude
 	Exclude_srcs []string `android:"path,arch_variant"`
 
@@ -519,6 +522,7 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 	srcFiles = append(srcFiles, addLabelsForInputs("device_common_srcs", g.properties.Device_common_srcs.GetOrDefault(ctx, nil), nil)...)
 	srcFiles = append(srcFiles, addLabelsForInputs("common_os_srcs", g.properties.Common_os_srcs.GetOrDefault(ctx, nil), nil)...)
 	srcFiles = append(srcFiles, addLabelsForInputs("host_first_src", g.properties.Host_first_srcs.GetOrDefault(ctx, nil), nil)...)
+	srcFiles = append(srcFiles, addLabelsForInputs("host_second_src", g.properties.Host_second_srcs.GetOrDefault(ctx, nil), nil)...)
 
 	var copyFrom android.Paths
 	var outputFiles android.WritablePaths

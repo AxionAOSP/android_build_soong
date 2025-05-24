@@ -13,16 +13,6 @@ func init() {
 	FuzzPackagedModuleInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(FuzzPackagedModuleInfo) })
 }
 
-func (r FuzzConfigInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r FuzzConfigInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -62,11 +52,6 @@ func (r FuzzConfigInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *FuzzConfigInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *FuzzConfigInfo) Decode(buf *bytes.Reader) error {
@@ -138,16 +123,6 @@ func (r FuzzConfigInfo) GetTypeId() int16 {
 	return FuzzConfigInfoGobRegId
 }
 
-func (r FuzzPackagedModuleInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r FuzzPackagedModuleInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -187,11 +162,6 @@ func (r FuzzPackagedModuleInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *FuzzPackagedModuleInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *FuzzPackagedModuleInfo) Decode(buf *bytes.Reader) error {

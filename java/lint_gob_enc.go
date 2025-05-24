@@ -12,16 +12,6 @@ func init() {
 	LintInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(LintInfo) })
 }
 
-func (r LintInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r LintInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -57,11 +47,6 @@ func (r LintInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *LintInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *LintInfo) Decode(buf *bytes.Reader) error {

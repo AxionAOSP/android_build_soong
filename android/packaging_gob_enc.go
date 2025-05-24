@@ -12,16 +12,6 @@ func init() {
 	PackagingSpecGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(PackagingSpec) })
 }
 
-func (r PackagingSpec) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -103,11 +93,6 @@ func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *PackagingSpec) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *PackagingSpec) Decode(buf *bytes.Reader) error {

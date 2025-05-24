@@ -15,16 +15,6 @@ func init() {
 	testSuiteInstallsInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(testSuiteInstallsInfo) })
 }
 
-func (r TestSuiteInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r TestSuiteInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -109,11 +99,6 @@ func (r TestSuiteInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *TestSuiteInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *TestSuiteInfo) Decode(buf *bytes.Reader) error {
@@ -258,16 +243,6 @@ func (r TestSuiteInfo) GetTypeId() int16 {
 	return TestSuiteInfoGobRegId
 }
 
-func (r TestSuiteSharedLibsInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r TestSuiteSharedLibsInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -280,11 +255,6 @@ func (r TestSuiteSharedLibsInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *TestSuiteSharedLibsInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *TestSuiteSharedLibsInfo) Decode(buf *bytes.Reader) error {
@@ -314,16 +284,6 @@ func (r TestSuiteSharedLibsInfo) GetTypeId() int16 {
 	return TestSuiteSharedLibsInfoGobRegId
 }
 
-func (r MakeNameInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r MakeNameInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -331,11 +291,6 @@ func (r MakeNameInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *MakeNameInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *MakeNameInfo) Decode(buf *bytes.Reader) error {
@@ -355,16 +310,6 @@ func (r MakeNameInfo) GetTypeId() int16 {
 	return MakeNameInfoGobRegId
 }
 
-func (r filePair) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r filePair) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -376,11 +321,6 @@ func (r filePair) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *filePair) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *filePair) Decode(buf *bytes.Reader) error {
@@ -411,16 +351,6 @@ func (r filePair) GetTypeId() int16 {
 	return filePairGobRegId
 }
 
-func (r testSuiteInstallsInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r testSuiteInstallsInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -442,11 +372,6 @@ func (r testSuiteInstallsInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *testSuiteInstallsInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *testSuiteInstallsInfo) Decode(buf *bytes.Reader) error {

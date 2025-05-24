@@ -1114,6 +1114,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	bundleFile := android.PathForModuleOut(ctx, "base.zip")
 	BuildBundleModule(ctx, bundleFile, a.exportPackage, jniJarFile, dexJarFile)
 	a.bundleFile = bundleFile
+	android.SetProvider(ctx, BundleProvider, BundleInfo{Bundle: bundleFile})
 
 	allowlist := a.createPrivappAllowlist(ctx)
 	if allowlist != nil {
@@ -2295,3 +2296,9 @@ func setCommonAppInfo(appInfo *AppInfo, m androidApp) {
 type AppInfos []AppInfo
 
 var AppInfosProvider = blueprint.NewProvider[AppInfos]()
+
+type BundleInfo struct {
+	Bundle android.Path
+}
+
+var BundleProvider = blueprint.NewProvider[BundleInfo]()

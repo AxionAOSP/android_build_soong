@@ -1079,6 +1079,7 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	var res android.Paths
 	if a.androidLibraryProperties.BuildAAR {
 		BuildAAR(ctx, a.aarFile, a.outputFile, a.manifestPath, a.rTxt, res)
+		android.SetProvider(ctx, AARProvider, AARInfo{Aar: a.aarFile})
 	}
 
 	prebuiltJniPackages := android.Paths{}
@@ -1702,3 +1703,9 @@ func (a *AARImport) IDEInfo(ctx android.BaseModuleContext, dpInfo *android.IdeIn
 	dpInfo.Jars = append(dpInfo.Jars, a.implementationJarFile.String(), a.rJar.String(), a.aarPath.String())
 	dpInfo.Static_libs = append(dpInfo.Static_libs, a.properties.Static_libs.GetOrDefault(ctx, nil)...)
 }
+
+type AARInfo struct {
+	Aar android.Path
+}
+
+var AARProvider = blueprint.NewProvider[AARInfo]()

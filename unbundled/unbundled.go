@@ -109,6 +109,38 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		targetProductPrefix += "-"
 	}
 
+	for _, app := range appModules {
+		name := android.OtherModuleNameWithPossibleOverride(ctx, app)
+		if bundleInfo, ok := android.OtherModuleProvider(ctx, app, java.BundleProvider); ok {
+			ctx.DistForGoalWithFilename("apps_only", bundleInfo.Bundle, name+"-base.zip")
+		}
+		if info, ok := android.OtherModuleProvider(ctx, app, android.InstallFilesProvider); ok {
+			for _, file := range info.InstallFiles {
+				// The "apex" partition is a fake partition just to create files in
+				// out/target/product/<device>/apex. Including it leads to duplicate rule errors as
+				// there are multiple apexes with files installed at the same location within them.
+				if file.Partition() == "apex" {
+					continue
+				}
+
+				ctx.DistForGoal("apps_only", file)
+			}
+			if len(info.InstallFiles) == 0 {
+				outputFiles, err := android.OutputFilesForModuleOrErr(ctx, app, "")
+				// OutputFilesForModuleOrErr can error out when the module doesn't provide any
+				// output files. We don't care about that, just dist files when they're provided.
+				if err == nil {
+					for _, file := range outputFiles {
+						ctx.DistForGoal("apps_only", file)
+					}
+				}
+				if aarInfo, ok := android.OtherModuleProvider(ctx, app, java.AARProvider); ok {
+					ctx.DistForGoal("apps_only", aarInfo.Aar)
+				}
+			}
+		}
+	}
+
 	symbolsZip := android.PathForOutput(ctx, "unbundled_singleton", targetProductPrefix+"symbols.zip")
 	symbolsMapping := android.PathForOutput(ctx, "unbundled_singleton", targetProductPrefix+"symbols-mapping.textproto")
 	android.BuildSymbolsZip(ctx, appModules, symbolsZip, symbolsMapping)

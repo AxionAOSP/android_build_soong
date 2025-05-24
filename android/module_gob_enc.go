@@ -19,16 +19,6 @@ func init() {
 	OutputFilesInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(OutputFilesInfo) })
 }
 
-func (r Dist) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r Dist) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -101,11 +91,6 @@ func (r Dist) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *Dist) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *Dist) Decode(buf *bytes.Reader) error {
@@ -211,16 +196,6 @@ var DistGobRegId int16
 
 func (r Dist) GetTypeId() int16 {
 	return DistGobRegId
-}
-
-func (r InstallFilesInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }
 
 func (r InstallFilesInfo) Encode(buf *bytes.Buffer) error {
@@ -367,11 +342,6 @@ func (r InstallFilesInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *InstallFilesInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *InstallFilesInfo) Decode(buf *bytes.Reader) error {
@@ -622,16 +592,6 @@ func (r InstallFilesInfo) GetTypeId() int16 {
 	return InstallFilesInfoGobRegId
 }
 
-func (r ModuleBuildTargetsInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r ModuleBuildTargetsInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -647,11 +607,6 @@ func (r ModuleBuildTargetsInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *ModuleBuildTargetsInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *ModuleBuildTargetsInfo) Decode(buf *bytes.Reader) error {
@@ -685,16 +640,6 @@ var ModuleBuildTargetsInfoGobRegId int16
 
 func (r ModuleBuildTargetsInfo) GetTypeId() int16 {
 	return ModuleBuildTargetsInfoGobRegId
-}
-
-func (r CommonModuleInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }
 
 func (r CommonModuleInfo) Encode(buf *bytes.Buffer) error {
@@ -891,11 +836,6 @@ func (r CommonModuleInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *CommonModuleInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *CommonModuleInfo) Decode(buf *bytes.Reader) error {
@@ -1173,16 +1113,6 @@ func (r CommonModuleInfo) GetTypeId() int16 {
 	return CommonModuleInfoGobRegId
 }
 
-func (r ApiLevelOrPlatform) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r ApiLevelOrPlatform) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -1200,11 +1130,6 @@ func (r ApiLevelOrPlatform) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *ApiLevelOrPlatform) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *ApiLevelOrPlatform) Decode(buf *bytes.Reader) error {
@@ -1236,16 +1161,6 @@ func (r ApiLevelOrPlatform) GetTypeId() int16 {
 	return ApiLevelOrPlatformGobRegId
 }
 
-func (r HostToolProviderInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r HostToolProviderInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -1253,11 +1168,6 @@ func (r HostToolProviderInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *HostToolProviderInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *HostToolProviderInfo) Decode(buf *bytes.Reader) error {
@@ -1274,16 +1184,6 @@ var HostToolProviderInfoGobRegId int16
 
 func (r HostToolProviderInfo) GetTypeId() int16 {
 	return HostToolProviderInfoGobRegId
-}
-
-func (r katiInstall) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }
 
 func (r katiInstall) Encode(buf *bytes.Buffer) error {
@@ -1333,11 +1233,6 @@ func (r katiInstall) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *katiInstall) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *katiInstall) Decode(buf *bytes.Reader) error {
@@ -1422,16 +1317,6 @@ func (r katiInstall) GetTypeId() int16 {
 	return katiInstallGobRegId
 }
 
-func (r extraFilesZip) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r extraFilesZip) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -1443,11 +1328,6 @@ func (r extraFilesZip) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *extraFilesZip) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *extraFilesZip) Decode(buf *bytes.Reader) error {
@@ -1472,16 +1352,6 @@ var extraFilesZipGobRegId int16
 
 func (r extraFilesZip) GetTypeId() int16 {
 	return extraFilesZipGobRegId
-}
-
-func (r OutputFilesInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }
 
 func (r OutputFilesInfo) Encode(buf *bytes.Buffer) error {
@@ -1513,11 +1383,6 @@ func (r OutputFilesInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *OutputFilesInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *OutputFilesInfo) Decode(buf *bytes.Reader) error {

@@ -12,16 +12,6 @@ func init() {
 	BaseJarJarProviderDataGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(BaseJarJarProviderData) })
 }
 
-func (r JarJarProviderData) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r JarJarProviderData) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -37,11 +27,6 @@ func (r JarJarProviderData) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *JarJarProviderData) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *JarJarProviderData) Decode(buf *bytes.Reader) error {
@@ -78,16 +63,6 @@ func (r JarJarProviderData) GetTypeId() int16 {
 	return JarJarProviderDataGobRegId
 }
 
-func (r BaseJarJarProviderData) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r BaseJarJarProviderData) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -95,11 +70,6 @@ func (r BaseJarJarProviderData) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *BaseJarJarProviderData) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *BaseJarJarProviderData) Decode(buf *bytes.Reader) error {

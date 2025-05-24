@@ -14,16 +14,6 @@ func init() {
 	ModuleInfoJSONInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ModuleInfoJSONInfo) })
 }
 
-func (r CoreModuleInfoJSON) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r CoreModuleInfoJSON) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -98,11 +88,6 @@ func (r CoreModuleInfoJSON) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *CoreModuleInfoJSON) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *CoreModuleInfoJSON) Decode(buf *bytes.Reader) error {
@@ -230,16 +215,6 @@ var CoreModuleInfoJSONGobRegId int16
 
 func (r CoreModuleInfoJSON) GetTypeId() int16 {
 	return CoreModuleInfoJSONGobRegId
-}
-
-func (r ExtraModuleInfoJSON) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }
 
 func (r ExtraModuleInfoJSON) Encode(buf *bytes.Buffer) error {
@@ -453,11 +428,6 @@ func (r ExtraModuleInfoJSON) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *ExtraModuleInfoJSON) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *ExtraModuleInfoJSON) Decode(buf *bytes.Reader) error {
@@ -807,16 +777,6 @@ func (r ExtraModuleInfoJSON) GetTypeId() int16 {
 	return ExtraModuleInfoJSONGobRegId
 }
 
-func (r ModuleInfoJSON) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r ModuleInfoJSON) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -828,11 +788,6 @@ func (r ModuleInfoJSON) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *ModuleInfoJSON) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *ModuleInfoJSON) Decode(buf *bytes.Reader) error {
@@ -855,16 +810,6 @@ func (r ModuleInfoJSON) GetTypeId() int16 {
 	return ModuleInfoJSONGobRegId
 }
 
-func (r ModuleInfoJSONInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r ModuleInfoJSONInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -883,11 +828,6 @@ func (r ModuleInfoJSONInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *ModuleInfoJSONInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *ModuleInfoJSONInfo) Decode(buf *bytes.Reader) error {

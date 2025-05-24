@@ -12,16 +12,6 @@ func init() {
 	AndroidMkInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(AndroidMkInfo) })
 }
 
-func (r AndroidMkProviderInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r AndroidMkProviderInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -38,11 +28,6 @@ func (r AndroidMkProviderInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *AndroidMkProviderInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *AndroidMkProviderInfo) Decode(buf *bytes.Reader) error {
@@ -73,16 +58,6 @@ var AndroidMkProviderInfoGobRegId int16
 
 func (r AndroidMkProviderInfo) GetTypeId() int16 {
 	return AndroidMkProviderInfoGobRegId
-}
-
-func (r AndroidMkInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }
 
 func (r AndroidMkInfo) Encode(buf *bytes.Buffer) error {
@@ -183,11 +158,6 @@ func (r AndroidMkInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *AndroidMkInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *AndroidMkInfo) Decode(buf *bytes.Reader) error {

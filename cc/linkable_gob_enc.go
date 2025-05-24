@@ -14,16 +14,6 @@ func init() {
 	ImplementationDepInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ImplementationDepInfo) })
 }
 
-func (r SharedLibraryInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r SharedLibraryInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -51,11 +41,6 @@ func (r SharedLibraryInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *SharedLibraryInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *SharedLibraryInfo) Decode(buf *bytes.Reader) error {
@@ -99,16 +84,6 @@ func (r SharedLibraryInfo) GetTypeId() int16 {
 	return SharedLibraryInfoGobRegId
 }
 
-func (r StaticLibraryInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r StaticLibraryInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -137,11 +112,6 @@ func (r StaticLibraryInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *StaticLibraryInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *StaticLibraryInfo) Decode(buf *bytes.Reader) error {
@@ -194,16 +164,6 @@ func (r StaticLibraryInfo) GetTypeId() int16 {
 	return StaticLibraryInfoGobRegId
 }
 
-func (r ImplementationDepInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r ImplementationDepInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -211,11 +171,6 @@ func (r ImplementationDepInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *ImplementationDepInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *ImplementationDepInfo) Decode(buf *bytes.Reader) error {

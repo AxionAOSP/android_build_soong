@@ -12,16 +12,6 @@ func init() {
 	ObjectsGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(Objects) })
 }
 
-func (r Objects) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r Objects) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -79,11 +69,6 @@ func (r Objects) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *Objects) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *Objects) Decode(buf *bytes.Reader) error {

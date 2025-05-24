@@ -32,16 +32,6 @@ func init() {
 	InstallPairGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(InstallPair) })
 }
 
-func (r CcMakeVarsInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r CcMakeVarsInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -57,11 +47,6 @@ func (r CcMakeVarsInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *CcMakeVarsInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *CcMakeVarsInfo) Decode(buf *bytes.Reader) error {
@@ -89,16 +74,6 @@ var CcMakeVarsInfoGobRegId int16
 
 func (r CcMakeVarsInfo) GetTypeId() int16 {
 	return CcMakeVarsInfoGobRegId
-}
-
-func (r CcObjectInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }
 
 func (r CcObjectInfo) Encode(buf *bytes.Buffer) error {
@@ -131,11 +106,6 @@ func (r CcObjectInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *CcObjectInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *CcObjectInfo) Decode(buf *bytes.Reader) error {
@@ -204,16 +174,6 @@ func (r CcObjectInfo) GetTypeId() int16 {
 	return CcObjectInfoGobRegId
 }
 
-func (r AidlInterfaceInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r AidlInterfaceInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -243,11 +203,6 @@ func (r AidlInterfaceInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *AidlInterfaceInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *AidlInterfaceInfo) Decode(buf *bytes.Reader) error {
@@ -302,16 +257,6 @@ func (r AidlInterfaceInfo) GetTypeId() int16 {
 	return AidlInterfaceInfoGobRegId
 }
 
-func (r CompilerInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r CompilerInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -347,11 +292,6 @@ func (r CompilerInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *CompilerInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *CompilerInfo) Decode(buf *bytes.Reader) error {
@@ -413,16 +353,6 @@ var CompilerInfoGobRegId int16
 
 func (r CompilerInfo) GetTypeId() int16 {
 	return CompilerInfoGobRegId
-}
-
-func (r LinkerInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }
 
 func (r LinkerInfo) Encode(buf *bytes.Buffer) error {
@@ -553,11 +483,6 @@ func (r LinkerInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *LinkerInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *LinkerInfo) Decode(buf *bytes.Reader) error {
@@ -744,16 +669,6 @@ func (r LinkerInfo) GetTypeId() int16 {
 	return LinkerInfoGobRegId
 }
 
-func (r BinaryDecoratorInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r BinaryDecoratorInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -765,11 +680,6 @@ func (r BinaryDecoratorInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *BinaryDecoratorInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *BinaryDecoratorInfo) Decode(buf *bytes.Reader) error {
@@ -792,16 +702,6 @@ var BinaryDecoratorInfoGobRegId int16
 
 func (r BinaryDecoratorInfo) GetTypeId() int16 {
 	return BinaryDecoratorInfoGobRegId
-}
-
-func (r LibraryDecoratorInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }
 
 func (r LibraryDecoratorInfo) Encode(buf *bytes.Buffer) error {
@@ -869,11 +769,6 @@ func (r LibraryDecoratorInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *LibraryDecoratorInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *LibraryDecoratorInfo) Decode(buf *bytes.Reader) error {
@@ -990,16 +885,6 @@ func (r LibraryDecoratorInfo) GetTypeId() int16 {
 	return LibraryDecoratorInfoGobRegId
 }
 
-func (r SnapshotInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r SnapshotInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -1007,11 +892,6 @@ func (r SnapshotInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *SnapshotInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *SnapshotInfo) Decode(buf *bytes.Reader) error {
@@ -1031,16 +911,6 @@ func (r SnapshotInfo) GetTypeId() int16 {
 	return SnapshotInfoGobRegId
 }
 
-func (r TestBinaryInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r TestBinaryInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -1048,11 +918,6 @@ func (r TestBinaryInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *TestBinaryInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *TestBinaryInfo) Decode(buf *bytes.Reader) error {
@@ -1072,24 +937,9 @@ func (r TestBinaryInfo) GetTypeId() int16 {
 	return TestBinaryInfoGobRegId
 }
 
-func (r BenchmarkDecoratorInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r BenchmarkDecoratorInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 	return err
-}
-
-func (r *BenchmarkDecoratorInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *BenchmarkDecoratorInfo) Decode(buf *bytes.Reader) error {
@@ -1102,16 +952,6 @@ var BenchmarkDecoratorInfoGobRegId int16
 
 func (r BenchmarkDecoratorInfo) GetTypeId() int16 {
 	return BenchmarkDecoratorInfoGobRegId
-}
-
-func (r StubDecoratorInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }
 
 func (r StubDecoratorInfo) Encode(buf *bytes.Buffer) error {
@@ -1138,11 +978,6 @@ func (r StubDecoratorInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *StubDecoratorInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *StubDecoratorInfo) Decode(buf *bytes.Reader) error {
@@ -1192,16 +1027,6 @@ func (r StubDecoratorInfo) GetTypeId() int16 {
 	return StubDecoratorInfoGobRegId
 }
 
-func (r ObjectLinkerInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r ObjectLinkerInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -1227,11 +1052,6 @@ func (r ObjectLinkerInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *ObjectLinkerInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *ObjectLinkerInfo) Decode(buf *bytes.Reader) error {
@@ -1284,16 +1104,6 @@ func (r ObjectLinkerInfo) GetTypeId() int16 {
 	return ObjectLinkerInfoGobRegId
 }
 
-func (r PrebuiltLibraryLinkerInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r PrebuiltLibraryLinkerInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -1301,11 +1111,6 @@ func (r PrebuiltLibraryLinkerInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *PrebuiltLibraryLinkerInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *PrebuiltLibraryLinkerInfo) Decode(buf *bytes.Reader) error {
@@ -1325,16 +1130,6 @@ func (r PrebuiltLibraryLinkerInfo) GetTypeId() int16 {
 	return PrebuiltLibraryLinkerInfoGobRegId
 }
 
-func (r LibraryInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r LibraryInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -1351,11 +1146,6 @@ func (r LibraryInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *LibraryInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *LibraryInfo) Decode(buf *bytes.Reader) error {
@@ -1390,16 +1180,6 @@ func (r LibraryInfo) GetTypeId() int16 {
 	return LibraryInfoGobRegId
 }
 
-func (r InstallerInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r InstallerInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -1413,11 +1193,6 @@ func (r InstallerInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *InstallerInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *InstallerInfo) Decode(buf *bytes.Reader) error {
@@ -1442,16 +1217,6 @@ var InstallerInfoGobRegId int16
 
 func (r InstallerInfo) GetTypeId() int16 {
 	return InstallerInfoGobRegId
-}
-
-func (r LocalOrGlobalFlagsInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }
 
 func (r LocalOrGlobalFlagsInfo) Encode(buf *bytes.Buffer) error {
@@ -1493,11 +1258,6 @@ func (r LocalOrGlobalFlagsInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *LocalOrGlobalFlagsInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *LocalOrGlobalFlagsInfo) Decode(buf *bytes.Reader) error {
@@ -1572,16 +1332,6 @@ func (r LocalOrGlobalFlagsInfo) GetTypeId() int16 {
 	return LocalOrGlobalFlagsInfoGobRegId
 }
 
-func (r SanitizeInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r SanitizeInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -1593,11 +1343,6 @@ func (r SanitizeInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *SanitizeInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *SanitizeInfo) Decode(buf *bytes.Reader) error {
@@ -1621,16 +1366,6 @@ func (r SanitizeInfo) GetTypeId() int16 {
 	return SanitizeInfoGobRegId
 }
 
-func (r StlInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r StlInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -1644,11 +1379,6 @@ func (r StlInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *StlInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *StlInfo) Decode(buf *bytes.Reader) error {
@@ -1674,16 +1404,6 @@ var StlInfoGobRegId int16
 
 func (r StlInfo) GetTypeId() int16 {
 	return StlInfoGobRegId
-}
-
-func (r CcInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }
 
 func (r CcInfo) Encode(buf *bytes.Buffer) error {
@@ -1835,11 +1555,6 @@ func (r CcInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *CcInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *CcInfo) Decode(buf *bytes.Reader) error {
@@ -2046,16 +1761,6 @@ var CcInfoGobRegId int16
 
 func (r CcInfo) GetTypeId() int16 {
 	return CcInfoGobRegId
-}
-
-func (r LinkableInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }
 
 func (r LinkableInfo) Encode(buf *bytes.Buffer) error {
@@ -2272,11 +1977,6 @@ func (r LinkableInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *LinkableInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *LinkableInfo) Decode(buf *bytes.Reader) error {
@@ -2579,16 +2279,6 @@ func (r LinkableInfo) GetTypeId() int16 {
 	return LinkableInfoGobRegId
 }
 
-func (r InstallPair) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r InstallPair) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -2600,11 +2290,6 @@ func (r InstallPair) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *InstallPair) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *InstallPair) Decode(buf *bytes.Reader) error {

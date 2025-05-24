@@ -11,16 +11,6 @@ func init() {
 	SdkMemberTypeBaseGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(SdkMemberTypeBase) })
 }
 
-func (r SdkMemberTypeBase) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r SdkMemberTypeBase) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -92,11 +82,6 @@ func (r SdkMemberTypeBase) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *SdkMemberTypeBase) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *SdkMemberTypeBase) Decode(buf *bytes.Reader) error {

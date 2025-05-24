@@ -11,16 +11,6 @@ func init() {
 	ProguardSpecInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ProguardSpecInfo) })
 }
 
-func (r ProguardSpecInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r ProguardSpecInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -36,11 +26,6 @@ func (r ProguardSpecInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *ProguardSpecInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *ProguardSpecInfo) Decode(buf *bytes.Reader) error {

@@ -12,16 +12,6 @@ func init() {
 	SymbolicOutputInfosGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(SymbolicOutputInfos) })
 }
 
-func (r SymbolicOutputInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r SymbolicOutputInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -37,11 +27,6 @@ func (r SymbolicOutputInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *SymbolicOutputInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *SymbolicOutputInfo) Decode(buf *bytes.Reader) error {
@@ -72,16 +57,6 @@ func (r SymbolicOutputInfo) GetTypeId() int16 {
 	return SymbolicOutputInfoGobRegId
 }
 
-func (r SymbolicOutputInfos) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r SymbolicOutputInfos) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -100,11 +75,6 @@ func (r SymbolicOutputInfos) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *SymbolicOutputInfos) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *SymbolicOutputInfos) Decode(buf *bytes.Reader) error {

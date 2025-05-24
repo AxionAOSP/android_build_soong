@@ -11,16 +11,6 @@ func init() {
 	LogtagsInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(LogtagsInfo) })
 }
 
-func (r LogtagsInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r LogtagsInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -33,11 +23,6 @@ func (r LogtagsInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *LogtagsInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *LogtagsInfo) Decode(buf *bytes.Reader) error {

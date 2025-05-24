@@ -14,16 +14,6 @@ func init() {
 	aconfigPropagatingDeclarationsInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(aconfigPropagatingDeclarationsInfo) })
 }
 
-func (r AconfigDeclarationsProviderData) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r AconfigDeclarationsProviderData) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -47,11 +37,6 @@ func (r AconfigDeclarationsProviderData) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *AconfigDeclarationsProviderData) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *AconfigDeclarationsProviderData) Decode(buf *bytes.Reader) error {
@@ -97,16 +82,6 @@ func (r AconfigDeclarationsProviderData) GetTypeId() int16 {
 	return AconfigDeclarationsProviderDataGobRegId
 }
 
-func (r AconfigReleaseDeclarationsProviderData) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r AconfigReleaseDeclarationsProviderData) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -122,11 +97,6 @@ func (r AconfigReleaseDeclarationsProviderData) Encode(buf *bytes.Buffer) error 
 		}
 	}
 	return err
-}
-
-func (r *AconfigReleaseDeclarationsProviderData) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *AconfigReleaseDeclarationsProviderData) Decode(buf *bytes.Reader) error {
@@ -162,16 +132,6 @@ func (r AconfigReleaseDeclarationsProviderData) GetTypeId() int16 {
 	return AconfigReleaseDeclarationsProviderDataGobRegId
 }
 
-func (r ModeInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r ModeInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -183,11 +143,6 @@ func (r ModeInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *ModeInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *ModeInfo) Decode(buf *bytes.Reader) error {
@@ -210,16 +165,6 @@ var ModeInfoGobRegId int16
 
 func (r ModeInfo) GetTypeId() int16 {
 	return ModeInfoGobRegId
-}
-
-func (r aconfigPropagatingDeclarationsInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }
 
 func (r aconfigPropagatingDeclarationsInfo) Encode(buf *bytes.Buffer) error {
@@ -254,11 +199,6 @@ func (r aconfigPropagatingDeclarationsInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *aconfigPropagatingDeclarationsInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *aconfigPropagatingDeclarationsInfo) Decode(buf *bytes.Reader) error {

@@ -3152,6 +3152,12 @@ func OutputFileForModule(ctx PathContext, module ModuleOrProxy, tag string) Path
 	return paths[0]
 }
 
+// OutputFilesForModuleOrErr is the same as OutputFilesForModule except that it returns the
+// error instead of reporting it to the context
+func OutputFilesForModuleOrErr(ctx PathContext, module ModuleOrProxy, tag string) (Paths, error) {
+	return outputFilesForModule(ctx, module, tag)
+}
+
 type OutputFilesProviderModuleContext interface {
 	OtherModuleProviderContext
 	Module() Module

@@ -14,16 +14,6 @@ func init() {
 	TargetGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(Target) })
 }
 
-func (r Arch) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r Arch) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -57,11 +47,6 @@ func (r Arch) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *Arch) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *Arch) Decode(buf *bytes.Reader) error {
@@ -120,16 +105,6 @@ func (r Arch) GetTypeId() int16 {
 	return ArchGobRegId
 }
 
-func (r ArchType) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r ArchType) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -145,11 +120,6 @@ func (r ArchType) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *ArchType) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *ArchType) Decode(buf *bytes.Reader) error {
@@ -179,16 +149,6 @@ func (r ArchType) GetTypeId() int16 {
 	return ArchTypeGobRegId
 }
 
-func (r OsType) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r OsType) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -208,11 +168,6 @@ func (r OsType) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *OsType) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *OsType) Decode(buf *bytes.Reader) error {
@@ -251,16 +206,6 @@ func (r OsType) GetTypeId() int16 {
 	return OsTypeGobRegId
 }
 
-func (r Target) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r Target) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -288,11 +233,6 @@ func (r Target) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	return err
-}
-
-func (r *Target) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *Target) Decode(buf *bytes.Reader) error {

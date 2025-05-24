@@ -12,16 +12,6 @@ func init() {
 	LicensesInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(LicensesInfo) })
 }
 
-func (r applicableLicensesPropertyImpl) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r applicableLicensesPropertyImpl) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -44,11 +34,6 @@ func (r applicableLicensesPropertyImpl) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *applicableLicensesPropertyImpl) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *applicableLicensesPropertyImpl) Decode(buf *bytes.Reader) error {
@@ -91,16 +76,6 @@ func (r applicableLicensesPropertyImpl) GetTypeId() int16 {
 	return applicableLicensesPropertyImplGobRegId
 }
 
-func (r LicensesInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r LicensesInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -113,11 +88,6 @@ func (r LicensesInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 	return err
-}
-
-func (r *LicensesInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
 }
 
 func (r *LicensesInfo) Decode(buf *bytes.Reader) error {
