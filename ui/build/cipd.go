@@ -53,33 +53,35 @@ func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 
 	cipdArgs := []string{"proxy", "-proxy-policy", cipdProxyPolicyPath}
 
-	// Determine RBE authentication mechanism and propagate to CIPD flags.
-	authType, authValue := config.rbeAuth()
-	switch authType {
-	case "RBE_credential_file":
-		cipdArgs = append(cipdArgs, "-service-account-json", authValue)
-	case "RBE_use_google_prod_creds":
-		helperPath := filepath.Join(config.rbeDir(), "credshelper")
+	if config.UseRBE() {
+		// Determine RBE authentication mechanism and propagate to CIPD flags.
+		authType, authValue := config.rbeAuth()
+		switch authType {
+		case "RBE_credential_file":
+			cipdArgs = append(cipdArgs, "-service-account-json", authValue)
+		case "RBE_use_google_prod_creds":
+			helperPath := filepath.Join(config.rbeDir(), "credshelper")
 
-		var credHelperArgsParts []string
-		// RBE_credentials_helper_args contains space-separated arguments for the helper
-		// and need to be formatted as repeated 'args:"..."' for the -credential-helper spec.
-		// e.g. "--f=foo --b=bar" -> 'args:"--f=foo" args:"--b=bar"'.
-		if rbeArgsStr, ok := config.environ.Get("RBE_credentials_helper_args"); ok && rbeArgsStr != "" {
-			argList := strings.Fields(rbeArgsStr)
-			for _, arg := range argList {
-				credHelperArgsParts = append(credHelperArgsParts, fmt.Sprintf("args:%q", arg))
+			var credHelperArgsParts []string
+			// RBE_credentials_helper_args contains space-separated arguments for the helper
+			// and need to be formatted as repeated 'args:"..."' for the -credential-helper spec.
+			// e.g. "--f=foo --b=bar" -> 'args:"--f=foo" args:"--b=bar"'.
+			if rbeArgsStr, ok := config.environ.Get("RBE_credentials_helper_args"); ok && rbeArgsStr != "" {
+				argList := strings.Fields(rbeArgsStr)
+				for _, arg := range argList {
+					credHelperArgsParts = append(credHelperArgsParts, fmt.Sprintf("args:%q", arg))
+				}
+			} else {
+				credHelperArgsParts = append(credHelperArgsParts, fmt.Sprintf("args:%q", "--auth_source=automaticAuth"))
+				credHelperArgsParts = append(credHelperArgsParts, fmt.Sprintf("args:%q", "--gcert_refresh_timeout=20"))
 			}
-		} else {
-			credHelperArgsParts = append(credHelperArgsParts, fmt.Sprintf("args:%q", "--auth_source=automaticAuth"))
-			credHelperArgsParts = append(credHelperArgsParts, fmt.Sprintf("args:%q", "--gcert_refresh_timeout=20"))
+			helperSpec := fmt.Sprintf("protocol:RECLIENT exec:'%s' %s", helperPath, strings.Join(credHelperArgsParts, " "))
+			cipdArgs = append(cipdArgs, "-credential-helper", helperSpec)
+		case "RBE_use_application_default_credentials", "RBE_use_gce_credentials":
+			fallthrough
+		default:
+			cipdArgs = append(cipdArgs, "-application-default-credentials=always")
 		}
-		helperSpec := fmt.Sprintf("protocol:RECLIENT exec:'%s' %s", helperPath, strings.Join(credHelperArgsParts, " "))
-		cipdArgs = append(cipdArgs, "-credential-helper", helperSpec)
-	case "RBE_use_application_default_credentials", "RBE_use_gce_credentials":
-		fallthrough
-	default:
-		cipdArgs = append(cipdArgs, "-application-default-credentials=always")
 	}
 
 	cmd := Command(ctx, config, "cipd", cipdPath(config), cipdArgs...)
