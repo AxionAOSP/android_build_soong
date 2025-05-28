@@ -787,7 +787,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 	cleanPhonyPath := android.PathForModuleOut(ctx, "dex", dexParams.jarName+"-partialcompileclean").OutputPath
 	outDir := android.PathForModuleOut(ctx, "dex")
 
-	zipFlags := "--ignore_missing_files"
+	zipFlags := "--ignore_missing_files --quiet"
 	if proptools.Bool(d.dexProperties.Uncompress_dex) {
 		zipFlags += " -L 0"
 	}

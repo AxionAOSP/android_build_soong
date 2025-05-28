@@ -189,7 +189,7 @@ func ReleaseConfigsFactory() (c *ReleaseConfigs) {
 	releaseAconfigValueSets := FlagArtifact{
 		FlagDeclaration: &rc_proto.FlagDeclaration{
 			Name:        proto.String("RELEASE_ACONFIG_VALUE_SETS"),
-			Namespace:   proto.String("android_UNKNOWN"),
+			Namespace:   proto.String("build"),
 			Description: proto.String("Aconfig value sets assembled by release-config"),
 			Workflow:    &workflowManual,
 			Containers:  []string{"system", "system_ext", "product", "vendor"},

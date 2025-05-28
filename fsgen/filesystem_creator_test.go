@@ -22,6 +22,7 @@ import (
 	"android/soong/etc"
 	"android/soong/filesystem"
 	"android/soong/java"
+	"android/soong/phony"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -718,4 +719,76 @@ override_android_app {
 	android.AssertBoolEquals(t, "Override app should be added to the same partition as the `base`", true, overrideAppInSystemExt)
 	_, overrideAppInSystemExt = (*resolvedDeps)["system_ext_override_app_in_namespace"]
 	android.AssertBoolEquals(t, "Override app should be added to the same partition as the `base`", true, overrideAppInSystemExt)
+}
+
+func TestCrossPartitionRequiredModules(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		android.PrepareForIntegrationTestWithAndroid,
+		android.PrepareForTestWithAndroidBuildComponents,
+		android.PrepareForTestWithAllowMissingDependencies,
+		prepareForTestWithFsgenBuildComponents,
+		java.PrepareForTestWithJavaBuildComponents,
+		prepareMockRamdiksNodeList,
+		android.PrepareForTestWithNamespace,
+		phony.PrepareForTestWithPhony,
+		etc.PrepareForTestWithPrebuiltEtc,
+		android.FixtureMergeMockFs(android.MockFS{
+			"external/avb/test/data/testkey_rsa4096.pem": nil,
+			"mynamespace/default-permissions.xml":        nil,
+			"build/soong/fsgen/Android.bp": []byte(`
+			soong_filesystem_creator {
+				name: "foo",
+			}`),
+			"mynamespace/Android.bp": []byte(`
+			soong_namespace{
+			}
+			android_app {
+				name: "some_app_in_namespace",
+				product_specific: true,
+				required: ["some-permissions"],
+				platform_apis: true,
+			}
+			prebuilt_etc {
+				name: "some-permissions",
+				sub_dir: "default-permissions",
+				src: "default-permissions.xml",
+				filename_from_src: true,
+				system_ext_specific: true,
+			}
+`),
+		}),
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.TestProductVariables.NamespacesToExport = []string{"mynamespace"}
+			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackages = []string{"some_app_in_namespace"}
+		}),
+	).RunTestWithBp(t, `
+		phony {
+			name: "com.android.vndk.v34",
+		}
+		phony {
+			name: "com.android.vndk.v33",
+		}
+		phony {
+			name: "com.android.vndk.v32",
+		}
+		phony {
+			name: "com.android.vndk.v31",
+		}
+		phony {
+			name: "com.android.vndk.v30",
+		}
+		phony {
+			name: "file_contexts_bin_gen",
+		}
+		phony {
+			name: "notice_xml_system_ext",
+		}
+	`)
+	systemExtFilesystemModule := result.ModuleForTests(t, "test_product_generated_system_ext_image", "android_common")
+	systemExtStagingDirImplicitDeps := systemExtFilesystemModule.Output("staging_dir.timestamp").Implicits
+	android.AssertStringDoesContain(t,
+		"system_ext staging dir expected to contain cross partition require deps",
+		strings.Join(systemExtStagingDirImplicitDeps.Strings(), " "),
+		"mynamespace/some-permissions/android_arm64_armv8-a/default-permissions.xml",
+	)
 }

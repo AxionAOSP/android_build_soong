@@ -258,7 +258,8 @@ func buildComplianceMetadataProvider(ctx *moduleContext, m *ModuleBase) {
 			ctx.ModuleType() == "libbpf_prog" ||
 			ctx.ModuleType() == "avbpubkey__loadHookModule" ||
 			(ctx.ModuleType() == "prebuilt_etc" &&
-				slices.Contains([]string{"preloaded-classes", "public.libraries.android.txt"}, ctx.ModuleName())) {
+				slices.Contains([]string{"preloaded-classes", "public.libraries.android.txt"}, ctx.ModuleName())) ||
+			(ctx.ModuleType() == "prebuilt_root" && ctx.ModuleName() == "init.environ.rc-soong") {
 			for _, s := range ctx.packagingSpecs {
 				installed = append(installed, s.fullInstallPath)
 			}

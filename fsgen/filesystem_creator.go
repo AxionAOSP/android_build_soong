@@ -571,6 +571,9 @@ func partitionSpecificFsProps(ctx android.EarlyModuleContext, partitions allGene
 		if systemExtName := partitions.nameForType("system_ext"); systemExtName != "" {
 			fsProps.Android_filesystem_deps.System_ext = proptools.StringPtr(systemExtName)
 		}
+		if productName := partitions.nameForType("product"); productName != "" {
+			fsProps.Android_filesystem_deps.Product = proptools.StringPtr(productName)
+		}
 		fsProps.Security_patch = proptools.StringPtr(partitionVars.VendorSecurityPatch)
 		fsProps.Stem = proptools.StringPtr("vendor.img")
 	case "odm":

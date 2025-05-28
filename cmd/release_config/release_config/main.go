@@ -55,7 +55,7 @@ func main() {
 	flag.BoolVar(&allMake, "all_make", false, "write makefiles for all release configs")
 	flag.BoolVar(&inheritance, "inheritance", true, "write inheritance graph")
 	flag.BoolVar(&useBuildVar, "use_get_build_var", false, "use get_build_var PRODUCT_RELEASE_CONFIG_MAPS")
-	flag.BoolVar(&guard, "guard", true, "whether to guard with RELEASE_BUILD_FLAGS_IN_PROTOBUF")
+	flag.BoolVar(&guard, "guard", false, "obsolete")
 
 	flag.Parse()
 
@@ -80,13 +80,6 @@ func main() {
 	}
 
 	makefilePath := filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.varmk", product, targetRelease))
-	useProto, ok := config.FlagArtifacts["RELEASE_BUILD_FLAGS_IN_PROTOBUF"]
-	if guard && (!ok || rc_lib.MarshalValue(useProto.Value) == "") {
-		// We were told to guard operation and either we have no build flag, or it is False.
-		// Write an empty file so that release_config.mk will use the old process.
-		os.WriteFile(makefilePath, []byte{}, 0644)
-		return
-	}
 	// Write the makefile where release_config.mk is going to look for it.
 	err = config.WriteMakefile(makefilePath, targetRelease, configs)
 	if err != nil {

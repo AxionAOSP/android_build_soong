@@ -265,6 +265,7 @@ type FilesystemProperties struct {
 type AndroidFilesystemDeps struct {
 	System     *string
 	System_ext *string
+	Product    *string
 }
 
 // Additional properties required to generate erofs FS partitions.
@@ -365,6 +366,12 @@ func (f *filesystem) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 	if f.properties.Android_filesystem_deps.System_ext != nil {
 		ctx.AddDependency(ctx.Module(), interPartitionDependencyTag, proptools.String(f.properties.Android_filesystem_deps.System_ext))
+	}
+	if f.properties.Android_filesystem_deps.Product != nil {
+		if f.PartitionType() != "vendor" {
+			ctx.ModuleErrorf("Product cannot be set for non-vendor partitions.")
+		}
+		ctx.AddDependency(ctx.Module(), interPartitionDependencyTag, proptools.String(f.properties.Android_filesystem_deps.Product))
 	}
 	for _, partition := range f.properties.Include_files_of {
 		ctx.AddDependency(ctx.Module(), interPartitionInstallDependencyTag, partition)

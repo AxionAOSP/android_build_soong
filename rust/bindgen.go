@@ -300,6 +300,10 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	// it cannot recognize. Turn off unknown warning flags warning.
 	cflags = append(cflags, "-Wno-unknown-warning-option")
 
+	// The main file for bindgen usually is header where #pragma once is actually best practice.
+	// Don't pollute the build log with unnecessary warnings.
+	cflags = append(cflags, "-Wno-pragma-once-outside-header")
+
 	// Suppress warnings while testing a new compiler.
 	if ctx.Config().IsEnvTrue("LLVM_NEXT") {
 		cflags = append(cflags, "-Wno-everything")
