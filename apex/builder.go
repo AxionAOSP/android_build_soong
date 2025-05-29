@@ -901,6 +901,7 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 			"readelf":   "${config.ClangBin}/llvm-readelf",
 		},
 	})
+	a.nativeApisUsedByModuleFile = apisUsedbyOutputFile
 
 	var nativeLibNames []string
 	for _, f := range a.filesInfo {
@@ -915,6 +916,7 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 		Output(apisBackedbyOutputFile).
 		Flags(nativeLibNames)
 	rb.Build("ndk_backedby_list", "Generate API libraries backed by Apex")
+	a.nativeApisBackedByModuleFile = apisBackedbyOutputFile
 
 	var javaLibOrApkPath []android.Path
 	for _, f := range a.filesInfo {
@@ -930,12 +932,7 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 		Output(javaApiUsedbyOutputFile).
 		Inputs(javaLibOrApkPath)
 	javaUsedByRule.Build("java_usedby_list", "Generate Java APIs used by Apex")
-
-	if slices.Contains(ctx.Config().UnbundledBuildApps(), a.Name()) {
-		ctx.DistForGoalWithFilename("apps_only", apisUsedbyOutputFile, "ndk_apis_usedby_apex/"+apisUsedbyOutputFile.Base())
-		ctx.DistForGoalWithFilename("apps_only", apisBackedbyOutputFile, "ndk_apis_backedby_apex/"+apisBackedbyOutputFile.Base())
-		ctx.DistForGoalWithFilename("apps_only", javaApiUsedbyOutputFile, "java_apis_used_by_apex/"+javaApiUsedbyOutputFile.Base())
-	}
+	a.javaApisUsedByModuleFile = javaApiUsedbyOutputFile
 
 	bundleConfig := a.buildBundleConfig(ctx)
 

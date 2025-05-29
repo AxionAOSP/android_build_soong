@@ -181,6 +181,8 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 				defaultPermission = confPerm
 			}
 		}
+
+		forceReadOnly := ctx.Config().GetBuildFlagBool("RELEASE_CONFIG_FORCE_READ_ONLY")
 		var allowReadWrite bool
 		if requireAllReadOnly, ok := ctx.Config().GetBuildFlag("RELEASE_ACONFIG_REQUIRE_ALL_READ_ONLY"); ok {
 			// The build flag (RELEASE_ACONFIG_REQUIRE_ALL_READ_ONLY) is the negation of the aconfig flag
@@ -200,6 +202,7 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 			"default-permission":             optionalVariable(" --default-permission ", defaultPermission),
 			"allow-read-write":               optionalVariable(" --allow-read-write ", strconv.FormatBool(allowReadWrite)),
 			"mainline-beta-namespace-config": optionalVariable(" --mainline-beta-namespace-config ", mainlineBetaNamespaceConfig),
+			"force-read-only":                optionalVariable(" --force-read-only ", strconv.FormatBool(forceReadOnly)),
 		}
 		if len(module.properties.Container) > 0 {
 			args["container"] = "--container " + module.properties.Container

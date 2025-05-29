@@ -133,6 +133,9 @@ type SingletonContext interface {
 	OtherModuleDependencyTag(module ModuleOrProxy) blueprint.DependencyTag
 
 	GetIncrementalAnalysis() bool
+
+	// OtherModuleNamespace returns the namespace of the module.
+	OtherModuleNamespace(module ModuleOrProxy) *Namespace
 }
 
 type singletonAdaptor struct {
@@ -446,4 +449,8 @@ func (s *singletonContextAdaptor) DistForGoalsWithFilename(goals []string, path 
 
 func (s *singletonContextAdaptor) GetIncrementalAnalysis() bool {
 	return s.SingletonContext.GetIncrementalAnalysis()
+}
+
+func (s *singletonContextAdaptor) OtherModuleNamespace(module ModuleOrProxy) *Namespace {
+	return s.SingletonContext.OtherModuleNamespace(module).(*Namespace)
 }

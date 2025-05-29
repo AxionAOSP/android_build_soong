@@ -1,11 +1,7 @@
 # Soong
 
-Soong is one of the build systems used in Android. There are altogether three:
-* The legacy Make-based build system that is controlled by files called
-  `Android.mk`.
-* Soong, which is controlled by files called `Android.bp`.
-* The upcoming Bazel-based build system that is controlled by files called
-  `BUILD.bazel`.
+Soong is one of the build systems used in Android, which is controlled by files called `Android.bp`.
+There is also the legacy Make-based build system that is controlled by files called `Android.mk`.
 
 `Android.bp` file are JSON-like declarative descriptions of "modules" to build;
 a "module" is the basic unit of building that Soong understands, similarly to

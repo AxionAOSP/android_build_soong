@@ -1280,21 +1280,6 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 
 	mod.setSymbolsInfoProvider(ctx)
-	if ctx.Config().XrefCorpusName() != "" {
-		rule := android.NewRuleBuilder(pctx, ctx)
-		jsonPath := android.PathForOutput(ctx, "rust-project.json")
-		kzipPath := android.PathForModuleOut(ctx, "rust-project3.kzip")
-		vnames := android.PathForSource(ctx, "build/soong/vnames.json")
-		rule.Command().PrebuiltBuildTool(ctx, "rust_project_to_kzip").
-			FlagWithInput("-project_json ", jsonPath).
-			FlagWithOutput("-output ", kzipPath).
-			FlagWithArg("-corpus ", ctx.Config().XrefCorpusName()).
-			FlagWithArg("-root ", "$PWD").
-			FlagWithInput("-vnames_json_path ", vnames)
-		ruleName := "rust3-extraction"
-		rule.Build(ruleName, "Turning Rust project into kzips")
-		ctx.Phony("xref_rust", kzipPath)
-	}
 }
 
 func (mod *Module) baseSymbolInfo(ctx android.ModuleContext) *cc.SymbolInfo {

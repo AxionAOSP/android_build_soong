@@ -35,7 +35,6 @@ import (
 const (
 	// Environment variables used to control the behavior of this singleton.
 	envVariableCollectRustDeps = "SOONG_GEN_RUST_PROJECT"
-	envVariableUseKythe        = "XREF_CORPUS"
 	rustProjectJsonFileName    = "rust-project.json"
 )
 
@@ -203,7 +202,7 @@ func (singleton *projectGeneratorSingleton) appendCrateAndDependencies(ctx andro
 }
 
 func (singleton *projectGeneratorSingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	if !(ctx.Config().IsEnvTrue(envVariableCollectRustDeps) || ctx.Config().Getenv(envVariableUseKythe) != "") {
+	if !ctx.Config().IsEnvTrue(envVariableCollectRustDeps) {
 		return
 	}
 

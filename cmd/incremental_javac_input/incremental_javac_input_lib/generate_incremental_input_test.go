@@ -378,21 +378,6 @@ func TestGenerateIncrementalInput(t *testing.T) {
 		)
 		tf.savePriorState() // Save state if needed for subsequent tests
 	})
-
-	// --- Subtest: Panic on Removal without Header Change ---
-	t.Run("Panic_FileRemovedNoHeaderChange", func(t *testing.T) {
-		// Arrange: Delete a file BUT DO NOT modify headers
-		deleteFile(t, tf.JavaFile2, tf.SrcRspFile)
-
-		// Act & Assert: Expecting a panic
-		defer func() {
-			if r := recover(); r == nil {
-				t.Errorf("GenerateIncrementalInput did not panic when a file was removed without header change")
-			}
-		}()
-
-		tf.runGenerator() // This call should panic
-	})
 }
 
 func TestGenerateIncrementalInputPartialCompileOff(t *testing.T) {

@@ -103,11 +103,6 @@ func GenerateIncrementalInput(classDir, srcs, deps, javacTarget, srcDeps, localH
 	if addH, delH, chH := findInputDelta(headersList, headersPcState, javacTarget); len(addH)+len(delH)+len(chH) > 0 {
 		headersChanged = true
 	}
-	// if headers do not change, there should not be [added] or [deleted] files.
-	if !headersChanged && (len(addF) > 0 || len(delF) > 0) {
-		headerErrMsg := "Headers did not change, but source files were added/removed"
-		panic(headerErrMsg)
-	}
 
 	// use revDepsMap to find all usages, add them to output, alongside [add + ch] files
 	if fileExists(srcDeps) {

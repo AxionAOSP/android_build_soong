@@ -476,8 +476,14 @@ func removeOverriddenDeps(mctx android.BottomUpMutatorContext) {
 
 		// Step 1: Initialization: Append PRODUCT_PACKAGES to the queue
 		for _, fsDep := range fsDeps {
-			for depName, _ := range *fsDep {
-				allDeps = append(allDeps, depName)
+			for depName, moduleInfo := range *fsDep {
+				fullyQualifiedDepName := depName
+				// If depName is not fully qualified and the dep specifies namespace, append the
+				// namespace for correct lookup in Step 2.
+				if !strings.HasPrefix(depName, "//") && !android.InList(moduleInfo.Namespace, []string{"", "."}) {
+					fullyQualifiedDepName = fmt.Sprintf("//%s:%s", moduleInfo.Namespace, fullyQualifiedDepName)
+				}
+				allDeps = append(allDeps, fullyQualifiedDepName)
 			}
 		}
 

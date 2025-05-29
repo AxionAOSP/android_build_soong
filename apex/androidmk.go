@@ -306,5 +306,18 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 
 			fmt.Fprintf(w, "ALL_MODULES.$(my_register_name).JACOCO_REPORT_SOONG_ZIP_ARGUMENTS := $(foreach m,%s,$(ALL_MODULES.$(m).JACOCO_REPORT_SOONG_ZIP_ARGUMENTS))\n", strings.Join(moduleNames, " "))
 			fmt.Fprintf(w, "ALL_MODULES.$(my_register_name).JACOCO_REPORT_FILES := $(foreach m,%s,$(ALL_MODULES.$(m).JACOCO_REPORT_FILES))\n", strings.Join(moduleNames, " "))
+
+			distCoverageFiles(w, "ndk_apis_usedby_apex", a.nativeApisUsedByModuleFile.String())
+			distCoverageFiles(w, "ndk_apis_backedby_apex", a.nativeApisBackedByModuleFile.String())
+			distCoverageFiles(w, "java_apis_used_by_apex", a.javaApisUsedByModuleFile.String())
 		}}
+}
+
+func distCoverageFiles(w io.Writer, dir string, distfile string) {
+	if distfile != "" {
+		goal := "apps_only"
+		fmt.Fprintf(w, "ifneq (,$(filter $(my_register_name),$(TARGET_BUILD_APPS)))\n"+
+			" $(call dist-for-goals,%s,%s:%s/$(notdir %s))\n"+
+			"endif\n", goal, distfile, dir, distfile)
+	}
 }

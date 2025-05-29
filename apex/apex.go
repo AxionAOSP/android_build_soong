@@ -541,6 +541,11 @@ type apexBundle struct {
 
 	isCompressed bool
 
+	// Path of API coverage generate file
+	nativeApisUsedByModuleFile   android.ModuleOutPath
+	nativeApisBackedByModuleFile android.ModuleOutPath
+	javaApisUsedByModuleFile     android.ModuleOutPath
+
 	aconfigFiles []android.Path
 
 	// Required modules, filled out during GenerateAndroidBuildActions and used in AndroidMk

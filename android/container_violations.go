@@ -302,6 +302,10 @@ var ContainerDependencyViolationAllowlist = map[string][]string{
 		"framework", // cts -> unstable
 	},
 
+	"CtsContentResolverTestCases": {
+		"framework", // cts -> unstable
+	},
+
 	"CtsContentSuggestionsTestCases": {
 		"framework", // cts -> unstable
 	},
@@ -807,6 +811,10 @@ var ContainerDependencyViolationAllowlist = map[string][]string{
 	"CtsSuspendAppsTestCases": {
 		"framework", // cts -> unstable
 	},
+
+        "CtsSyncManagerTestCases": {
+                "framework", // cts -> unstable
+        },
 
 	"CtsSystemUiTestCases": {
 		"framework", // cts -> unstable
