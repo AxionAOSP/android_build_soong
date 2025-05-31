@@ -274,6 +274,7 @@ var (
 	outgoingTransitionContextPool = pool.New[outgoingTransitionContextImpl]()
 	incomingTransitionContextPool = pool.New[incomingTransitionContextImpl]()
 	bottomUpMutatorContextPool    = pool.New[bottomUpMutatorContext]()
+	baseModuleContextPool         = pool.New[baseModuleContext]()
 )
 
 type bottomUpMutatorContext struct {

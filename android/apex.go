@@ -111,14 +111,6 @@ type ApexAvailableInfo struct {
 var ApexInfoProvider = blueprint.NewMutatorProvider[ApexInfo]("apex_mutate")
 var ApexAvailableInfoProvider = blueprint.NewMutatorProvider[ApexAvailableInfo]("apex_mutate")
 
-func (i ApexInfo) AddJSONData(d *map[string]interface{}) {
-	(*d)["Apex"] = map[string]interface{}{
-		"ApexVariationName": i.ApexVariationName,
-		"MinSdkVersion":     i.MinSdkVersion,
-		"ForPrebuiltApex":   i.ForPrebuiltApex,
-	}
-}
-
 // mergedName gives the name of the alias variation that will be used when multiple apex variations
 // of a module can be deduped into one variation. For example, if libfoo is included in both apex.a
 // and apex.b, and if the two APEXes have the same min_sdk_version (say 29), then libfoo doesn't

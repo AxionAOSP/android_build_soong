@@ -12,6 +12,7 @@ bootstrap_go_package {
         "soong-android",
         "soong-cc",
         "soong-java",
+        "soong-filesystem",
     ],
     srcs: [
         "unbundled.go",

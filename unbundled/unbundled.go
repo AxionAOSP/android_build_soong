@@ -17,6 +17,7 @@ package unbundled
 import (
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/filesystem"
 	"android/soong/java"
 	"fmt"
 	"slices"
@@ -109,6 +110,7 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		targetProductPrefix += "-"
 	}
 
+	// Dist installed files, bundles, and AARs
 	for _, app := range appModules {
 		name := android.OtherModuleNameWithPossibleOverride(ctx, app)
 		if bundleInfo, ok := android.OtherModuleProvider(ctx, app, java.BundleProvider); ok {
@@ -141,6 +143,20 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		}
 	}
 
+	// Dist apexkeys.txt
+	apexKeysFile := android.PathForModuleOut(ctx, "apexkeys.txt")
+	apexKeysRuleBuilder := android.NewRuleBuilder(pctx, ctx)
+	apexKeysRuleBuilder.Command().Textf("rm -f %s && touch ", apexKeysFile.String()).Output(apexKeysFile)
+	for _, app := range appModules {
+		if info, ok := android.OtherModuleProvider(ctx, app, filesystem.ApexKeyPathInfoProvider); ok {
+			apexKeysRuleBuilder.Command().Text("cat ").Input(info.ApexKeyPath).Text(" >> ").Output(apexKeysFile)
+		}
+	}
+	apexKeysRuleBuilder.Build("unbundled_apexkeys.txt", "Unbundled apexkeys.txt")
+	ctx.DistForGoal("apps_only", apexKeysFile)
+	ctx.Phony("apexkeys.txt", apexKeysFile)
+
+	// Dist symbols.zip
 	symbolsZip := android.PathForOutput(ctx, "unbundled_singleton", targetProductPrefix+"symbols.zip")
 	symbolsMapping := android.PathForOutput(ctx, "unbundled_singleton", targetProductPrefix+"symbols-mapping.textproto")
 	android.BuildSymbolsZip(ctx, appModules, symbolsZip, symbolsMapping)

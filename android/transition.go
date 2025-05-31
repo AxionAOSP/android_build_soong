@@ -190,8 +190,10 @@ func (a *androidTransitionMutatorAdapter) Split(ctx blueprint.BaseModuleContext)
 		panic("TransitionMutator not allowed in FinalDepsMutators")
 	}
 	m := ctx.Module().(Module)
-	moduleContext := m.base().baseModuleContextFactory(ctx)
-	return a.mutator.Split(&moduleContext)
+	moduleContext := baseModuleContextPool.Get()
+	defer baseModuleContextPool.Put(moduleContext)
+	*moduleContext = m.base().baseModuleContextFactory(ctx)
+	return a.mutator.Split(moduleContext)
 }
 
 func (a *androidTransitionMutatorAdapter) OutgoingTransition(bpctx blueprint.OutgoingTransitionContext,

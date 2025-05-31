@@ -180,7 +180,6 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 					"dex_bootjars":                              defaultDepCandidateProps(ctx.Config()),
 					"framework_compatibility_matrix.device.xml": defaultDepCandidateProps(ctx.Config()),
 					"init.environ.rc-soong":                     defaultDepCandidateProps(ctx.Config()),
-					"libcompiler_rt":                            defaultDepCandidateProps(ctx.Config()),
 					"libdmabufheap":                             defaultDepCandidateProps(ctx.Config()),
 					"libgsi":                                    defaultDepCandidateProps(ctx.Config()),
 					"llndk.libraries.txt":                       defaultDepCandidateProps(ctx.Config()),
@@ -269,8 +268,14 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 		(*fsGenState.fsDeps["recovery"])[getRecoveryFontModuleName(ctx)] = defaultDepCandidateProps(ctx.Config())
 		(*fsGenState.fsDeps["recovery"])[createRecoveryBuildProp(ctx)] = defaultDepCandidateProps(ctx.Config())
 
-		for _, vndkVersion := range ctx.DeviceConfig().ExtraVndkVersions() {
-			(*fsGenState.fsDeps["system_ext"])["com.android.vndk.v"+vndkVersion] = defaultDepCandidateProps(ctx.Config())
+		// VNDK APEXes are deprecated and are not supported and disabled for riscv64 arch.
+		// Adding these modules as deps of the auto generated riscv64 arch filesystem modules
+		// leads to execution time build error, thus do not add them as deps when building
+		// riscv64 arch product.
+		if ctx.Config().DevicePrimaryArchType() != android.Riscv64 {
+			for _, vndkVersion := range ctx.DeviceConfig().ExtraVndkVersions() {
+				(*fsGenState.fsDeps["system_ext"])["com.android.vndk.v"+vndkVersion] = defaultDepCandidateProps(ctx.Config())
+			}
 		}
 
 		return &fsGenState

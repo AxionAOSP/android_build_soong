@@ -57,31 +57,26 @@ var (
 )
 
 // Describes the property provided by a module to reference applicable licenses.
-type applicableLicensesProperty interface {
-	// The name of the property. e.g. default_applicable_licenses or licenses
-	getName() string
-	// The values assigned to the property. (Must reference license modules.)
-	getStrings() []string
-}
-
 // @auto-generate: gob
-type applicableLicensesPropertyImpl struct {
+type applicableLicensesProperty struct {
 	name             string
 	licensesProperty *[]string
 }
 
-func newApplicableLicensesProperty(name string, licensesProperty *[]string) applicableLicensesProperty {
-	return applicableLicensesPropertyImpl{
+func newApplicableLicensesProperty(name string, licensesProperty *[]string) *applicableLicensesProperty {
+	return &applicableLicensesProperty{
 		name:             name,
 		licensesProperty: licensesProperty,
 	}
 }
 
-func (p applicableLicensesPropertyImpl) getName() string {
+// The name of the property. e.g. default_applicable_licenses or licenses
+func (p applicableLicensesProperty) getName() string {
 	return p.name
 }
 
-func (p applicableLicensesPropertyImpl) getStrings() []string {
+// The values assigned to the property. (Must reference license modules.)
+func (p applicableLicensesProperty) getStrings() []string {
 	return *p.licensesProperty
 }
 

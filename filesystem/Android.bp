@@ -27,6 +27,7 @@ bootstrap_go_package {
         "fsverity_metadata.go",
         "logical_partition.go",
         "raw_binary.go",
+        "recovery_background_pictures.go",
         "super_image.go",
         "system_image.go",
         "system_other.go",

@@ -141,6 +141,11 @@ func (config *ReleaseConfig) InheritConfig(iConfig *ReleaseConfig) error {
 		if fa.Redacted {
 			myFa.Redact()
 		}
+		switch *myFa.FlagDeclaration.Workflow {
+		case rc_proto.Workflow_MANUAL_NO_INHERIT:
+			// Flag values for this flag are not inherited.
+			continue
+		}
 		if name == "RELEASE_ACONFIG_VALUE_SETS" {
 			// If there is a value assigned, add the trace.
 			if len(fa.Value.GetStringValue()) > 0 {
@@ -203,7 +208,7 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 		// TODO: there are some configs that rely on vgsbr being
 		// present on branches where it isn't. Once the broken configs
 		// are fixed, we can be more strict.  In the meantime, they
-		// will wind up inheriting `trunk_stable` instead of the
+		// will wind up inheriting `trunk_staging` instead of the
 		// non-existent (alias) that they reference today.  Once fixed,
 		// this becomes:
 		//    iConfig, err := configs.GetReleaseConfigStrict(inherit)
@@ -298,6 +303,13 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 			if isRoot && *fa.FlagDeclaration.Workflow != workflowManual {
 				// The "root" release config can only contain workflow: MANUAL flags.
 				return fmt.Errorf("Setting value for non-MANUAL flag %s is not allowed in %s", name, value.path)
+			}
+			switch *fa.FlagDeclaration.Workflow {
+			case rc_proto.Workflow_MANUAL_BUILD_VARIANT:
+				// Non-BUILD_VARIANT release configs cannot set MANUAL_BUILD_VARIANT flags.
+				if config.ReleaseConfigType != rc_proto.ReleaseConfigType_BUILD_VARIANT {
+					return fmt.Errorf("Setting value for BUILD_VARIANT flag %s is not allowed in %s", name, value.path)
+				}
 			}
 			if err := fa.UpdateValue(*value); err != nil {
 				return err

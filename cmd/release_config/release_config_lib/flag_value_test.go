@@ -126,9 +126,11 @@ func TestMarshalValue(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		actual := MarshalValue(tc.value)
-		if actual != tc.expected {
-			t.Errorf("Expected %q found %q", tc.expected, actual)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			actual := MarshalValue(tc.value)
+			if actual != tc.expected {
+				t.Errorf("Expected %q found %q", tc.expected, actual)
+			}
+		})
 	}
 }

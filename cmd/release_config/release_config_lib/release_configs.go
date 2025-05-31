@@ -330,9 +330,12 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 	}
 	var declarationErrors []error
 	err = WalkTextprotoFiles(dir, "flag_declarations", func(path string, d fs.DirEntry, err error) error {
+		// Gather up all errors found in flag declarations and report them together, so that it is easier to
+		// find all of the duplicate declarations, for example.
 		flagDeclaration, err := FlagDeclarationFactory(path)
 		if err != nil {
-			return err
+			declarationErrors = append(declarationErrors, err)
+			return nil
 		}
 		// If not given, set Containers to the default for this directory.
 		if flagDeclaration.Containers == nil {
@@ -344,9 +347,7 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 		if def, ok := configs.FlagArtifacts[name]; !ok {
 			configs.FlagArtifacts[name] = &FlagArtifact{FlagDeclaration: flagDeclaration, DeclarationIndex: ConfigDirIndex}
 		} else if !proto.Equal(def.FlagDeclaration, flagDeclaration) || !DuplicateDeclarationAllowlist[name] {
-			err = fmt.Errorf("Duplicate definition of %s in %s", *flagDeclaration.Name, path)
-			declarationErrors = append(declarationErrors, err)
-			// We will gather up all of the errors after the walk is done.
+			declarationErrors = append(declarationErrors, fmt.Errorf("Duplicate definition of %s in %s", *flagDeclaration.Name, path))
 			return nil
 		}
 		// Set the initial value in the flag artifact.
@@ -355,10 +356,15 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 			FlagValue{path: path, proto: rc_proto.FlagValue{
 				Name: proto.String(name), Value: flagDeclaration.Value}})
 		if configs.FlagArtifacts[name].Redacted {
-			return fmt.Errorf("%s may not be redacted by default.", name)
+			declarationErrors = append(declarationErrors, fmt.Errorf("%s may not be redacted by default.", name))
+			return nil
 		}
 		return nil
 	})
+	if err != nil {
+		// While we no longer return an error, if we do later, we need to also report that error.
+		declarationErrors = append(declarationErrors, err)
+	}
 	if len(declarationErrors) > 0 {
 		return errors.Join(declarationErrors...)
 	}

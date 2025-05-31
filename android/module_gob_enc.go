@@ -713,8 +713,14 @@ func (r CommonModuleInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	if err = gobtools.EncodeInterface(buf, r.PrimaryLicensesProperty); err != nil {
+	val1 := r.PrimaryLicensesProperty == nil
+	if err = gobtools.EncodeSimple(buf, val1); err != nil {
 		return err
+	}
+	if !val1 {
+		if err = (*r.PrimaryLicensesProperty).Encode(buf); err != nil {
+			return err
+		}
 	}
 
 	if err = gobtools.EncodeString(buf, r.Owner); err != nil {
@@ -760,8 +766,8 @@ func (r CommonModuleInfo) Encode(buf *bytes.Buffer) error {
 	if err = gobtools.EncodeSimple(buf, int32(len(r.RequiredModuleNames))); err != nil {
 		return err
 	}
-	for val1 := 0; val1 < len(r.RequiredModuleNames); val1++ {
-		if err = gobtools.EncodeString(buf, r.RequiredModuleNames[val1]); err != nil {
+	for val2 := 0; val2 < len(r.RequiredModuleNames); val2++ {
+		if err = gobtools.EncodeString(buf, r.RequiredModuleNames[val2]); err != nil {
 			return err
 		}
 	}
@@ -769,8 +775,8 @@ func (r CommonModuleInfo) Encode(buf *bytes.Buffer) error {
 	if err = gobtools.EncodeSimple(buf, int32(len(r.HostRequiredModuleNames))); err != nil {
 		return err
 	}
-	for val2 := 0; val2 < len(r.HostRequiredModuleNames); val2++ {
-		if err = gobtools.EncodeString(buf, r.HostRequiredModuleNames[val2]); err != nil {
+	for val3 := 0; val3 < len(r.HostRequiredModuleNames); val3++ {
+		if err = gobtools.EncodeString(buf, r.HostRequiredModuleNames[val3]); err != nil {
 			return err
 		}
 	}
@@ -778,8 +784,8 @@ func (r CommonModuleInfo) Encode(buf *bytes.Buffer) error {
 	if err = gobtools.EncodeSimple(buf, int32(len(r.TargetRequiredModuleNames))); err != nil {
 		return err
 	}
-	for val3 := 0; val3 < len(r.TargetRequiredModuleNames); val3++ {
-		if err = gobtools.EncodeString(buf, r.TargetRequiredModuleNames[val3]); err != nil {
+	for val4 := 0; val4 < len(r.TargetRequiredModuleNames); val4++ {
+		if err = gobtools.EncodeString(buf, r.TargetRequiredModuleNames[val4]); err != nil {
 			return err
 		}
 	}
@@ -787,8 +793,8 @@ func (r CommonModuleInfo) Encode(buf *bytes.Buffer) error {
 	if err = gobtools.EncodeSimple(buf, int32(len(r.VintfFragmentModuleNames))); err != nil {
 		return err
 	}
-	for val4 := 0; val4 < len(r.VintfFragmentModuleNames); val4++ {
-		if err = gobtools.EncodeString(buf, r.VintfFragmentModuleNames[val4]); err != nil {
+	for val5 := 0; val5 < len(r.VintfFragmentModuleNames); val5++ {
+		if err = gobtools.EncodeString(buf, r.VintfFragmentModuleNames[val5]); err != nil {
 			return err
 		}
 	}
@@ -796,8 +802,8 @@ func (r CommonModuleInfo) Encode(buf *bytes.Buffer) error {
 	if err = gobtools.EncodeSimple(buf, int32(len(r.Dists))); err != nil {
 		return err
 	}
-	for val5 := 0; val5 < len(r.Dists); val5++ {
-		if err = r.Dists[val5].Encode(buf); err != nil {
+	for val6 := 0; val6 < len(r.Dists); val6++ {
+		if err = r.Dists[val6].Encode(buf); err != nil {
 			return err
 		}
 	}
@@ -817,8 +823,8 @@ func (r CommonModuleInfo) Encode(buf *bytes.Buffer) error {
 	if err = gobtools.EncodeSimple(buf, int32(len(r.ApexAvailable))); err != nil {
 		return err
 	}
-	for val6 := 0; val6 < len(r.ApexAvailable); val6++ {
-		if err = gobtools.EncodeString(buf, r.ApexAvailable[val6]); err != nil {
+	for val7 := 0; val7 < len(r.ApexAvailable); val7++ {
+		if err = gobtools.EncodeString(buf, r.ApexAvailable[val7]); err != nil {
 			return err
 		}
 	}
@@ -826,8 +832,8 @@ func (r CommonModuleInfo) Encode(buf *bytes.Buffer) error {
 	if err = gobtools.EncodeSimple(buf, int32(len(r.ApexAvailableFor))); err != nil {
 		return err
 	}
-	for val7 := 0; val7 < len(r.ApexAvailableFor); val7++ {
-		if err = gobtools.EncodeString(buf, r.ApexAvailableFor[val7]); err != nil {
+	for val8 := 0; val8 < len(r.ApexAvailableFor); val8++ {
+		if err = gobtools.EncodeString(buf, r.ApexAvailableFor[val8]); err != nil {
 			return err
 		}
 	}
@@ -923,12 +929,16 @@ func (r *CommonModuleInfo) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	if val19, err := gobtools.DecodeInterface(buf); err != nil {
+	var val19 bool
+	if err = gobtools.DecodeSimple(buf, &val19); err != nil {
 		return err
-	} else if val19 == nil {
-		r.PrimaryLicensesProperty = nil
-	} else {
-		r.PrimaryLicensesProperty = val19.(applicableLicensesProperty)
+	}
+	if !val19 {
+		var val18 applicableLicensesProperty
+		if err = val18.Decode(buf); err != nil {
+			return err
+		}
+		r.PrimaryLicensesProperty = &val18
 	}
 
 	err = gobtools.DecodeString(buf, &r.Owner)
@@ -981,75 +991,75 @@ func (r *CommonModuleInfo) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	var val31 int32
-	err = gobtools.DecodeSimple[int32](buf, &val31)
+	var val32 int32
+	err = gobtools.DecodeSimple[int32](buf, &val32)
 	if err != nil {
 		return err
 	}
-	if val31 > 0 {
-		r.RequiredModuleNames = make([]string, val31)
-		for val32 := 0; val32 < int(val31); val32++ {
-			err = gobtools.DecodeString(buf, &r.RequiredModuleNames[val32])
+	if val32 > 0 {
+		r.RequiredModuleNames = make([]string, val32)
+		for val33 := 0; val33 < int(val32); val33++ {
+			err = gobtools.DecodeString(buf, &r.RequiredModuleNames[val33])
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	var val35 int32
-	err = gobtools.DecodeSimple[int32](buf, &val35)
+	var val36 int32
+	err = gobtools.DecodeSimple[int32](buf, &val36)
 	if err != nil {
 		return err
 	}
-	if val35 > 0 {
-		r.HostRequiredModuleNames = make([]string, val35)
-		for val36 := 0; val36 < int(val35); val36++ {
-			err = gobtools.DecodeString(buf, &r.HostRequiredModuleNames[val36])
+	if val36 > 0 {
+		r.HostRequiredModuleNames = make([]string, val36)
+		for val37 := 0; val37 < int(val36); val37++ {
+			err = gobtools.DecodeString(buf, &r.HostRequiredModuleNames[val37])
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	var val39 int32
-	err = gobtools.DecodeSimple[int32](buf, &val39)
+	var val40 int32
+	err = gobtools.DecodeSimple[int32](buf, &val40)
 	if err != nil {
 		return err
 	}
-	if val39 > 0 {
-		r.TargetRequiredModuleNames = make([]string, val39)
-		for val40 := 0; val40 < int(val39); val40++ {
-			err = gobtools.DecodeString(buf, &r.TargetRequiredModuleNames[val40])
+	if val40 > 0 {
+		r.TargetRequiredModuleNames = make([]string, val40)
+		for val41 := 0; val41 < int(val40); val41++ {
+			err = gobtools.DecodeString(buf, &r.TargetRequiredModuleNames[val41])
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	var val43 int32
-	err = gobtools.DecodeSimple[int32](buf, &val43)
+	var val44 int32
+	err = gobtools.DecodeSimple[int32](buf, &val44)
 	if err != nil {
 		return err
 	}
-	if val43 > 0 {
-		r.VintfFragmentModuleNames = make([]string, val43)
-		for val44 := 0; val44 < int(val43); val44++ {
-			err = gobtools.DecodeString(buf, &r.VintfFragmentModuleNames[val44])
+	if val44 > 0 {
+		r.VintfFragmentModuleNames = make([]string, val44)
+		for val45 := 0; val45 < int(val44); val45++ {
+			err = gobtools.DecodeString(buf, &r.VintfFragmentModuleNames[val45])
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	var val47 int32
-	err = gobtools.DecodeSimple[int32](buf, &val47)
+	var val48 int32
+	err = gobtools.DecodeSimple[int32](buf, &val48)
 	if err != nil {
 		return err
 	}
-	if val47 > 0 {
-		r.Dists = make([]Dist, val47)
-		for val48 := 0; val48 < int(val47); val48++ {
-			if err = r.Dists[val48].Decode(buf); err != nil {
+	if val48 > 0 {
+		r.Dists = make([]Dist, val48)
+		for val49 := 0; val49 < int(val48); val49++ {
+			if err = r.Dists[val49].Decode(buf); err != nil {
 				return err
 			}
 		}
@@ -1070,30 +1080,30 @@ func (r *CommonModuleInfo) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	var val54 int32
-	err = gobtools.DecodeSimple[int32](buf, &val54)
+	var val55 int32
+	err = gobtools.DecodeSimple[int32](buf, &val55)
 	if err != nil {
 		return err
 	}
-	if val54 > 0 {
-		r.ApexAvailable = make([]string, val54)
-		for val55 := 0; val55 < int(val54); val55++ {
-			err = gobtools.DecodeString(buf, &r.ApexAvailable[val55])
+	if val55 > 0 {
+		r.ApexAvailable = make([]string, val55)
+		for val56 := 0; val56 < int(val55); val56++ {
+			err = gobtools.DecodeString(buf, &r.ApexAvailable[val56])
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	var val58 int32
-	err = gobtools.DecodeSimple[int32](buf, &val58)
+	var val59 int32
+	err = gobtools.DecodeSimple[int32](buf, &val59)
 	if err != nil {
 		return err
 	}
-	if val58 > 0 {
-		r.ApexAvailableFor = make([]string, val58)
-		for val59 := 0; val59 < int(val58); val59++ {
-			err = gobtools.DecodeString(buf, &r.ApexAvailableFor[val59])
+	if val59 > 0 {
+		r.ApexAvailableFor = make([]string, val59)
+		for val60 := 0; val60 < int(val59); val60++ {
+			err = gobtools.DecodeString(buf, &r.ApexAvailableFor[val60])
 			if err != nil {
 				return err
 			}

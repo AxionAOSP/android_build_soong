@@ -1212,47 +1212,6 @@ func (c *Module) IncrementalSupported() bool {
 
 var _ blueprint.Incremental = (*Module)(nil)
 
-func (c *Module) AddJSONData(d *map[string]interface{}) {
-	c.AndroidModuleBase().AddJSONData(d)
-	(*d)["Cc"] = map[string]interface{}{
-		"SdkVersion":             c.SdkVersion(),
-		"MinSdkVersion":          c.MinSdkVersion(),
-		"VndkVersion":            c.VndkVersion(),
-		"ProductSpecific":        c.ProductSpecific(),
-		"SocSpecific":            c.SocSpecific(),
-		"DeviceSpecific":         c.DeviceSpecific(),
-		"InProduct":              c.InProduct(),
-		"InVendor":               c.InVendor(),
-		"InRamdisk":              c.InRamdisk(),
-		"InVendorRamdisk":        c.InVendorRamdisk(),
-		"InRecovery":             c.InRecovery(),
-		"VendorAvailable":        c.VendorAvailable(),
-		"ProductAvailable":       c.ProductAvailable(),
-		"RamdiskAvailable":       c.RamdiskAvailable(),
-		"VendorRamdiskAvailable": c.VendorRamdiskAvailable(),
-		"RecoveryAvailable":      c.RecoveryAvailable(),
-		"OdmAvailable":           c.OdmAvailable(),
-		"InstallInData":          c.InstallInData(),
-		"InstallInRamdisk":       c.InstallInRamdisk(),
-		"InstallInSanitizerDir":  c.InstallInSanitizerDir(),
-		"InstallInVendorRamdisk": c.InstallInVendorRamdisk(),
-		"InstallInRecovery":      c.InstallInRecovery(),
-		"InstallInRoot":          c.InstallInRoot(),
-		"IsLlndk":                c.IsLlndk(),
-		"IsVendorPublicLibrary":  c.IsVendorPublicLibrary(),
-		"ApexSdkVersion":         c.apexSdkVersion,
-		"AidlSrcs":               c.hasAidl,
-		"LexSrcs":                c.hasLex,
-		"ProtoSrcs":              c.hasProto,
-		"RenderscriptSrcs":       c.hasRenderscript,
-		"SyspropSrcs":            c.hasSysprop,
-		"WinMsgSrcs":             c.hasWinMsg,
-		"YaccSrsc":               c.hasYacc,
-		"OnlyCSrcs":              !(c.hasAidl || c.hasLex || c.hasProto || c.hasRenderscript || c.hasSysprop || c.hasWinMsg || c.hasYacc),
-		"OptimizeForSize":        c.OptimizeForSize(),
-	}
-}
-
 func (c *Module) SetPreventInstall() {
 	c.Properties.PreventInstall = true
 }

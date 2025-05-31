@@ -122,7 +122,7 @@ type Module interface {
 	qualifiedModuleId(ctx BaseModuleContext) qualifiedModuleName
 
 	// Get information about the properties that can contain visibility rules.
-	visibilityProperties() []visibilityProperty
+	visibilityProperties() []*visibilityProperty
 
 	RequiredModuleNames(ctx ConfigurableEvaluatorContext) []string
 	HostRequiredModuleNames() []string
@@ -877,13 +877,13 @@ type ModuleBase struct {
 
 	// Information about all the properties on the module that contains visibility rules that need
 	// checking.
-	visibilityPropertyInfo []visibilityProperty
+	visibilityPropertyInfo []*visibilityProperty
 
 	// The primary visibility property, may be nil, that controls access to the module.
-	primaryVisibilityProperty visibilityProperty
+	primaryVisibilityProperty *visibilityProperty
 
 	// The primary licenses property, may be nil, records license metadata for the module.
-	primaryLicensesProperty applicableLicensesProperty
+	primaryLicensesProperty *applicableLicensesProperty
 
 	noAddressSanitizer bool
 
@@ -895,13 +895,6 @@ type ModuleBase struct {
 	buildParams []BuildParams
 	ruleParams  map[blueprint.Rule]blueprint.RuleParams
 	variables   map[string]string
-}
-
-func (m *ModuleBase) AddJSONData(d *map[string]interface{}) {
-	(*d)["Android"] = map[string]interface{}{
-		// Properties set in Blueprint or in blueprint of a defaults modules
-		"SetProperties": m.propertiesWithValues(),
-	}
 }
 
 type propInfo struct {
@@ -1234,7 +1227,7 @@ func (m *ModuleBase) qualifiedModuleId(ctx BaseModuleContext) qualifiedModuleNam
 	return qualifiedModuleName{pkg: ctx.ModuleDir(), name: ctx.ModuleName()}
 }
 
-func (m *ModuleBase) visibilityProperties() []visibilityProperty {
+func (m *ModuleBase) visibilityProperties() []*visibilityProperty {
 	return m.visibilityPropertyInfo
 }
 
@@ -1976,7 +1969,7 @@ type CommonModuleInfo struct {
 	Host                bool
 	IsApexModule        bool
 	// The primary licenses property, may be nil, records license metadata for the module.
-	PrimaryLicensesProperty applicableLicensesProperty
+	PrimaryLicensesProperty *applicableLicensesProperty
 	Owner                   string
 	Vendor                  bool
 	Proprietary             bool
@@ -2236,7 +2229,9 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	installFiles.TransitiveInstallFiles = ctx.TransitiveInstallFiles
 	installFiles.TransitivePackagingSpecs = depset.New[PackagingSpec](depset.TOPOLOGICAL, ctx.packagingSpecs, dependencyPackagingSpecs)
 
-	SetProvider(ctx, InstallFilesProvider, installFiles)
+	if m.Enabled(ctx) {
+		SetProvider(ctx, InstallFilesProvider, installFiles)
+	}
 	buildLicenseMetadata(ctx, ctx.licenseMetadataFile)
 
 	var testSuiteInstalls []filePair

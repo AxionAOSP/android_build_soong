@@ -8,11 +8,11 @@ import (
 )
 
 func init() {
-	applicableLicensesPropertyImplGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(applicableLicensesPropertyImpl) })
+	applicableLicensesPropertyGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(applicableLicensesProperty) })
 	LicensesInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(LicensesInfo) })
 }
 
-func (r applicableLicensesPropertyImpl) Encode(buf *bytes.Buffer) error {
+func (r applicableLicensesProperty) Encode(buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeString(buf, r.name); err != nil {
@@ -36,7 +36,7 @@ func (r applicableLicensesPropertyImpl) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *applicableLicensesPropertyImpl) Decode(buf *bytes.Reader) error {
+func (r *applicableLicensesProperty) Decode(buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeString(buf, &r.name)
@@ -70,10 +70,10 @@ func (r *applicableLicensesPropertyImpl) Decode(buf *bytes.Reader) error {
 	return err
 }
 
-var applicableLicensesPropertyImplGobRegId int16
+var applicableLicensesPropertyGobRegId int16
 
-func (r applicableLicensesPropertyImpl) GetTypeId() int16 {
-	return applicableLicensesPropertyImplGobRegId
+func (r applicableLicensesProperty) GetTypeId() int16 {
+	return applicableLicensesPropertyGobRegId
 }
 
 func (r LicensesInfo) Encode(buf *bytes.Buffer) error {

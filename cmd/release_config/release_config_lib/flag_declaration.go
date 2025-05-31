@@ -44,6 +44,8 @@ func FlagDeclarationFactory(protoPath string) (fd *rc_proto.FlagDeclaration, err
 		return nil, fmt.Errorf("%s incorrectly declares flag %s", protoPath, *fd.Name)
 	case fd.Namespace == nil:
 		return nil, fmt.Errorf("Flag declaration %s has no namespace.", protoPath)
+	case fd.Workflow == nil:
+		return nil, fmt.Errorf("Flag declaration %s has no workflow.", protoPath)
 	case fd.Containers != nil:
 		for _, container := range fd.Containers {
 			if !validContainer(container) {
@@ -56,5 +58,12 @@ func FlagDeclarationFactory(protoPath string) (fd *rc_proto.FlagDeclaration, err
 	if fd.Value == nil {
 		fd.Value = &rc_proto.Value{Val: &rc_proto.Value_UnspecifiedValue{false}}
 	}
+
+	// TODO(b/377311211): remove this check after proto changes have propagated.
+	switch *fd.Workflow {
+	case rc_proto.Workflow_MANUAL_NO_INHERIT, rc_proto.Workflow_MANUAL_BUILD_VARIANT:
+		return nil, fmt.Errorf("%s uses unsupported workflow %s", protoPath, *fd.Workflow)
+	}
+
 	return fd, nil
 }

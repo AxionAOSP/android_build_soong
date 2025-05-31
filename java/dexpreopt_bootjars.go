@@ -1423,7 +1423,7 @@ func bootImageProfileRuleCommon(ctx android.ModuleContext, name string, dexFiles
 		profiles = append(profiles, path.Path())
 	}
 
-        // Remove duplicates while preserving order to ensure deterministic builds.
+	// Remove duplicates while preserving order to ensure deterministic builds.
 	profiles = android.FirstUniquePaths(profiles)
 
 	// We concatenate the profiles into a single file. Later, `profman` filters the entries based on

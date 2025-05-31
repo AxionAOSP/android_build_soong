@@ -85,9 +85,7 @@ type CmdArgs struct {
 	SoongVariables string
 	KatiSuffix     string
 
-	ModuleGraphFile   string
-	ModuleActionsFile string
-	DocFile           string
+	DocFile string
 
 	BuildFromSourceStub bool
 
@@ -98,9 +96,6 @@ type CmdArgs struct {
 const (
 	// Don't use bazel at all during module analysis.
 	AnalysisNoBazel SoongBuildMode = iota
-
-	// Create a JSON representation of the module graph and exit.
-	GenerateModuleGraph
 
 	// Generate a documentation file for module type definitions and exit.
 	GenerateDocFile
@@ -820,7 +815,6 @@ func initConfig(cmdArgs CmdArgs, availableEnv map[string]string) (*config, error
 			newConfig.BuildMode = mode
 		}
 	}
-	setBuildMode(cmdArgs.ModuleGraphFile, GenerateModuleGraph)
 	setBuildMode(cmdArgs.DocFile, GenerateDocFile)
 
 	newConfig.productVariables.Build_from_text_stub = boolPtr(newConfig.BuildFromTextStub())

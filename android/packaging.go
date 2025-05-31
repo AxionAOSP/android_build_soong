@@ -237,10 +237,11 @@ type packagingMultilibProperties struct {
 }
 
 type packagingArchProperties struct {
-	Arm64  DepsProperty
-	Arm    DepsProperty
-	X86_64 DepsProperty
-	X86    DepsProperty
+	Arm64   DepsProperty
+	Arm     DepsProperty
+	X86_64  DepsProperty
+	X86     DepsProperty
+	Riscv64 DepsProperty
 }
 
 type PackagingProperties struct {
@@ -348,6 +349,8 @@ func (p *PackagingBase) getDepsForTarget(ctx BaseModuleContext, target Target) (
 			get(p.properties.Arch.X86_64)
 		case X86:
 			get(p.properties.Arch.X86)
+		case Riscv64:
+			get(p.properties.Arch.Riscv64)
 		}
 	}
 
