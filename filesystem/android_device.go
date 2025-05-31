@@ -951,7 +951,9 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 		builder.Command().Text("cat").Input(bootImgInfo.PropFileForMiscInfo).Textf(" >> %s", miscInfo)
 	}
 
-	builder.Command().Textf("echo blocksize=%s >> %s", proptools.String(a.deviceProps.Flash_block_size), miscInfo)
+	if proptools.String(a.deviceProps.Flash_block_size) != "" {
+		builder.Command().Textf("echo blocksize=%s >> %s", proptools.String(a.deviceProps.Flash_block_size), miscInfo)
+	}
 	if proptools.Bool(a.deviceProps.Bootloader_in_update_package) {
 		builder.Command().Textf("echo bootloader_in_update_package=true >> %s", miscInfo)
 	}
