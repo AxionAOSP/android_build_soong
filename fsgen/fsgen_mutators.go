@@ -267,6 +267,9 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 		(*fsGenState.fsDeps["recovery"])[fmt.Sprintf("recovery-resources-common-%s", getDpi(ctx))] = defaultDepCandidateProps(ctx.Config())
 		(*fsGenState.fsDeps["recovery"])[getRecoveryFontModuleName(ctx)] = defaultDepCandidateProps(ctx.Config())
 		(*fsGenState.fsDeps["recovery"])[createRecoveryBuildProp(ctx)] = defaultDepCandidateProps(ctx.Config())
+		if name, _ := getRecoveryBackgroundPicturesGeneratorModuleName(ctx); name != "" {
+			(*fsGenState.fsDeps["recovery"])[name] = defaultDepCandidateProps(ctx.Config())
+		}
 
 		// VNDK APEXes are deprecated and are not supported and disabled for riscv64 arch.
 		// Adding these modules as deps of the auto generated riscv64 arch filesystem modules
@@ -434,7 +437,11 @@ func setDepsMutator(mctx android.BottomUpMutatorContext) {
 			// Handwritten image, don't modify it
 			return
 		}
-		depsStruct := generateDepStruct(*fsDeps[partition], fsGenState.generatedPrebuiltEtcModuleNames)
+		backgroundRecoveryImageGenerator, _ := getRecoveryBackgroundPicturesGeneratorModuleName(mctx)
+		// backgroundRecoveryImageGenerator generates additional images which takes precedence over images files
+		// created by other deps of recovery.img.
+		// Use this in highPriorityDeps
+		depsStruct := generateDepStruct(*fsDeps[partition], append([]string{backgroundRecoveryImageGenerator}, fsGenState.generatedPrebuiltEtcModuleNames...))
 		if err := proptools.AppendMatchingProperties(m.GetProperties(), depsStruct, nil); err != nil {
 			mctx.ModuleErrorf(err.Error())
 		}

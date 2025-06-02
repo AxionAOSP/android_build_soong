@@ -35,6 +35,7 @@ import (
 const (
 	// Environment variables used to control the behavior of this singleton.
 	envVariableCollectRustDeps = "SOONG_GEN_RUST_PROJECT"
+	envVariableUseKythe        = "XREF_CORPUS"
 	rustProjectJsonFileName    = "rust-project.json"
 )
 
@@ -202,7 +203,7 @@ func (singleton *projectGeneratorSingleton) appendCrateAndDependencies(ctx andro
 }
 
 func (singleton *projectGeneratorSingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	if !ctx.Config().IsEnvTrue(envVariableCollectRustDeps) {
+	if !(ctx.Config().IsEnvTrue(envVariableCollectRustDeps) || ctx.Config().Getenv(envVariableUseKythe) != "") {
 		return
 	}
 
@@ -217,6 +218,21 @@ func (singleton *projectGeneratorSingleton) GenerateBuildActions(ctx android.Sin
 	err := createJsonFile(singleton.project, path)
 	if err != nil {
 		ctx.Errorf(err.Error())
+	}
+	if ctx.Config().XrefCorpusName() != "" {
+		rule := android.NewRuleBuilder(pctx, ctx)
+		jsonPath := android.PathForOutput(ctx, "rust-project.json")
+		kzipPath := android.PathForOutput(ctx, "rust-project.kzip")
+		vnames := android.PathForSource(ctx, "build/soong/vnames.json")
+		rule.Command().PrebuiltBuildTool(ctx, "rust_project_to_kzip").
+			FlagWithInput("-project_json ", jsonPath).
+			FlagWithOutput("-output ", kzipPath).
+			FlagWithArg("-corpus ", ctx.Config().XrefCorpusName()).
+			FlagWithArg("-root ", "$PWD").
+			FlagWithInput("-vnames_json_path ", vnames)
+		ruleName := "rust3-extraction"
+		rule.Build(ruleName, "Turning Rust project into kzips")
+		ctx.Phony("xref_rust", kzipPath)
 	}
 }
 

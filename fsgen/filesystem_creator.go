@@ -153,6 +153,7 @@ func filesystemCreatorFactory() android.Module {
 		module.createAvbKeyFilegroups(ctx)
 		module.createMiscFilegroups(ctx)
 		module.createInternalModules(ctx)
+		module.createBackgroundPicturesForRecovery(ctx)
 	})
 
 	return module
@@ -763,6 +764,30 @@ func (f *filesystemCreator) createAvbKeyFilegroups(ctx android.LoadHookContext) 
 		)
 		fsGenState.avbKeyFilegroups[file] = name
 	}
+}
+
+func (f *filesystemCreator) createBackgroundPicturesForRecovery(ctx android.LoadHookContext) {
+	name, width := getRecoveryBackgroundPicturesGeneratorModuleName(ctx)
+	if name == "" {
+		return
+	}
+	ctx.CreateModule(
+		filesystem.RecoveryBackgroundPicturesFactory,
+		&struct {
+			Name        *string
+			Image_width *int64
+			Fonts       []string
+			Resources   []string
+			Recovery    *bool
+		}{
+			Name:        proptools.StringPtr(name),
+			Image_width: proptools.Int64Ptr(width),
+			Fonts:       []string{":recovery_noto-fonts_dep", ":recovery_roboto-fonts_dep"},
+			Resources:   []string{":bootable_recovery_resources"},
+			Recovery:    proptools.BoolPtr(true),
+		},
+	)
+
 }
 
 // Creates filegroups for miscellaneous other files
