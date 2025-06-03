@@ -34,7 +34,6 @@ var (
 
 	subPartitionsInPartition = map[string][]string{
 		"system": {"system_ext", "product", "vendor"},
-		"vendor": {"odm"},
 	}
 )
 

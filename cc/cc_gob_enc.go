@@ -759,15 +759,6 @@ func (r LibraryDecoratorInfo) Encode(buf *bytes.Buffer) error {
 	if err = gobtools.EncodeInterface(buf, r.StubsSymbolFilePath); err != nil {
 		return err
 	}
-
-	if err = gobtools.EncodeSimple(buf, int32(len(r.SAbiDiff))); err != nil {
-		return err
-	}
-	for val5 := 0; val5 < len(r.SAbiDiff); val5++ {
-		if err = gobtools.EncodeInterface(buf, r.SAbiDiff[val5]); err != nil {
-			return err
-		}
-	}
 	return err
 }
 
@@ -856,24 +847,6 @@ func (r *LibraryDecoratorInfo) Decode(buf *bytes.Reader) error {
 		r.StubsSymbolFilePath = nil
 	} else {
 		r.StubsSymbolFilePath = val21.(android.Path)
-	}
-
-	var val24 int32
-	err = gobtools.DecodeSimple[int32](buf, &val24)
-	if err != nil {
-		return err
-	}
-	if val24 > 0 {
-		r.SAbiDiff = make([]android.Path, val24)
-		for val25 := 0; val25 < int(val24); val25++ {
-			if val27, err := gobtools.DecodeInterface(buf); err != nil {
-				return err
-			} else if val27 == nil {
-				r.SAbiDiff[val25] = nil
-			} else {
-				r.SAbiDiff[val25] = val27.(android.Path)
-			}
-		}
 	}
 
 	return err

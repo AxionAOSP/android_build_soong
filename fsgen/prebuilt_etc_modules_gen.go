@@ -32,20 +32,22 @@ type srcBaseFileInstallBaseFileTuple struct {
 // prebuilt src files grouped by the install partitions.
 // Each groups are a mapping of the relative install path to the name of the files
 type prebuiltSrcGroupByInstallPartition struct {
-	system     map[string][]srcBaseFileInstallBaseFileTuple
-	system_ext map[string][]srcBaseFileInstallBaseFileTuple
-	product    map[string][]srcBaseFileInstallBaseFileTuple
-	vendor     map[string][]srcBaseFileInstallBaseFileTuple
-	recovery   map[string][]srcBaseFileInstallBaseFileTuple
+	system      map[string][]srcBaseFileInstallBaseFileTuple
+	system_ext  map[string][]srcBaseFileInstallBaseFileTuple
+	product     map[string][]srcBaseFileInstallBaseFileTuple
+	vendor      map[string][]srcBaseFileInstallBaseFileTuple
+	recovery    map[string][]srcBaseFileInstallBaseFileTuple
+	vendor_dlkm map[string][]srcBaseFileInstallBaseFileTuple
 }
 
 func newPrebuiltSrcGroupByInstallPartition() *prebuiltSrcGroupByInstallPartition {
 	return &prebuiltSrcGroupByInstallPartition{
-		system:     map[string][]srcBaseFileInstallBaseFileTuple{},
-		system_ext: map[string][]srcBaseFileInstallBaseFileTuple{},
-		product:    map[string][]srcBaseFileInstallBaseFileTuple{},
-		vendor:     map[string][]srcBaseFileInstallBaseFileTuple{},
-		recovery:   map[string][]srcBaseFileInstallBaseFileTuple{},
+		system:      map[string][]srcBaseFileInstallBaseFileTuple{},
+		system_ext:  map[string][]srcBaseFileInstallBaseFileTuple{},
+		product:     map[string][]srcBaseFileInstallBaseFileTuple{},
+		vendor:      map[string][]srcBaseFileInstallBaseFileTuple{},
+		recovery:    map[string][]srcBaseFileInstallBaseFileTuple{},
+		vendor_dlkm: map[string][]srcBaseFileInstallBaseFileTuple{},
 	}
 }
 
@@ -77,6 +79,8 @@ func appendIfCorrectInstallPartition(partitionToInstallPathList []partitionToIns
 				srcMap = srcGroup.vendor
 			case "recovery":
 				srcMap = srcGroup.recovery
+			case "vendor_dlkm":
+				srcMap = srcGroup.vendor_dlkm
 			}
 			if srcMap != nil {
 				srcMap[relativeInstallDir] = append(srcMap[relativeInstallDir], srcBaseFileInstallBaseFileTuple{
@@ -134,6 +138,7 @@ func processProductCopyFiles(ctx android.LoadHookContext) map[string]*prebuiltSr
 	partitionToInstallPathList := []partitionToInstallPath{
 		{name: "recovery", installPath: "recovery/root"},
 		{name: "vendor", installPath: ctx.DeviceConfig().VendorPath()},
+		{name: "vendor_dlkm", installPath: ctx.DeviceConfig().VendorDlkmPath()},
 		{name: "product", installPath: ctx.DeviceConfig().ProductPath()},
 		{name: "system_ext", installPath: ctx.DeviceConfig().SystemExtPath()},
 		{name: "system", installPath: "system"},
@@ -159,11 +164,12 @@ type prebuiltModuleProperties struct {
 
 	From_product_copy_files *bool
 
-	Soc_specific        *bool
-	Product_specific    *bool
-	System_ext_specific *bool
-	Recovery            *bool
-	Ramdisk             *bool
+	Soc_specific         *bool
+	Product_specific     *bool
+	System_ext_specific  *bool
+	Vendor_dlkm_specific *bool
+	Recovery             *bool
+	Ramdisk              *bool
 
 	Srcs []string
 
@@ -276,6 +282,8 @@ func prebuiltEtcModuleProps(ctx android.LoadHookContext, moduleName, partition, 
 		moduleProps.Product_specific = proptools.BoolPtr(true)
 	case "vendor":
 		moduleProps.Soc_specific = proptools.BoolPtr(true)
+	case "vendor_dlkm":
+		moduleProps.Vendor_dlkm_specific = proptools.BoolPtr(true)
 	case "recovery":
 		// To match the logic in modulePartition() in android/paths.go
 		if ctx.DeviceConfig().BoardUsesRecoveryAsBoot() && strings.HasPrefix(destDir, "first_stage_ramdisk") {
@@ -407,6 +415,7 @@ func createPrebuiltEtcModules(ctx android.LoadHookContext) (ret []string) {
 		ret = append(ret, createPrebuiltEtcModulesForPartition(ctx, "product", srcDir, groupedSource.product)...)
 		ret = append(ret, createPrebuiltEtcModulesForPartition(ctx, "vendor", srcDir, groupedSource.vendor)...)
 		ret = append(ret, createPrebuiltEtcModulesForPartition(ctx, "recovery", srcDir, groupedSource.recovery)...)
+		ret = append(ret, createPrebuiltEtcModulesForPartition(ctx, "vendor_dlkm", srcDir, groupedSource.vendor_dlkm)...)
 	}
 
 	return ret

@@ -1281,17 +1281,20 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		}
 	}
 
+	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.StaticLibObjs.sAbiDumpFiles...)
+	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.WholeStaticLibObjs.sAbiDumpFiles...)
+	library.linkSAbiDumpFiles(ctx, deps, objs, fileName, unstrippedOutputFile)
+
+	validations := slices.Concat(objs.tidyDepFiles, library.sAbiDiff)
+
 	transformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs,
 		deps.StaticLibs, deps.LateStaticLibs, deps.WholeStaticLibs, linkerDeps, deps.CrtBegin,
-		deps.CrtEnd, false, builderFlags, outputFile, implicitOutputs, objs.tidyDepFiles)
+		deps.CrtEnd, false, builderFlags, outputFile, implicitOutputs, validations)
 
 	objs.coverageFiles = append(objs.coverageFiles, deps.StaticLibObjs.coverageFiles...)
 	objs.coverageFiles = append(objs.coverageFiles, deps.WholeStaticLibObjs.coverageFiles...)
-	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.StaticLibObjs.sAbiDumpFiles...)
-	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.WholeStaticLibObjs.sAbiDumpFiles...)
 
 	library.coverageOutputFile = transformCoverageFilesToZip(ctx, objs, library.getLibName(ctx))
-	library.linkSAbiDumpFiles(ctx, deps, objs, fileName, unstrippedOutputFile)
 
 	var transitiveStaticLibrariesForOrdering depset.DepSet[android.Path]
 	if static := ctx.GetDirectDepsProxyWithTag(staticVariantTag); len(static) > 0 {

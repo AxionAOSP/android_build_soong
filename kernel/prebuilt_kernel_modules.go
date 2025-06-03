@@ -47,6 +47,11 @@ type prebuiltKernelModulesProperties struct {
 	// List or filegroup of prebuilt kernel module files. Should have .ko suffix.
 	Srcs []string `android:"path,arch_variant"`
 
+	// List or filegroup of prebuilt kernel module files for 16k. Should have .ko suffix.
+	// These files will be installed in lib/modules/16k-mode/
+	// These files are ONLY loaded during the Second Boot Stage when the device is in 16k mode.
+	Srcs_16k []string `android:"path,arch_variant"`
+
 	// List of system_dlkm kernel modules that the local kernel modules depend on.
 	// The deps will be assembled into intermediates directory for running depmod
 	// but will not be added to the current module's installed files.
@@ -125,7 +130,13 @@ func (pkm *prebuiltKernelModules) GenerateAndroidBuildActions(ctx android.Module
 		installPath := ctx.InstallFile(installDir, filepath.Base(m.String()), m)
 		dests = append(dests, installPath.String())
 	}
+	installDir16k := installDir.Join(ctx, "16k-mode")
+	for _, m := range android.PathsForModuleSrc(ctx, pkm.properties.Srcs_16k) {
+		installPath := ctx.InstallFile(installDir16k, filepath.Base(m.String()), m)
+		dests = append(dests, installPath.String())
+	}
 	srcs := android.PathsForModuleSrc(ctx, pkm.properties.Srcs).Strings()
+	srcs = append(srcs, android.PathsForModuleSrc(ctx, pkm.properties.Srcs_16k).Strings()...)
 	// Use ANDROID-GEN to identify the source of module.* files which are generated in the build process.
 	// See the use of ANDROID-GEN in build/make/core/Makefile
 	androidGen := "ANDROID-GEN"

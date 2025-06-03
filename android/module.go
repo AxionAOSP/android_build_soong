@@ -1431,6 +1431,8 @@ func (m *ModuleBase) PartitionTag(config DeviceConfig) string {
 		partition = "vendor_ramdisk"
 	} else if m.InstallInRecovery() {
 		partition = "recovery"
+	} else if m.InstallInVendorDlkm() {
+		partition = "vendor_dlkm"
 	}
 	return partition
 }

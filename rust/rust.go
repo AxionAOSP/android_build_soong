@@ -84,7 +84,6 @@ func init() {
 	pctx.Import("android/soong/android")
 	pctx.Import("android/soong/rust/config")
 	pctx.ImportAs("cc_config", "android/soong/cc/config")
-	android.InitRegistrationContext.RegisterParallelSingletonType("kythe_rust_extract", kytheExtractRustFactory)
 }
 
 func registerPreDepsMutators(ctx android.RegisterMutatorsContext) {
@@ -2369,25 +2368,6 @@ func libNameFromFilePath(filepath android.Path) (string, bool) {
 		return libName, true
 	}
 	return "", false
-}
-
-func kytheExtractRustFactory() android.Singleton {
-	return &kytheExtractRustSingleton{}
-}
-
-type kytheExtractRustSingleton struct {
-}
-
-func (k kytheExtractRustSingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	var xrefTargets android.Paths
-	ctx.VisitAllModuleProxies(func(module android.ModuleProxy) {
-		if rustModule, ok := android.OtherModuleProvider(ctx, module, RustInfoProvider); ok {
-			xrefTargets = append(xrefTargets, rustModule.XrefRustFiles...)
-		}
-	})
-	if len(xrefTargets) > 0 {
-		ctx.Phony("xref_rust", xrefTargets...)
-	}
 }
 
 func (c *Module) Partition() string {

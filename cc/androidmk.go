@@ -211,12 +211,6 @@ func (library *libraryDecorator) androidMkWriteExportedFlags(entries *android.An
 	}
 }
 
-func (library *libraryDecorator) androidMkEntriesWriteAdditionalDependenciesForSourceAbiDiff(entries *android.AndroidMkInfo) {
-	if !library.static() {
-		entries.AddPaths("LOCAL_ADDITIONAL_DEPENDENCIES", library.sAbiDiff)
-	}
-}
-
 func (library *libraryDecorator) prepareAndroidMKProviderInfo(config android.Config, ctx AndroidMkContext, entries *android.AndroidMkInfo) {
 	if library.static() {
 		entries.Class = "STATIC_LIBRARIES"
@@ -237,7 +231,6 @@ func (library *libraryDecorator) prepareAndroidMKProviderInfo(config android.Con
 	}
 
 	library.androidMkWriteExportedFlags(entries)
-	library.androidMkEntriesWriteAdditionalDependenciesForSourceAbiDiff(entries)
 
 	if entries.OutputFile.Valid() {
 		_, _, ext := android.SplitFileExt(entries.OutputFile.Path().Base())

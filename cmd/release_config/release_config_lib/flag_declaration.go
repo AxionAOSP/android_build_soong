@@ -59,11 +59,5 @@ func FlagDeclarationFactory(protoPath string) (fd *rc_proto.FlagDeclaration, err
 		fd.Value = &rc_proto.Value{Val: &rc_proto.Value_UnspecifiedValue{false}}
 	}
 
-	// TODO(b/377311211): remove this check after proto changes have propagated.
-	switch *fd.Workflow {
-	case rc_proto.Workflow_MANUAL_NO_INHERIT, rc_proto.Workflow_MANUAL_BUILD_VARIANT:
-		return nil, fmt.Errorf("%s uses unsupported workflow %s", protoPath, *fd.Workflow)
-	}
-
 	return fd, nil
 }
