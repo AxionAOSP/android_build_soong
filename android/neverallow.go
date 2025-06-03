@@ -360,7 +360,6 @@ func createPrebuiltEtcBpDefineRule() Rule {
 			"prebuilt_first_stage_ramdisk",
 			"prebuilt_radio",
 			"prebuilt_gpu",
-			"prebuilt_vendor_overlay",
 		).
 		DefinedInBpFile().
 		Because("module type not allowed to be defined in bp file")
