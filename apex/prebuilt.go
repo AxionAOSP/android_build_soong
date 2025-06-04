@@ -15,7 +15,6 @@
 package apex
 
 import (
-	"fmt"
 	"slices"
 	"sort"
 	"strconv"
@@ -752,17 +751,6 @@ func (p *Prebuilt) validateApkInPrebuiltApex(ctx android.ModuleContext, appInfos
 
 // `addApkCertsInfo` sets a provider that will be used to create apkcerts.txt
 func (p *Prebuilt) addApkCertsInfo(ctx android.ModuleContext) {
-	formatLine := func(cert java.Certificate, name, partition string) string {
-		pem := cert.AndroidMkString()
-		var key string
-		if cert.Key == nil {
-			key = ""
-		} else {
-			key = cert.Key.String()
-		}
-		return fmt.Sprintf(`name="%s" certificate="%s" private_key="%s" partition="%s"`, name, pem, key, partition)
-	}
-
 	// Determine if this prebuilt_apex contains any .apks
 	var appInfos java.AppInfos
 	ctx.VisitDirectDepsProxyWithTag(appInPrebuiltApexTag, func(app android.ModuleProxy) {
@@ -781,16 +769,24 @@ func (p *Prebuilt) addApkCertsInfo(ctx android.ModuleContext) {
 	// p.apkCertsFile will be propagated to android_device for Soong packaging system
 	var lines []string
 	for _, appInfo := range appInfos {
-		lines = append(lines, formatLine(appInfo.Certificate, appInfo.InstallApkName+".apk", p.PartitionTag(ctx.DeviceConfig())))
+		lines = append(lines, java.FormatApkCertsLine(appInfo.Certificate, appInfo.InstallApkName+".apk", p.PartitionTag(ctx.DeviceConfig())))
 	}
-	p.apkCertsFile = android.PathForModuleOut(ctx, "apkcerts.txt")
+	apkCertsFile := android.PathForModuleOut(ctx, "apkcerts.txt")
 	var validations android.Paths
 	if p.IsInstallable() {
 		// Skip the validation for non-installable prebuilt apexes (e.g. used in CTS tests).
 		validations = append(validations, p.validateApkInPrebuiltApex(ctx, appInfos))
 	}
-	android.WriteFileRule(ctx, p.apkCertsFile, strings.Join(lines, "\n"), validations...)
-	android.SetProvider(ctx, filesystem.ApkCertsInfoProvider, filesystem.ApkCertsInfo{p.apkCertsFile})
+	android.WriteFileRule(ctx, apkCertsFile, strings.Join(lines, "\n"), validations...)
+
+	// Skip exporting the apkcerts file if there were missing dependencies, because soong will
+	// cause all build rules of a module with missing dependencies to fail to build.
+	if len(ctx.GetMissingDependencies()) == 0 {
+		p.apkCertsFile = apkCertsFile
+		android.SetProvider(ctx, java.ApkCertInfoProvider, java.ApkCertInfo{
+			ApkCertsFile: p.apkCertsFile,
+		})
+	}
 }
 
 // extract registers the build actions to extract an apex from .apks file

@@ -199,6 +199,9 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		ApkCertsFile:            as.apkcertsFile,
 		PackedAdditionalOutputs: as.packedOutput,
 	})
+	android.SetProvider(ctx, ApkCertInfoProvider, ApkCertInfo{
+		ApkCertsFile: as.apkcertsFile,
+	})
 }
 
 func (as *AndroidAppSet) InstallBypassMake() bool { return true }

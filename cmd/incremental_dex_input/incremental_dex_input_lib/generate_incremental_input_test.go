@@ -140,7 +140,7 @@ func TestGetAllPackages(t *testing.T) {
 				"com/example/App.class": nil,
 				"org/myapp/Start.class": nil,
 			},
-			expectedPackages: []string{"com/example", "org/myapp"},
+			expectedPackages: []string{".", "com/example", "org/myapp"},
 		},
 		{
 			name: "Duplicate Packages",
@@ -188,16 +188,17 @@ func TestGetAllPackages(t *testing.T) {
 // --- Test Fixture Setup ---
 // Struct to hold common test file paths
 type testFixture struct {
-	t            *testing.T
-	tmpDir       string
-	DexOutputDir string
-	ClassJar     string
-	DepsRspFile  string
-	DexTargetJar string
-	ClassFile1   string
-	ClassFile2   string
-	ClassFile3   string
-	DepJar       string
+	t                *testing.T
+	tmpDir           string
+	DexOutputDir     string
+	PackageOutputDir string
+	ClassJar         string
+	DepsRspFile      string
+	DexTargetJar     string
+	ClassFile1       string
+	ClassFile2       string
+	ClassFile3       string
+	DepJar           string
 }
 
 // newTestFixture creates the temporary directory and necessary files
@@ -206,16 +207,17 @@ func newTestFixture(t *testing.T) *testFixture {
 
 	// Create dummy files needed for the tests
 	fixture := &testFixture{
-		t:            t,
-		tmpDir:       tmpDir,
-		DexOutputDir: filepath.Join(tmpDir, "dex"),
-		ClassJar:     filepath.Join(tmpDir, "javac/classes.jar"),
-		DepsRspFile:  filepath.Join(tmpDir, "dex/deps.rsp"),
-		DexTargetJar: filepath.Join(tmpDir, "dex/dex.jar"),
-		ClassFile1:   filepath.Join(tmpDir, "javac/classes/com/example/ClassA.class"),
-		ClassFile2:   filepath.Join(tmpDir, "javac/classes/com/example/ClassC.class"),
-		ClassFile3:   filepath.Join(tmpDir, "javac/classes/org/another/ClassD.class"),
-		DepJar:       filepath.Join(tmpDir, "dex/deps.jar"),
+		t:                t,
+		tmpDir:           tmpDir,
+		DexOutputDir:     filepath.Join(tmpDir, "dex"),
+		PackageOutputDir: filepath.Join(tmpDir, "dex", "packages"),
+		ClassJar:         filepath.Join(tmpDir, "javac/classes.jar"),
+		DepsRspFile:      filepath.Join(tmpDir, "dex/deps.rsp"),
+		DexTargetJar:     filepath.Join(tmpDir, "dex/dex.jar"),
+		ClassFile1:       filepath.Join(tmpDir, "javac/classes/com/example/ClassA.class"),
+		ClassFile2:       filepath.Join(tmpDir, "javac/classes/com/example/ClassC.class"),
+		ClassFile3:       filepath.Join(tmpDir, "javac/classes/org/another/ClassD.class"),
+		DepJar:           filepath.Join(tmpDir, "dex/deps.jar"),
 	}
 
 	// Create directories and initial file contents
@@ -377,7 +379,7 @@ func createQualifiedTestJar(t *testing.T, outputPath, inputDir string) {
 func (tf *testFixture) runGenerator() {
 	// Small delay often needed for filesystem timestamp granularity
 	time.Sleep(15 * time.Millisecond)
-	GenerateIncrementalInput(tf.ClassJar, tf.DexOutputDir, tf.DexTargetJar, tf.DepsRspFile)
+	GenerateIncrementalInput(tf.ClassJar, tf.DexOutputDir, tf.PackageOutputDir, tf.DexTargetJar, tf.DepsRspFile)
 }
 
 // returns incOutputPath for testFixture

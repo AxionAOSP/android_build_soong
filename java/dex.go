@@ -207,10 +207,10 @@ var d8IncClean = pctx.AndroidStaticRule("d8Inc-partialcompileclean",
 
 var d8Inc, d8IncRE = pctx.MultiCommandRemoteStaticRules("d8Inc",
 	blueprint.RuleParams{
-		Command: `mkdir -p "$outDir" && ` +
+		Command: `mkdir -p "$outDir" "$outDir/packages" && ` +
 			`${config.IncrementalDexInputCmd} ` +
-			`--classesJar $in --dexTarget $out --deps $d8Deps --outputDir $outDir && ` +
-			`$d8Template${config.D8Cmd} ${config.D8Flags} $d8Flags --output $outDir --no-dex-input-jar $in --packages $out.rsp --mod-packages $out.inc.rsp && ` +
+			`--classesJar $in --dexTarget $out --deps $d8Deps --outputDir $outDir --packageOutputDir $outDir/packages && ` +
+			`$d8Template${config.D8Cmd} ${config.D8Flags} $d8Flags --output $outDir --no-dex-input-jar $in --packages $out.rsp --mod-packages $out.inc.rsp --package-output $outDir/packages && ` +
 			`$zipTemplate${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $mergeZipsFlags $out $outDir/classes.dex.jar $in && ` +
 			`if [ -f "$out.input.pc_state.new" ]; then mv "$out.input.pc_state.new" "$out.input.pc_state" && ` +
@@ -252,15 +252,15 @@ var d8IncR8Clean = pctx.AndroidStaticRule("d8Incr8-partialcompileclean",
 
 var d8IncR8, d8IncR8RE = pctx.MultiCommandRemoteStaticRules("d8Incr8",
 	blueprint.RuleParams{
-		Command: `mkdir -p "$outDir" && ` +
+		Command: `mkdir -p "$outDir" "$outDir/packages" && ` +
 			`rm -f "$outDict" && rm -f "$outConfig" && rm -rf "${outUsageDir}" && ` +
 			`mkdir -p $$(dirname ${outUsage}) && ` +
 			`if [ -n "$${SOONG_USE_PARTIAL_COMPILE}" ]; then ` +
 			` for f in "${outConfig}" "${outDict}" "${outUsage}" "${resourcesOutput}"; do ` +
 			`   test -n "$${f}" && test ! -f "$${f}" && mkdir -p "$$(dirname "$${f}")" && touch "$${f}" || true; ` +
 			` done && ` +
-			` ${config.IncrementalDexInputCmd} --classesJar $in --dexTarget $out --deps $d8Deps --outputDir $outDir && ` +
-			` $d8Template${config.D8Cmd} ${config.D8Flags} $d8Flags --output $outDir --no-dex-input-jar $in --packages $out.rsp --mod-packages $out.inc.rsp; ` +
+			` ${config.IncrementalDexInputCmd} --classesJar $in --dexTarget $out --deps $d8Deps --outputDir $outDir --packageOutputDir $outDir/packages && ` +
+			` $d8Template${config.D8Cmd} ${config.D8Flags} $d8Flags --output $outDir --no-dex-input-jar $in --packages $out.rsp --mod-packages $out.inc.rsp --package-output $outDir/packages; ` +
 			`else ` +
 			` rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 			` $r8Template${config.R8Cmd} ${config.R8Flags} $r8Flags -injars $in --output $outDir ` +
@@ -552,14 +552,11 @@ func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
 
 func (d *dexer) d8Flags(ctx android.ModuleContext, dexParams *compileDexParams, useD8Inc bool) (d8Flags []string, d8Deps android.Paths, artProfileOutput *android.OutputPath) {
 	flags := dexParams.flags
-	// classpath optimizations are optional when using d8 incrementally, offering
-	// further speed-up.
+	d8Flags = append(d8Flags, flags.bootClasspath.FormRepeatedClassPath("--lib ")...)
+	d8Flags = append(d8Flags, flags.dexClasspath.FormRepeatedClassPath("--lib ")...)
+	d8Deps = append(d8Deps, flags.bootClasspath...)
+	d8Deps = append(d8Deps, flags.dexClasspath...)
 	if !useD8Inc {
-		d8Flags = append(d8Flags, flags.bootClasspath.FormRepeatedClassPath("--lib ")...)
-		d8Flags = append(d8Flags, flags.dexClasspath.FormRepeatedClassPath("--lib ")...)
-		d8Deps = append(d8Deps, flags.bootClasspath...)
-		d8Deps = append(d8Deps, flags.dexClasspath...)
-
 		if flags, deps, profileOutput := d.addArtProfile(ctx, dexParams); profileOutput != nil {
 			d8Flags = append(d8Flags, flags...)
 			d8Deps = append(d8Deps, deps...)

@@ -237,7 +237,7 @@ type PrebuiltEtc struct {
 	// prebuilt_firmware.
 	socInstallDirBase      string
 	installDirPaths        []android.InstallPath
-	additionalDependencies *android.Paths
+	additionalDependencies android.Paths
 
 	usedSrcsProperty bool
 
@@ -358,7 +358,7 @@ func (p *PrebuiltEtc) InstallDirPath() android.InstallPath {
 // This allows other derivative modules (e.g. prebuilt_etc_xml) to perform
 // additional steps (like validating the src) before the file is installed.
 func (p *PrebuiltEtc) SetAdditionalDependencies(paths android.Paths) {
-	p.additionalDependencies = &paths
+	p.additionalDependencies = paths
 }
 
 func (p *PrebuiltEtc) OutputFile() android.Path {
@@ -536,7 +536,7 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		p.SkipInstall()
 	}
 	for _, ip := range installs {
-		ip.addInstallRules(ctx)
+		ip.addInstallRules(ctx, p.additionalDependencies)
 	}
 
 	p.updateModuleInfoJSON(ctx)
@@ -583,14 +583,15 @@ type installProperties struct {
 
 // utility function to add install rules to the build graph.
 // Reduces code duplication between Soong and Mixed build analysis
-func (ip *installProperties) addInstallRules(ctx android.ModuleContext) {
+func (ip *installProperties) addInstallRules(ctx android.ModuleContext, validations android.Paths) {
 	// Copy the file from src to a location in out/ with the correct `filename`
 	// This ensures that outputFilePath has the correct name for others to
 	// use, as the source file may have a different name.
 	ctx.Build(pctx, android.BuildParams{
-		Rule:   android.Cp,
-		Output: ip.outputFilePath,
-		Input:  ip.sourceFilePath,
+		Rule:        android.Cp,
+		Output:      ip.outputFilePath,
+		Input:       ip.sourceFilePath,
+		Validations: validations,
 	})
 
 	installPath := ctx.InstallFile(ip.installDirPath, ip.filename, ip.outputFilePath)
@@ -632,9 +633,6 @@ func (p *PrebuiltEtc) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.AddStrings("LOCAL_MODULE_SYMLINKS", p.properties.Symlinks...)
 				}
 				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !p.Installable())
-				if p.additionalDependencies != nil {
-					entries.AddStrings("LOCAL_ADDITIONAL_DEPENDENCIES", p.additionalDependencies.Strings()...)
-				}
 			},
 		},
 	}}

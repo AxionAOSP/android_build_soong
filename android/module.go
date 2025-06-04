@@ -3454,3 +3454,9 @@ func CheckBlueprintSyntax(ctx BaseModuleContext, filename string, contents strin
 	bpctx := ctx.blueprintBaseModuleContext()
 	return blueprint.CheckBlueprintSyntax(bpctx.ModuleFactories(), filename, contents)
 }
+
+type HideApexVariantFromMakeInfo struct {
+	HideApexVariantFromMake bool
+}
+
+var HideApexVariantFromMakeProvider = blueprint.NewProvider[HideApexVariantFromMakeInfo]()

@@ -42,7 +42,7 @@ kzip_targets=(
   xref_java
   xref_kotlin
   # TODO: b/286390153 - reenable rust
-  #xref_rust
+  xref_rust
 )
 
 build/soong/soong_ui.bash --build-mode --all-modules --dir=$PWD -k --skip-soong-tests --ninja_weight_source=not_used "${kzip_targets[@]}"

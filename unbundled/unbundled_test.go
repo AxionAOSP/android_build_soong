@@ -29,6 +29,11 @@ func TestProguardZipWithOverrideApp(t *testing.T) {
 		android.FixtureModifyConfig(func(config android.Config) {
 			config.TestProductVariables.Unbundled_build_apps = []string{"foo", "fooOverride"}
 		}),
+		android.FixtureAddTextFile("build/soong/unbundled/Android.bp", `
+		unbundled_builder {
+			name: "unbundled_builder",
+		}
+		`),
 		android.FixtureAddTextFile("build/soong/Android.bp", `
 		android_app {
 			name: "foo",
@@ -41,9 +46,6 @@ func TestProguardZipWithOverrideApp(t *testing.T) {
 		override_android_app {
 			name: "fooOverride",
 			base: "foo",
-		}
-		unbundled_builder {
-			name: "unbundled_builder",
 		}
 		`),
 		android.FixtureAddTextFile("build/soong/foo.java", ""),

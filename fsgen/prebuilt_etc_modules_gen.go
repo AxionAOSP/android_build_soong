@@ -421,10 +421,12 @@ func createPrebuiltEtcModules(ctx android.LoadHookContext) (ret []string) {
 	return ret
 }
 
-func createAvbpubkeyModule(ctx android.LoadHookContext) bool {
+func createAvbpubkeyModule(ctx android.LoadHookContext) {
 	avbKeyPath := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BoardAvbKeyPath
 	if avbKeyPath == "" {
-		return false
+		// Use default
+		// https://cs.android.com/android/_/android/platform/build/+/045a3d6a3e359633a14853a5a5e1e4f2a11cbdae:core/Makefile;l=4548;bpv=1;bpt=0;drc=a951ebf0198006f7fd38073a05c442d0eb92f97b
+		avbKeyPath = "external/avb/test/data/testkey_rsa4096.pem"
 	}
 	ctx.CreateModuleInDirectory(
 		etc.AvbpubkeyModuleFactory,
@@ -445,5 +447,4 @@ func createAvbpubkeyModule(ctx android.LoadHookContext) bool {
 			Licenses:         []string{"Android-Apache-2.0"},
 		},
 	)
-	return true
 }

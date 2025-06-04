@@ -546,8 +546,8 @@ type apexBundle struct {
 	// Required modules, filled out during GenerateAndroidBuildActions and used in AndroidMk
 	required []string
 
-	// appinfo of the apk-in-apex of this module
-	appInfos java.AppInfos
+	// apkCerts of the apk-in-apex of this module
+	apkCerts java.ApkCertsInfo
 }
 
 // apexFileClass represents a type of file that can be included in APEX.
@@ -1929,7 +1929,6 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			}
 		case androidAppTag:
 			if appInfo, ok := android.OtherModuleProvider(ctx, child, java.AppInfoProvider); ok {
-				a.appInfos = append(a.appInfos, *appInfo)
 				if appInfo.AppSet {
 					appDir := "app"
 					if appInfo.Privileged {
@@ -1945,9 +1944,18 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 					vctx.filesInfo = append(vctx.filesInfo, af)
 				} else {
 					vctx.filesInfo = append(vctx.filesInfo, apexFilesForAndroidApp(ctx, child, commonInfo, appInfo)...)
-					if !appInfo.Prebuilt && !appInfo.TestHelperApp {
-						return true // track transitive dependencies
+				}
+
+				// androidMkForFiles is only called if a.installable(), so historically make would
+				// only see certs from apks inside installable apexes
+				if a.installable() {
+					if apkCertInfo, ok := android.OtherModuleProvider(ctx, child, java.ApkCertInfoProvider); ok {
+						a.apkCerts = append(a.apkCerts, apkCertInfo)
 					}
+				}
+
+				if !appInfo.AppSet && !appInfo.Prebuilt && !appInfo.TestHelperApp {
+					return true // track transitive dependencies
 				}
 			} else {
 				ctx.PropertyErrorf("apps", "%q is not an android_app module", depName)
@@ -2272,7 +2280,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	android.SetProvider(ctx, filesystem.ApexKeyPathInfoProvider, filesystem.ApexKeyPathInfo{a.apexKeysPath})
 
-	android.SetProvider(ctx, java.AppInfosProvider, a.appInfos)
+	android.SetProvider(ctx, java.ApkCertsInfoProvider, a.apkCerts)
 	a.setSymbolInfosProvider(ctx)
 
 	pem, key := a.getCertificateAndPrivateKey(ctx)

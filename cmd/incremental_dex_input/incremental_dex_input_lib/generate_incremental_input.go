@@ -14,7 +14,7 @@ import (
 
 var fileSepRegex = regexp.MustCompile("[^[:space:]]+")
 
-func GenerateIncrementalInput(jarFilePath, outputDir, dexTarget, deps string) {
+func GenerateIncrementalInput(jarFilePath, outputDir, packageOutputDir, dexTarget, deps string) {
 	inputPcState := dexTarget + ".input.pc_state"
 	depsPcState := dexTarget + ".deps.pc_state"
 
@@ -50,7 +50,7 @@ func GenerateIncrementalInput(jarFilePath, outputDir, dexTarget, deps string) {
 		} else {
 			for _, ch := range chF {
 				// Filter out the files that do not end with ".class"
-				if normalizedPath := getNormalizedPackagePath(ch); normalizedPath != "" {
+				if normalizedPath := getPackagePath(ch); normalizedPath != "" {
 					chPackageSet[normalizedPath] = true
 				}
 			}
@@ -62,7 +62,7 @@ func GenerateIncrementalInput(jarFilePath, outputDir, dexTarget, deps string) {
 		}
 	}
 
-	preparePackagePaths(outputDir, packagePaths)
+	preparePackagePaths(packageOutputDir, packagePaths)
 
 	writePackagePathsToRspFile(dexTarget+".rsp", packagePaths)
 	writePackagePathsToRspFile(dexTarget+".inc.rsp", chPackagePaths)
@@ -87,11 +87,11 @@ func usePartialCompile() bool {
 	return false
 }
 
-// Clears changed package paths and re-creates the package paths.
-func preparePackagePaths(outputDir string, packagePaths []string) {
-	// Create package directories relative to outputDir
+// Re-creates the package paths.
+func preparePackagePaths(packageOutputDir string, packagePaths []string) {
+	// Create package directories relative to packageOutputDir
 	for _, pkgPath := range packagePaths {
-		targetPath := filepath.Join(outputDir, pkgPath)
+		targetPath := filepath.Join(packageOutputDir, pkgPath)
 		if err := os.MkdirAll(targetPath, 0755); err != nil {
 			fmt.Println("err: ", err)
 			panic(err)
@@ -115,8 +115,8 @@ func getAllPackages(jarFilePath string) []string {
 		if file.FileInfo().IsDir() {
 			continue
 		}
-		if normalizedPath := getNormalizedPackagePath(file.Name); normalizedPath != "" {
-			packageSet[normalizedPath] = true
+		if packagePath := getPackagePath(file.Name); packagePath != "" {
+			packageSet[packagePath] = true
 		}
 	}
 
@@ -129,13 +129,16 @@ func getAllPackages(jarFilePath string) []string {
 	return packagePaths
 }
 
-// Returns normalized package paths, for files ending with .class
-func getNormalizedPackagePath(file string) string {
+// Returns package path, for files ending with .class
+func getPackagePath(file string) string {
 	if strings.HasSuffix(file, ".class") {
 		dirPath := filepath.Dir(file)
 		if dirPath != "." {
 			return filepath.ToSlash(dirPath)
 		}
+		// Return `.` if the class does not have a package, i.e. present at the root
+		// of the jar.
+		return "."
 	}
 	return ""
 }

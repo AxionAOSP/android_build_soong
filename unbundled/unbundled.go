@@ -88,8 +88,8 @@ func (*unbundledBuilder) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.Module().HideFromMake()
-	if ctx.ModuleDir() != "build/soong" {
-		ctx.ModuleErrorf("There can only be 1 unbundled_builder in build/soong")
+	if ctx.ModuleDir() != "build/soong/unbundled" {
+		ctx.ModuleErrorf("There can only be 1 unbundled_builder in build/soong/unbundled")
 		return
 	}
 	if !ctx.Config().HasUnbundledBuildApps() {
@@ -207,4 +207,6 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		}
 		ctx.DistForGoal("apps_only", jacocoZip)
 	}
+
+	ctx.DistForGoal("apps_only", java.ApkCertsFile(ctx))
 }

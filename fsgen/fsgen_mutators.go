@@ -124,7 +124,7 @@ type installationProperties struct {
 func defaultDepCandidateProps(config android.Config) *depCandidateProps {
 	return &depCandidateProps{
 		Namespace:           ".",
-		Arch:                []android.ArchType{config.BuildArch},
+		Arch:                []android.ArchType{config.DevicePrimaryArchType()},
 		NativeBridgeSupport: map[android.NativeBridgeSupport]bool{android.NativeBridgeDisabled: true},
 	}
 }
@@ -160,7 +160,7 @@ func productInstalledModules(ctx android.LoadHookContext) []string {
 	return allInstalledModules
 }
 
-func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNames []string, avbpubkeyGenerated bool) *FsGenState {
+func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNames []string) *FsGenState {
 	return ctx.Config().Once(fsGenStateOnceKey, func() interface{} {
 		allInstalledModules := slices.Concat(
 			productInstalledModules(ctx),
@@ -255,9 +255,7 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 			nativeBridgeModules:             map[string]bool{},
 		}
 
-		if avbpubkeyGenerated {
-			(*fsGenState.fsDeps["product"])["system_other_avbpubkey"] = defaultDepCandidateProps(ctx.Config())
-		}
+		(*fsGenState.fsDeps["product"])["system_other_avbpubkey"] = defaultDepCandidateProps(ctx.Config())
 
 		if len(ctx.Config().DeviceManifestFiles()) > 0 {
 			(*fsGenState.fsDeps["vendor"])["vendor_manifest.xml"] = defaultDepCandidateProps(ctx.Config())

@@ -132,6 +132,12 @@ var (
 			Description: "concatenate sorted file contents to $out",
 		})
 
+	CatAndSortAndUnique = pctx.AndroidStaticRule("CatAndSortAndUnique",
+		blueprint.RuleParams{
+			Command:     "rm -f $out && cat $in > $out && sort -u -o $out $out",
+			Description: "concatenate sorted file contents to $out",
+		})
+
 	MergeZips = pctx.AndroidStaticRule("MergeZips",
 		blueprint.RuleParams{
 			Command: `${MergeZipsCmd} -s $out $in`,

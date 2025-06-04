@@ -21,12 +21,13 @@ import (
 )
 
 func main() {
-	var classesJar, deps, outputDir, dexTarget string
+	var classesJar, deps, outputDir, packageOutputDir, dexTarget string
 
 	flag.StringVar(&classesJar, "classesJar", "", "jar file containing compiled java classes")
 	flag.StringVar(&deps, "deps", "", "rsp file enlisting all module deps")
 	flag.StringVar(&dexTarget, "dexTarget", "", "dex output")
 	flag.StringVar(&outputDir, "outputDir", "", "root directory for creating dex entries")
+	flag.StringVar(&packageOutputDir, "packageOutputDir", "", "root directory for creating package based dex entries")
 
 	flag.Parse()
 
@@ -46,5 +47,9 @@ func main() {
 		panic("must specify --outputDir")
 	}
 
-	idi_lib.GenerateIncrementalInput(classesJar, outputDir, dexTarget, deps)
+	if packageOutputDir == "" {
+		panic("must specify --packageOutputDir")
+	}
+
+	idi_lib.GenerateIncrementalInput(classesJar, outputDir, packageOutputDir, dexTarget, deps)
 }

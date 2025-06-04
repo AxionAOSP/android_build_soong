@@ -27,6 +27,7 @@ bootstrap_go_package {
         "android_manifest.go",
         "android_resources.go",
         "androidmk.go",
+        "apkcerts.go",
         "app_builder.go",
         "app.go",
         "app_import.go",

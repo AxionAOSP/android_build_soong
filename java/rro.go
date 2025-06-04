@@ -213,6 +213,11 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 		Theme:       r.Theme(),
 	})
 
+	android.SetProvider(ctx, ApkCertInfoProvider, ApkCertInfo{
+		Certificate: r.Certificate(),
+		Name:        r.outputFile.Base(),
+	})
+
 	ctx.SetOutputFiles([]android.Path{r.outputFile}, "")
 
 	buildComplianceMetadata(ctx)
@@ -261,6 +266,17 @@ func RuntimeResourceOverlayFactory() android.Module {
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	android.InitOverridableModule(module, &module.properties.Overrides)
+
+	module.SetDefaultableHook(func(ctx android.DefaultableHookContext) {
+		// Make this module product_specific by default. Keep this in sync with rroPartition()
+		if !ctx.DeviceSpecific() && !ctx.SocSpecific() && !ctx.SystemExtSpecific() {
+			proptools.AppendMatchingProperties(ctx.Module().GetProperties(), &struct {
+				Product_specific *bool
+			}{
+				Product_specific: proptools.BoolPtr(true),
+			}, nil)
+		}
+	})
 	return module
 }
 
@@ -420,6 +436,11 @@ func (a *AutogenRuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.
 	android.SetProvider(ctx, RuntimeResourceOverlayInfoProvider, RuntimeResourceOverlayInfo{
 		OutputFile:  signed,
 		Certificate: a.certificate,
+	})
+
+	android.SetProvider(ctx, ApkCertInfoProvider, ApkCertInfo{
+		Certificate: a.certificate,
+		Name:        signed.Base(),
 	})
 }
 
