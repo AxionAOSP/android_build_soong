@@ -96,6 +96,12 @@ func (l *loadHookContext) AppendProperties(props ...interface{}) {
 	l.appendPrependHelper(props, proptools.AppendMatchingProperties)
 }
 
+func (l *loadHookContext) Config() Config {
+	// LoadHookContext cannot be generic, but must read all configuration values
+	// because it is called before loading module properties.
+	return l.earlyModuleContext.EarlyModuleContext.Config().(Config)
+}
+
 func (l *loadHookContext) PrependProperties(props ...interface{}) {
 	l.appendPrependHelper(props, proptools.PrependMatchingProperties)
 }

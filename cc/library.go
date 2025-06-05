@@ -1551,7 +1551,10 @@ func (library *libraryDecorator) optInAbiDiff(ctx android.ModuleContext,
 
 	// Most opt-in libraries do not have dumps for all default architectures.
 	if ctx.Config().HasDeviceProduct() {
-		errorMessage += " --product " + ctx.Config().DeviceProduct()
+		// Instead of showing the product name directly, use an env variable to
+		// the error message to avoid changing build rules just because of lunch
+		// target change.
+		errorMessage += " --product $$TARGET_PRODUCT"
 	}
 
 	library.sourceAbiDiff(ctx, sourceDump, referenceDump, baseName, nameExt,

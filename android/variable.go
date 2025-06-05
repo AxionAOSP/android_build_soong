@@ -741,6 +741,8 @@ type PartitionVariables struct {
 	BootloaderInUpdatePackage           bool     `json:",omitempty"`
 
 	BoardFastbootInfoFile string `json:",omitempty"`
+
+	TargetRecoveryWipe string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {

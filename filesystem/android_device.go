@@ -189,6 +189,10 @@ func (a *androidDevice) addDepsForTargetFilesMetadata(ctx android.BottomUpMutato
 	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(), fileContextsDepTag, "file_contexts_bin_gen")
 }
 
+func (a *androidDevice) UseGenericConfig() bool {
+	return false
+}
+
 func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if proptools.Bool(a.deviceProps.Main_device) {
 		numMainAndroidDevices := ctx.Config().Once(numMainAndroidDevicesOnceKey, func() interface{} {
@@ -284,7 +288,11 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		deps = append(deps, a.copyFilesToProductOutForSoongOnly(ctx))
 	}
 	trebleLabelingTestTimestamp := a.buildTrebleLabelingTest(ctx)
-	validations = append(validations, trebleLabelingTestTimestamp)
+
+	// Treble Labeling tests only for 202604 or later
+	if ctx.DeviceConfig().PlatformSepolicyVersion() >= "202604" {
+		validations = append(validations, trebleLabelingTestTimestamp)
+	}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        android.Touch,
@@ -641,7 +649,8 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		FlagWithArg("-k ", pemWithoutFileExt).
 		FlagWithOutput("--output_metadata_path ", otaMetadata).
 		Text(targetFilesDir.String()).
-		Output(otaFilesZip)
+		Output(otaFilesZip).
+		Implicit(ctx.Config().HostToolPath(ctx, "delta_generator"))
 	a.otaFilesZip = otaFilesZip
 	a.otaMetadata = otaMetadata
 
@@ -1304,6 +1313,10 @@ func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) andro
 
 		if !ctx.Config().EnforceSELinuxTrebleLabeling() {
 			cmd.Flag("--treat_as_warnings")
+		}
+
+		if ctx.Config().Debuggable() {
+			cmd.Flag("--debuggable")
 		}
 
 		cmd.FlagWithOutput("> ", testTimestamp)

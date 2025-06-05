@@ -69,6 +69,12 @@ func (p *unbundledBuilder) IsNativeCoverageNeeded(ctx cc.IsNativeCoverageNeededC
 	return ctx.DeviceConfig().NativeCoverageEnabled()
 }
 
+// Return "false" for UseGenericConfig() to read the DeviceProduct().
+// Even though unbundledBuilder is not for a specific device, do we need "targetProductPrefix"?
+func (p *unbundledBuilder) UseGenericConfig() bool {
+	return false
+}
+
 var _ cc.UseCoverage = (*unbundledBuilder)(nil)
 
 func (*unbundledBuilder) DepsMutator(ctx android.BottomUpMutatorContext) {

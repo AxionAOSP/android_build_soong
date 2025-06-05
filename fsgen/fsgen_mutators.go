@@ -268,6 +268,9 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 		if name, _ := getRecoveryBackgroundPicturesGeneratorModuleName(ctx); name != "" {
 			(*fsGenState.fsDeps["recovery"])[name] = defaultDepCandidateProps(ctx.Config())
 		}
+		if name := createTargetRecoveryWipeModuleName(ctx); name != "" {
+			(*fsGenState.fsDeps["recovery"])[name] = defaultDepCandidateProps(ctx.Config())
+		}
 
 		// VNDK APEXes are deprecated and are not supported and disabled for riscv64 arch.
 		// Adding these modules as deps of the auto generated riscv64 arch filesystem modules

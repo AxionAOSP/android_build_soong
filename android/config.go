@@ -104,7 +104,7 @@ const (
 const testKeyDir = "build/make/target/product/security"
 
 func (c Config) genericConfig() Config {
-	return Config{c.config.genericConfig}
+	return Config{c.config.genericConfigField}
 }
 
 // SoongOutDir returns the build output directory for the configuration.
@@ -412,7 +412,7 @@ type config struct {
 
 	// Copy of this config struct but some product-specific variables are
 	// replaced with the generic configuration values.
-	genericConfig *config
+	genericConfigField *config
 
 	// modulesForTests stores the list of modules that exist during Soong tests.  It is nil
 	// when not running Soong tests.
@@ -828,9 +828,9 @@ func initConfig(cmdArgs CmdArgs, availableEnv map[string]string) (*config, error
 // A generic tag may have a string or an int value for the generic configuration.
 // If the value is "unset", generic configuration will unset the variable.
 func overrideGenericConfig(config *config) {
-	config.genericConfig.isGeneric = true
-	type_pv := reflect.TypeOf(config.genericConfig.productVariables)
-	value_pv := reflect.ValueOf(&config.genericConfig.productVariables)
+	config.genericConfigField.isGeneric = true
+	type_pv := reflect.TypeOf(config.genericConfigField.productVariables)
+	value_pv := reflect.ValueOf(&config.genericConfigField.productVariables)
 	for i := range type_pv.NumField() {
 		type_pv_field := type_pv.Field(i)
 		generic_value := type_pv_field.Tag.Get("generic")
@@ -876,9 +876,9 @@ func overrideGenericConfig(config *config) {
 	}
 
 	// OncePer must be a singleton.
-	config.genericConfig.OncePer = config.OncePer
+	config.genericConfigField.OncePer = config.OncePer
 	// keep the device name to get the install path.
-	config.genericConfig.deviceNameToInstall = config.deviceNameToInstall
+	config.genericConfigField.deviceNameToInstall = config.deviceNameToInstall
 }
 
 // NewConfig creates a new Config object. It also loads the config file, if
@@ -891,7 +891,7 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 	}
 
 	// Initialize generic configuration.
-	config.genericConfig, err = initConfig(cmdArgs, availableEnv)
+	config.genericConfigField, err = initConfig(cmdArgs, availableEnv)
 	// Update product specific variables with the generic configuration.
 	overrideGenericConfig(config)
 
@@ -1124,6 +1124,11 @@ func (c *config) BuildDateFile(ctx PathContext) Path {
 // DeviceName returns the name of the current device target.
 // TODO: take an AndroidModuleContext to select the device name for multi-device builds
 func (c *config) DeviceName() string {
+	if c.isGeneric {
+		// The config is called from a context of a module which returns true
+		// from UseGenericConfig(). This is not allowed.
+		panic("The DeviceName() function cannot be called when using the generic configuration. To call DeviceName(), ensure the module's UseGenericConfig() function returns \"false\".")
+	}
 	return *c.productVariables.DeviceName
 }
 
@@ -1132,6 +1137,11 @@ func (c *config) DeviceName() string {
 //
 // NOTE: Do not base conditional logic on this value. It may break product inheritance.
 func (c *config) DeviceProduct() string {
+	if c.isGeneric {
+		// The config is called from a context of a module which returns true
+		// from UseGenericConfig(). This is not allowed.
+		panic("The DeviceProduct() function cannot be called when using the generic configuration. To call DeviceProduct(), ensure the module's UseGenericConfig() function returns \"false\".")
+	}
 	return *c.productVariables.DeviceProduct
 }
 

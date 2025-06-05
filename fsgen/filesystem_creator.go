@@ -170,6 +170,11 @@ func shouldEnableFilesystemCreator(ctx android.ConfigContext) bool {
 	return true
 }
 
+// This is a build process. It must read all configuration values.
+func (f *filesystemCreator) UseGenericConfig() bool {
+	return false
+}
+
 func generatedPartitions(ctx android.EarlyModuleContext) allGeneratedPartitionData {
 	partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
 

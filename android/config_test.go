@@ -318,23 +318,18 @@ type configTestModule struct {
 }
 
 func (d *configTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
-	deviceName := ctx.Config().DeviceName()
 	if ctx.ModuleName() == "foo" {
 		if ctx.Module().UseGenericConfig() {
-			ctx.PropertyErrorf("use_generic_config", "must not be set for this test")
+			ctx.ModuleErrorf("must not use generic config")
 		}
 	} else if ctx.ModuleName() == "bar" {
 		if !ctx.Module().UseGenericConfig() {
-			ctx.ModuleErrorf("\"use_generic_config: true\" must be set for this test")
+			ctx.ModuleErrorf("must use generic config")
 		}
 	}
 
-	if ctx.Module().UseGenericConfig() {
-		if deviceName != "generic" {
-			ctx.ModuleErrorf("Device name for this module must be \"generic\" but %q\n", deviceName)
-		}
-	} else {
-		if deviceName == "generic" {
+	if !ctx.Module().UseGenericConfig() {
+		if ctx.Config().DeviceName() == "generic" {
 			ctx.ModuleErrorf("Device name for this module must not be \"generic\"\n")
 		}
 	}
@@ -357,11 +352,11 @@ func TestGenericConfig(t *testing.T) {
 	bp := `
 		test {
 			name: "foo",
+			vendor: true,
 		}
 
 		test {
 			name: "bar",
-			use_generic_config: true,
 		}
 	`
 

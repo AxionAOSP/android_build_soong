@@ -210,7 +210,7 @@ func getAllTestModules(ctx android.ModuleContext) []android.ModuleOrProxy {
 }
 
 func createOutput(ctx android.ModuleContext, pctx android.PackageContext) android.ModuleOutPath {
-	productOut := filepath.Join(ctx.Config().OutDir(), "target", "product", ctx.Config().DeviceName())
+	productOut := android.PathForModuleInPartitionInstall(ctx, "").String()
 	stagingDir := android.PathForModuleOut(ctx, "STAGING")
 	productVariables := ctx.Config().ProductVariables()
 	arch := proptools.String(productVariables.DeviceArch)

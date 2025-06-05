@@ -2528,6 +2528,9 @@ func (j *Module) checkSdkLinkType(
 	depLinkType := info.ModuleWithSdkDepInfo.SdkLinkType
 
 	if myLinkType.rank() < depLinkType.rank() {
+		if allowedViolations, ok := SdkVersionDependencyViolationAllowlist[ctx.ModuleName()]; ok && android.InList(dep.Name(), allowedViolations) {
+			return
+		}
 		ctx.ModuleErrorf("compiles against %v, but dependency %q is compiling against %v. "+
 			"In order to fix this, consider adjusting sdk_version: OR platform_apis: "+
 			"property of the source or target module so that target module is built "+

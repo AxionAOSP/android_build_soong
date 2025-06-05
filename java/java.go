@@ -583,6 +583,13 @@ func IsJniDepTag(depTag blueprint.DependencyTag) bool {
 	return depTag == jniLibTag || depTag == jniInstallTag
 }
 
+func IsOptionalUsesLibraryDepTag(depTag blueprint.DependencyTag) bool {
+	if tag, ok := depTag.(usesLibraryDependencyTag); ok {
+		return tag.optional
+	}
+	return depTag == r8LibraryJarTag
+}
+
 // A tag that is used for staging the dependencies of a module, for populating uses libraries
 // dependencies.
 type usesLibStagingTagStruct struct {
