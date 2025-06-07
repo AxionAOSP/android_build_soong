@@ -78,7 +78,6 @@ bootstrap_go_package {
         "sdk.go",
         "sdk_library.go",
         "sdk_library_internal.go",
-        "sdk_version_violations.go",
         "support_libraries.go",
         "system_modules.go",
         "system_modules_gob_enc.go",
