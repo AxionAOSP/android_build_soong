@@ -29,7 +29,6 @@ import (
 
 var (
 	_ = pctx.SourcePathVariable("rustcCmd", "${config.RustBin}/rustc")
-	_ = pctx.StaticVariableWithEnvOverride("RERustPool", "RBE_RUST_POOL", "rustc")
 
 	rustc, rustcRbe = pctx.RemoteStaticRules("rustc",
 		blueprint.RuleParams{

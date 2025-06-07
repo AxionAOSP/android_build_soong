@@ -1581,10 +1581,10 @@ func PathForModuleSrc(ctx ModuleMissingDepsPathContext, pathComponents ...string
 		} else {
 			reportPathError(ctx, err)
 		}
-		return nil
+		return pathForModuleSrc(ctx, "Missing_PathForModuleSrc_file")
 	} else if len(paths) == 0 {
 		ReportPathErrorf(ctx, "%q produced no files, expected exactly one", p)
-		return nil
+		return pathForModuleSrc(ctx, "Missing_PathForModuleSrc_file")
 	} else if len(paths) > 1 {
 		ReportPathErrorf(ctx, "%q produced %d files, expected exactly one", p, len(paths))
 	}

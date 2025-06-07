@@ -260,6 +260,9 @@ type FilesystemProperties struct {
 	// Whether this partition is not supported by flashall.
 	// If true, this partition will not be included in the `updatedpackage` dist artifact.
 	No_flashall *bool
+
+	// Run checkvintf on the vintf manifests of the filesystem
+	Check_vintf *bool
 }
 
 type AndroidFilesystemDeps struct {
@@ -486,6 +489,9 @@ type FilesystemInfo struct {
 	NoFlashall       bool
 	// HasOrIsRecovery returns true for recovery and for ramdisks with a recovery partition.
 	HasOrIsRecovery bool
+
+	// Results of check_vintf
+	checkVintfLog android.Path
 }
 
 // FullInstallPathInfo contains information about the "full install" paths of all the files
@@ -660,6 +666,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	f.buildEventLogtagsFile(ctx, builder, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
 	f.buildAconfigFlagsFiles(ctx, builder, specs, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
 	f.filesystemBuilder.BuildLinkerConfigFile(ctx, builder, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
+	checkVintfLog := f.checkVintf(ctx, rebasedDir)
 	// Assemeble the staging dir and output a timestamp
 	builder.Command().Text("touch").Output(f.fileystemStagingDirTimestamp(ctx))
 	builder.Build("assemble_filesystem_staging_dir", fmt.Sprintf("Assemble filesystem staging dir %s", f.BaseModuleName()))
@@ -765,6 +772,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		PartitionName:       f.partitionName(),
 		HasOrIsRecovery:     f.hasOrIsRecovery(ctx),
 		NoFlashall:          proptools.Bool(f.properties.No_flashall),
+		checkVintfLog:       checkVintfLog,
 	}
 	if proptools.Bool(f.properties.Use_avb) {
 		fsInfo.UseAvb = true
@@ -1863,4 +1871,64 @@ func setCommonFilesystemInfo(ctx android.ModuleContext, m Filesystem) {
 		Output:           m.OutputPath(),
 		SignedOutputPath: m.SignedOutputPath(),
 	})
+}
+
+// Runs checkvintf on the staging directory of the filesystem.
+func (f *filesystem) checkVintf(ctx android.ModuleContext, rebasedDir android.OutputPath) android.Path {
+	if !proptools.Bool(f.properties.Check_vintf) {
+		return nil
+	}
+	checkVintfLog := android.PathForModuleOut(ctx, "vintf", "check_vintf_"+f.PartitionType()+".log")
+	extractedApexDir := android.PathForModuleOut(ctx, "vintf", "apex_extracted")
+
+	builder := android.NewRuleBuilder(pctx, ctx)
+	// Use apexd_host to extract the apexes of this partition to an intermediate location.
+	// This intermediate location will be subsequently used by checkvintf.
+	cmd := builder.Command()
+	cmd.Textf("rm -rf %s", checkVintfLog).
+		Textf("rm -rf %s && mkdir -p %s && ", extractedApexDir.String(), extractedApexDir.String()).
+		BuiltTool("apexd_host").
+		FlagWithArg(fmt.Sprintf(" --%s_path ", f.PartitionType()), rebasedDir.String()).
+		FlagWithArg(" --apex_path ", extractedApexDir.String())
+
+	if f.PartitionType() == "system" {
+		cmd.Textf(" && ").
+			BuiltTool("checkvintf").
+			Flag("--check-one").
+			Implicit(f.fileystemStagingDirTimestamp(ctx)).
+			FlagWithArg("--dirmap ", fmt.Sprintf("/system:%s", rebasedDir.String())).
+			FlagWithArg("--dirmap ", fmt.Sprintf("/apex:%s", extractedApexDir.String())).
+			FlagWithOutput(">> ", checkVintfLog).
+			Flag("2>&1 ").
+			Textf(" || ( cat %s && exit 1 ); ", checkVintfLog.String())
+	} else {
+		// checkvintf against each device sku
+		for _, vendorSku := range deviceSkusForCheckVintf(ctx) {
+			cmd.Textf(" && ").
+				BuiltTool("checkvintf").
+				Flag("--check-one").
+				Implicit(f.fileystemStagingDirTimestamp(ctx)).
+				FlagWithArg("--dirmap ", fmt.Sprintf("/vendor:%s", rebasedDir.String())).
+				FlagWithArg("--dirmap ", fmt.Sprintf("/apex:%s", extractedApexDir.String())).
+				FlagWithArg("--property ", "ro.boot.product.vendor.sku="+vendorSku).
+				FlagWithOutput(">> ", checkVintfLog).
+				Flag("2>&1 ").
+				Textf(" || ( cat %s && exit 1 ); ", checkVintfLog.String())
+		}
+	}
+
+	builder.Build(checkVintfLog.Base(), checkVintfLog.Base())
+	return checkVintfLog
+}
+
+func deviceSkusForCheckVintf(ctx android.ModuleContext) []string {
+	// Check vendor SKU=(empty) case when:
+	// - DEVICE_MANIFEST_FILE is not empty; OR
+	// - DEVICE_MANIFEST_FILE is empty AND DEVICE_MANIFEST_SKUS is empty (only vendor manifest fragments are used)
+	if len(ctx.Config().DeviceManifestFiles()) > 0 {
+		return []string{""}
+	} else if len(ctx.Config().DeviceManifestSkus()) == 0 {
+		return []string{""}
+	}
+	return ctx.Config().DeviceManifestSkus()
 }

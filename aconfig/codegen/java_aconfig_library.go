@@ -78,13 +78,18 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) DepsMutator(module *ja
 func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuildActions(module *java.GeneratedJavaLibraryModule, ctx android.ModuleContext) (android.Path, android.Path) {
 	// Get the values that came from the global RELEASE_ACONFIG_VALUE_SETS flag
 	declarationsModules := ctx.GetDirectDepsProxyWithTag(declarationsTag)
+	srcJarPath := android.PathForModuleGen(ctx, ctx.ModuleName()+".srcjar")
 	if len(declarationsModules) != 1 {
-		panic("Exactly one aconfig_declarations property required")
+		if ctx.Config().AllowMissingDependencies() {
+			ctx.AddMissingDependencies([]string{"exactly_one_aconfig_declarations_required"})
+			return srcJarPath, android.PathForModuleOut(ctx, "missing_declarations")
+		} else {
+			panic("Exactly one aconfig_declarations property required")
+		}
 	}
 	declarations, _ := android.OtherModuleProvider(ctx, declarationsModules[0], android.AconfigDeclarationsProviderKey)
 
 	// Generate the action to build the srcjar
-	srcJarPath := android.PathForModuleGen(ctx, ctx.ModuleName()+".srcjar")
 
 	mode := proptools.StringDefault(callbacks.properties.Mode, "production")
 	if !isModeSupported(mode) {

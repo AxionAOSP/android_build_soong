@@ -2538,8 +2538,16 @@ func (c *config) DeviceManifestFiles() []string {
 	return c.productVariables.DeviceManifestFiles
 }
 
+func (c *config) DeviceManifestSkus() []string {
+	return c.productVariables.DeviceManifestSkus
+}
+
 func (c *config) OdmManifestFiles() []string {
 	return c.productVariables.OdmManifestFiles
+}
+
+func (c *config) OdmManifestSkus() []string {
+	return c.productVariables.OdmManifestSkus
 }
 
 func (c *config) EnforceSELinuxTrebleLabeling() bool {

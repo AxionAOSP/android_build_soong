@@ -472,6 +472,7 @@ func partitionSpecificFsProps(ctx android.EarlyModuleContext, partitions allGene
 		fsProps.Build_logtags = proptools.BoolPtr(true)
 		// https://source.corp.google.com/h/googleplex-android/platform/build//639d79f5012a6542ab1f733b0697db45761ab0f3:core/packaging/flags.mk;l=21;drc=5ba8a8b77507f93aa48cc61c5ba3f31a4d0cbf37;bpv=1;bpt=0
 		fsProps.Gen_aconfig_flags_pb = proptools.BoolPtr(true)
+		fsProps.Check_vintf = proptools.BoolPtr(true)
 		// Identical to that of the aosp_shared_system_image
 		if partitionVars.ProductFsverityGenerateMetadata {
 			fsProps.Fsverity.Inputs = proptools.NewSimpleConfigurable([]string{
@@ -557,6 +558,7 @@ func partitionSpecificFsProps(ctx android.EarlyModuleContext, partitions allGene
 		fsProps.Stem = proptools.StringPtr("product.img")
 	case "vendor":
 		fsProps.Gen_aconfig_flags_pb = proptools.BoolPtr(true)
+		fsProps.Check_vintf = proptools.BoolPtr(true)
 		if ctx.DeviceConfig().OdmPath() == "odm" {
 			fsProps.Symlinks = append(fsProps.Symlinks,
 				filesystem.SymlinkDefinition{

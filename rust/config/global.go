@@ -144,7 +144,21 @@ func init() {
 			"-B${cc_config.ClangBin}",
 		}), " "))
 
-	pctx.StaticVariableWithEnvOverride("RERustPool", "RBE_RUST_POOL", remoteexec.DefaultPool)
+	pctx.VariableFunc("RERustPool", func(ctx android.PackageVarContext) string {
+		var defaultPool, overrideEnv string
+		if ctx.Config().Eng() {
+			// eng uses codegen-units=16, which can take advantage of the larger java16 machines.
+			defaultPool = "java16"
+			overrideEnv = "RBE_RUST_ENG_POOL"
+		} else {
+			defaultPool = "default"
+			overrideEnv = "RBE_RUST_POOL"
+		}
+		if override := ctx.Config().Getenv(overrideEnv); override != "" {
+			return override
+		}
+		return defaultPool
+	})
 	pctx.StaticVariableWithEnvOverride("RERustExecStrategy", "RBE_RUST_EXEC_STRATEGY", remoteexec.LocalExecStrategy)
 
 }

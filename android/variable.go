@@ -541,7 +541,9 @@ type ProductVariables struct {
 	SystemManifestFile     []string `json:",omitempty"`
 	SystemExtManifestFiles []string `json:",omitempty"`
 	DeviceManifestFiles    []string `json:",omitempty"`
+	DeviceManifestSkus     []string `json:",omitempty"`
 	OdmManifestFiles       []string `json:",omitempty"`
+	OdmManifestSkus        []string `json:",omitempty"`
 
 	UseSoongNoticeXML *bool `json:",omitempty"`
 
