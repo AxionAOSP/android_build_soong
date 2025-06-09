@@ -137,6 +137,10 @@ func (c BlueprintConfig) PrimaryBuilderInvocations() []bootstrap.PrimaryBuilderI
 	return c.primaryBuilderInvocations
 }
 
+func (c BlueprintConfig) IsBootstrap() bool {
+	return true
+}
+
 func environmentArgs(config Config, tag string) []string {
 	return []string{
 		"--available_env", shared.JoinPath(config.SoongOutDir(), availableEnvFile),

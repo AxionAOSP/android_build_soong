@@ -92,19 +92,20 @@ type configImpl struct {
 	// Either the user or product config requested that we skip soong (for the banner). The other
 	// skip flags tell whether *this* soong_ui invocation will skip kati - which will be true
 	// during lunch.
-	soongOnlyRequested        bool
-	skipKati                  bool
-	skipKatiControlledByFlags bool
-	skipKatiNinja             bool
-	skipSoong                 bool
-	skipNinja                 bool
-	skipSoongTests            bool
-	skipMetricsUpload         bool
-	buildStartedTime          int64 // For metrics-upload-only - manually specify a build-started time
-	buildFromSourceStub       bool
-	incrementalBuildActions   bool
-	ensureAllowlistIntegrity  bool // For CI builds - make sure modules are mixed-built
-	runCIPDProxyServer        bool
+	soongOnlyRequested                  bool
+	skipKati                            bool
+	skipKatiControlledByFlags           bool
+	skipKatiNinja                       bool
+	skipSoong                           bool
+	skipNinja                           bool
+	skipSoongTests                      bool
+	skipMetricsUpload                   bool
+	buildStartedTime                    int64 // For metrics-upload-only - manually specify a build-started time
+	buildFromSourceStub                 bool
+	incrementalBuildActions             bool
+	ensureAllowlistIntegrity            bool // For CI builds - make sure modules are mixed-built
+	runCIPDProxyServer                  bool
+	runCIPDProxyServerControlledByFlags bool
 
 	// From the product config
 	katiArgs        []string
@@ -383,6 +384,17 @@ func newConfig(ctx Context, isDumpVar bool, args ...string) Config {
 			value = ""
 		}
 		ret.environ.Set("SOONG_USE_PARTIAL_COMPILE", value)
+	}
+
+	if !ret.runCIPDProxyServerControlledByFlags {
+		if value, ok := ret.environ.Get("SOONG_RUN_CIPD_PROXY_SERVER"); ok {
+			parsedVal, err := strconv.ParseBool(value)
+			if err == nil {
+				ret.runCIPDProxyServer = parsedVal
+			} else {
+				ctx.Verbosef("SOONG_RUN_CIPD_PROXY_SERVER (%q) is not a valid boolean", value)
+			}
+		}
 	}
 
 	ret.ninjaCommand = NINJA_NINJA
@@ -986,6 +998,10 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.ensureAllowlistIntegrity = true
 		} else if arg == "--run-cipd-proxy-server" {
 			c.runCIPDProxyServer = true
+			c.runCIPDProxyServerControlledByFlags = true
+		} else if arg == "--no-run-cipd-proxy-server" {
+			c.runCIPDProxyServer = false
+			c.runCIPDProxyServerControlledByFlags = true
 		} else if len(arg) > 0 && arg[0] == '-' {
 			parseArgNum := func(def int) int {
 				if len(arg) > 2 {
@@ -1524,6 +1540,7 @@ func (c *configImpl) rbeReproxy() string {
 
 func (c *configImpl) rbeAuth() (string, string) {
 	credFlags := []string{
+		"credentials_helper",
 		"use_application_default_credentials",
 		"use_gce_credentials",
 		"credential_file",

@@ -128,7 +128,7 @@ func (g *GoBinary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 func usedByBootstrap(name string) bool {
 	switch name {
-	case "loadplugins", "soong_build":
+	case "gob_gen", "loadplugins", "soong_build":
 		return true
 	default:
 		return false

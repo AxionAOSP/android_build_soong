@@ -22,6 +22,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -52,6 +53,7 @@ func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 	ctx.Status.Status("Starting CIPD proxy server...")
 
 	cipdArgs := []string{"proxy", "-proxy-policy", cipdProxyPolicyPath}
+	adcFlagAdded := false
 
 	if config.UseRBE() {
 		// Determine RBE authentication mechanism and propagate to CIPD flags.
@@ -59,7 +61,7 @@ func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 		switch authType {
 		case "RBE_credential_file":
 			cipdArgs = append(cipdArgs, "-service-account-json", authValue)
-		case "RBE_use_google_prod_creds":
+		case "RBE_credentials_helper", "RBE_use_google_prod_creds":
 			helperPath := filepath.Join(config.rbeDir(), "credshelper")
 
 			var credHelperArgsParts []string
@@ -81,8 +83,26 @@ func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 			fallthrough
 		default:
 			cipdArgs = append(cipdArgs, "-application-default-credentials=always")
+			adcFlagAdded = true
+		}
+	} else {
+		ctx.Printf("No RBE configuration detected. You may need to use application default credentials.")
+	}
+
+	if !adcFlagAdded {
+		// RBE instructions for non-corp machines set both RBE_credentials_helper and
+		// RBE_use_application_default_credentials. Pass that along to CIPD as well.
+		// Even if USE_RBE=false, CIPD can still use ADC.
+		if useAdcStr, ok := config.environ.Get("RBE_use_application_default_credentials"); ok {
+			parsedVal, err := strconv.ParseBool(useAdcStr)
+			if err == nil && parsedVal {
+				cipdArgs = append(cipdArgs, "-application-default-credentials=always")
+			}
 		}
 	}
+
+	cipdCmd := fmt.Sprintf("cipd %s", strings.Join(cipdArgs, " "))
+	ctx.Printf("Starting CIPD proxy server with: %s", cipdCmd)
 
 	cmd := Command(ctx, config, "cipd", cipdPath(config), cipdArgs...)
 	stdout, err := cmd.StdoutPipe()
