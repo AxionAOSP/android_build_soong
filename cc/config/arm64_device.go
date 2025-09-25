@@ -44,7 +44,7 @@ var (
 		// On ARMv9 and later, Pointer Authentication Codes (PAC) are mandatory,
 		// so -fstack-protector is unnecessary.
 		"armv9-a": []string{
-			"-march=armv9-a",
+			"-march=armv9-a+crypto+nosve+dotprod+fp16+i8mm",
 			"-mbranch-protection=standard",
 			"-fno-stack-protector",
 		},
@@ -98,6 +98,10 @@ var (
 			// Use cortex-a53 because kryo385 is not supported in clang.
 			"-mcpu=cortex-a53",
 		},
+		"kryo785": []string{
+			// Disable SVE instructions because Qualcomm disabled SVE in firmware.
+			"-mcpu=cortex-a510+nosve",
+		},
 		"exynos-m1": []string{
 			"-mcpu=exynos-m1",
 		},
@@ -137,7 +141,7 @@ func init() {
 	pctx.StaticVariable("Arm64KryoCflags", strings.Join(arm64CpuVariantCflags["kryo"], " "))
 	pctx.StaticVariable("Arm64ExynosM1Cflags", strings.Join(arm64CpuVariantCflags["exynos-m1"], " "))
 	pctx.StaticVariable("Arm64ExynosM2Cflags", strings.Join(arm64CpuVariantCflags["exynos-m2"], " "))
-
+	pctx.StaticVariable("Arm64Kryo785Cflags", strings.Join(arm64CpuVariantCflags["kryo785"], " "))
 	pctx.StaticVariable("Arm64FixCortexA53Ldflags", "-Wl,--fix-cortex-a53-843419")
 }
 
@@ -151,6 +155,7 @@ var (
 		"cortex-a76": "${config.Arm64CortexA55Cflags}",
 		"kryo":       "${config.Arm64KryoCflags}",
 		"kryo385":    "${config.Arm64CortexA53Cflags}",
+		"kryo785":    "${config.Arm64KryoCflags}",
 		"exynos-m1":  "${config.Arm64ExynosM1Cflags}",
 		"exynos-m2":  "${config.Arm64ExynosM2Cflags}",
 	}
