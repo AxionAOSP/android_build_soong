@@ -22,6 +22,7 @@ import (
 	"android/soong/etc"
 	"android/soong/filesystem"
 	"android/soong/java"
+	"android/soong/phony"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -252,7 +253,7 @@ func TestRemoveOverriddenModulesFromDeps(t *testing.T) {
 			`),
 		}),
 		android.FixtureModifyConfig(func(config android.Config) {
-			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackages = []string{"libfoo", "libbar"}
+			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackages = []string{"libfoo", "libbar", "prebuiltA", "prebuiltB"}
 		}),
 	).RunTestWithBp(t, `
 java_library {
@@ -266,10 +267,19 @@ java_library {
 	name: "libbaz",
 	overrides: ["libfoo"], // overrides libfoo
 }
+java_import {
+	name: "prebuiltA",
+}
+java_import {
+	name: "prebuiltB",
+	overrides: ["prebuiltA"], // overrides prebuiltA
+}
 	`)
 	resolvedSystemDeps := result.TestContext.Config().Get(fsGenStateOnceKey).(*FsGenState).fsDeps["system"]
 	_, libFooInDeps := (*resolvedSystemDeps)["libfoo"]
 	android.AssertBoolEquals(t, "libfoo should not appear in deps because it has been overridden by libbaz. The latter is a required dep of libbar, which is listed in PRODUCT_PACKAGES", false, libFooInDeps)
+	_, prebuiltAInDeps := (*resolvedSystemDeps)["prebuiltA"]
+	android.AssertBoolEquals(t, "prebuiltA should not appear in deps because it has been overridden by prebuiltB. The latter is listed in PRODUCT_PACKAGES", false, prebuiltAInDeps)
 }
 
 func TestPrebuiltEtcModuleGen(t *testing.T) {
@@ -658,5 +668,127 @@ func TestPrebuiltEtcModuleGen(t *testing.T) {
 			}
 			return ""
 		}),
+	)
+}
+
+func TestPartitionOfOverrideModules(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		android.PrepareForIntegrationTestWithAndroid,
+		android.PrepareForTestWithAndroidBuildComponents,
+		android.PrepareForTestWithAllowMissingDependencies,
+		prepareForTestWithFsgenBuildComponents,
+		java.PrepareForTestWithJavaBuildComponents,
+		prepareMockRamdiksNodeList,
+		android.PrepareForTestWithNamespace,
+		android.FixtureMergeMockFs(android.MockFS{
+			"external/avb/test/data/testkey_rsa4096.pem": nil,
+			"build/soong/fsgen/Android.bp": []byte(`
+			soong_filesystem_creator {
+				name: "foo",
+			}`),
+			"mynamespace/Android.bp": []byte(`
+			soong_namespace{
+			}
+			android_app {
+				name: "system_ext_app_in_namespace",
+				system_ext_specific: true,
+				platform_apis: true,
+			}`),
+		}),
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.TestProductVariables.NamespacesToExport = []string{"mynamespace"}
+			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackages = []string{"system_ext_override_app", "system_ext_override_app_in_namespace"}
+		}),
+	).RunTestWithBp(t, `
+android_app {
+	name: "system_ext_app",
+	system_ext_specific: true,
+	platform_apis: true,
+}
+override_android_app {
+	name: "system_ext_override_app",
+	base: "system_ext_app",
+}
+override_android_app {
+	name: "system_ext_override_app_in_namespace",
+	base: "//mynamespace:system_ext_app_in_namespace",
+}
+`)
+	resolvedDeps := result.TestContext.Config().Get(fsGenStateOnceKey).(*FsGenState).fsDeps["system_ext"]
+	_, overrideAppInSystemExt := (*resolvedDeps)["system_ext_override_app"]
+	android.AssertBoolEquals(t, "Override app should be added to the same partition as the `base`", true, overrideAppInSystemExt)
+	_, overrideAppInSystemExt = (*resolvedDeps)["system_ext_override_app_in_namespace"]
+	android.AssertBoolEquals(t, "Override app should be added to the same partition as the `base`", true, overrideAppInSystemExt)
+}
+
+func TestCrossPartitionRequiredModules(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		android.PrepareForIntegrationTestWithAndroid,
+		android.PrepareForTestWithAndroidBuildComponents,
+		android.PrepareForTestWithAllowMissingDependencies,
+		prepareForTestWithFsgenBuildComponents,
+		java.PrepareForTestWithJavaBuildComponents,
+		prepareMockRamdiksNodeList,
+		android.PrepareForTestWithNamespace,
+		phony.PrepareForTestWithPhony,
+		etc.PrepareForTestWithPrebuiltEtc,
+		android.FixtureMergeMockFs(android.MockFS{
+			"external/avb/test/data/testkey_rsa4096.pem": nil,
+			"mynamespace/default-permissions.xml":        nil,
+			"build/soong/fsgen/Android.bp": []byte(`
+			soong_filesystem_creator {
+				name: "foo",
+			}`),
+			"mynamespace/Android.bp": []byte(`
+			soong_namespace{
+			}
+			android_app {
+				name: "some_app_in_namespace",
+				product_specific: true,
+				required: ["some-permissions"],
+				platform_apis: true,
+			}
+			prebuilt_etc {
+				name: "some-permissions",
+				sub_dir: "default-permissions",
+				src: "default-permissions.xml",
+				filename_from_src: true,
+				system_ext_specific: true,
+			}
+`),
+		}),
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.TestProductVariables.NamespacesToExport = []string{"mynamespace"}
+			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackages = []string{"some_app_in_namespace"}
+		}),
+	).RunTestWithBp(t, `
+		phony {
+			name: "com.android.vndk.v34",
+		}
+		phony {
+			name: "com.android.vndk.v33",
+		}
+		phony {
+			name: "com.android.vndk.v32",
+		}
+		phony {
+			name: "com.android.vndk.v31",
+		}
+		phony {
+			name: "com.android.vndk.v30",
+		}
+		phony {
+			name: "file_contexts_bin_gen",
+		}
+		phony {
+			name: "notice_xml_system_ext",
+		}
+	`)
+	systemExtFilesystemModule := result.ModuleForTests(t, "test_product_generated_system_ext_image", "android_common")
+	systemExtStagingDirImplicitDeps := systemExtFilesystemModule.Output("staging_dir.timestamp").Implicits
+	android.AssertStringDoesContain(t,
+		"system_ext staging dir expected to contain cross partition require deps",
+		strings.Join(systemExtStagingDirImplicitDeps.Strings(), " "),
+		"mynamespace/some-permissions/android_arm64_armv8-a/default-permissions.xml",
 	)
 }

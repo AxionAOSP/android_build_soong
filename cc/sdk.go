@@ -57,6 +57,9 @@ func (sdkTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 }
 
 func (sdkTransitionMutator) OutgoingTransition(ctx android.OutgoingTransitionContext, sourceVariation string) string {
+	if _, ok := ctx.DepTag().(android.UsesUnbundledVariantDepTag); ok {
+		return "sdk"
+	}
 	return sourceVariation
 }
 
@@ -78,8 +81,15 @@ func (sdkTransitionMutator) IncomingTransition(ctx android.IncomingTransitionCon
 			}
 		}
 	}
-
-	if ctx.IsAddingDependency() {
+	_, usesUnbundledVariantDepTag := ctx.DepTag().(android.UsesUnbundledVariantDepTag)
+	// If we've reached this point, the module doesn't have an sdk variant. If we're adding
+	// a dependency, we want to pass the sdk variant through to cause a missing dependency error,
+	// so that sdk modules can't depend on non-sdk modules and smuggle the use of private apis.
+	// However, when the unbundled_builder depends on modules, it wants to prefer the sdk variant
+	// but fall back to non-sdk if it doesn't exist. It's ok in this case because the
+	// unbundled_builder is just a module for disting other modules, it doesn't have any code of its
+	// own.
+	if ctx.IsAddingDependency() && !usesUnbundledVariantDepTag {
 		return incomingVariation
 	} else {
 		return ""
@@ -114,7 +124,7 @@ func (sdkTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, variation
 				ccModule.Properties.PreventInstall = true
 			}
 
-			if ctx.Config().UnbundledBuildApps() {
+			if ctx.Config().HasUnbundledBuildApps() {
 				if variation == "" {
 					// For an unbundled apps build, hide the platform variant from Make
 					// so that other Make modules don't link against it, but against the

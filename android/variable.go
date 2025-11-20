@@ -295,7 +295,6 @@ type ProductVariables struct {
 	Safestack                    *bool    `json:",omitempty"`
 	HostStaticBinaries           *bool    `json:",omitempty"`
 	Binder32bit                  *bool    `json:",omitempty"`
-	UseGoma                      *bool    `json:",omitempty"`
 	UseABFS                      *bool    `json:",omitempty"`
 	UseRBE                       *bool    `json:",omitempty"`
 	UseRBEJAVAC                  *bool    `json:",omitempty"`
@@ -397,8 +396,8 @@ type ProductVariables struct {
 	BoardSepolicyVers       *string `json:",omitempty"`
 	PlatformSepolicyVersion *string `json:",omitempty"`
 
-	SystemExtSepolicyPrebuiltApiDir *string `json:",omitempty"`
-	ProductSepolicyPrebuiltApiDir   *string `json:",omitempty"`
+	SystemExtSepolicyPrebuiltApiDirs []string `json:",omitempty"`
+	ProductSepolicyPrebuiltApiDirs   []string `json:",omitempty"`
 
 	PlatformSepolicyCompatVersions []string `json:",omitempty"`
 
@@ -455,7 +454,6 @@ type ProductVariables struct {
 	BuildBrokenClangAsFlags             bool     `json:",omitempty"`
 	BuildBrokenClangCFlags              bool     `json:",omitempty"`
 	BuildBrokenClangProperty            bool     `json:",omitempty"`
-	GenruleSandboxing                   *bool    `json:",omitempty"`
 	BuildBrokenEnforceSyspropOwner      bool     `json:",omitempty"`
 	BuildBrokenTrebleSyspropNeverallow  bool     `json:",omitempty"`
 	BuildBrokenVendorPropertyNamespace  bool     `json:",omitempty"`
@@ -463,8 +461,6 @@ type ProductVariables struct {
 	BuildBrokenInputDirModules          []string `json:",omitempty"`
 	BuildBrokenDontCheckSystemSdk       bool     `json:",omitempty"`
 	BuildBrokenDupSysprop               bool     `json:",omitempty"`
-
-	BuildWarningBadOptionalUsesLibsAllowlist []string `json:",omitempty"`
 
 	BuildDebugfsRestrictionsEnabled bool `json:",omitempty"`
 
@@ -546,11 +542,27 @@ type ProductVariables struct {
 	SystemManifestFile     []string `json:",omitempty"`
 	SystemExtManifestFiles []string `json:",omitempty"`
 	DeviceManifestFiles    []string `json:",omitempty"`
+	DeviceManifestSkus     []string `json:",omitempty"`
 	OdmManifestFiles       []string `json:",omitempty"`
+	OdmManifestSkus        []string `json:",omitempty"`
 
 	UseSoongNoticeXML *bool `json:",omitempty"`
 
 	StripByDefault *bool `json:",omitempty"`
+
+	CompatibilityTestcases map[string]CompatibilityTestcaseJSON
+
+	// Will be used to install host tools in soong only builds
+	ProductHostPackages []string `json:",omitempty"`
+
+	EnforceSELinuxTrebleLabeling *bool `json:",omitempty"`
+
+	SELinuxTrebleLabelingTrackingListFile *string `json:",omitempty"`
+}
+
+type CompatibilityTestcaseJSON struct {
+	OutDir              string `json:",omitempty"`
+	IncludeModuleFolder bool   `json:",omitempty"`
 }
 
 type PartitionQualifiedVariablesType struct {
@@ -638,6 +650,7 @@ type PartitionVariables struct {
 	BoardVendorBootimagePartitionSize string   `json:",omitempty"`
 	BoardInitBootimagePartitionSize   string   `json:",omitempty"`
 	BoardBootHeaderVersion            string   `json:",omitempty"`
+	BoardInitBootHeaderVersion        string   `json:",omitempty"`
 	TargetKernelPath                  string   `json:",omitempty"`
 	BoardUsesGenericKernelImage       bool     `json:",omitempty"`
 	BootSecurityPatch                 string   `json:",omitempty"`
@@ -676,31 +689,41 @@ type PartitionVariables struct {
 	BuildingVbmetaImage     bool                                `json:",omitempty"`
 	ChainedVbmetaPartitions map[string]ChainedAvbPartitionProps `json:",omitempty"`
 
-	ProductPackages         []string `json:",omitempty"`
-	ProductPackagesDebug    []string `json:",omitempty"`
-	VendorLinkerConfigSrcs  []string `json:",omitempty"`
-	ProductLinkerConfigSrcs []string `json:",omitempty"`
+	ProductPackages                   []string `json:",omitempty"`
+	ProductPackagesDebug              []string `json:",omitempty"`
+	ProductPackagesEng                []string `json:",omitempty"`
+	ProductPackagesDebugAsan          []string `json:",omitempty"`
+	ProductPackagesDebugJavaCoverage  []string `json:",omitempty"`
+	ProductPackagesArm64              []string `json:",omitempty"`
+	ProductPackagesShippingApiLevel29 []string `json:",omitempty"`
+	ProductPackagesShippingApiLevel33 []string `json:",omitempty"`
+	ProductPackagesShippingApiLevel34 []string `json:",omitempty"`
+	VendorLinkerConfigSrcs            []string `json:",omitempty"`
+	ProductLinkerConfigSrcs           []string `json:",omitempty"`
 
 	BoardInfoFiles      []string `json:",omitempty"`
 	BootLoaderBoardName string   `json:",omitempty"`
 
 	ProductCopyFiles []string `json:",omitempty"`
 
-	BuildingSystemDlkmImage   bool     `json:",omitempty"`
-	SystemKernelModules       []string `json:",omitempty"`
-	SystemKernelBlocklistFile string   `json:",omitempty"`
-	SystemKernelLoadModules   []string `json:",omitempty"`
-	BuildingVendorDlkmImage   bool     `json:",omitempty"`
-	VendorKernelModules       []string `json:",omitempty"`
-	VendorKernelBlocklistFile string   `json:",omitempty"`
-	BuildingOdmDlkmImage      bool     `json:",omitempty"`
-	OdmKernelModules          []string `json:",omitempty"`
-	OdmKernelBlocklistFile    string   `json:",omitempty"`
+	BuildingSystemDlkmImage             bool     `json:",omitempty"`
+	SystemKernelModules                 []string `json:",omitempty"`
+	SystemKernelBlocklistFile           string   `json:",omitempty"`
+	SystemKernelLoadModules             []string `json:",omitempty"`
+	BuildingVendorDlkmImage             bool     `json:",omitempty"`
+	VendorKernelModules                 []string `json:",omitempty"`
+	VendorKernelBlocklistFile           string   `json:",omitempty"`
+	VendorKernelModules2ndStage16kbMode []string `json:",omitempty"`
+	BuildingOdmDlkmImage                bool     `json:",omitempty"`
+	OdmKernelModules                    []string `json:",omitempty"`
+	OdmKernelBlocklistFile              string   `json:",omitempty"`
 
 	VendorRamdiskKernelModules       []string `json:",omitempty"`
 	VendorRamdiskKernelBlocklistFile string   `json:",omitempty"`
 	VendorRamdiskKernelLoadModules   []string `json:",omitempty"`
 	VendorRamdiskKernelOptionsFile   string   `json:",omitempty"`
+	DoNotStripVendorRamdiskModules   bool     `json:",omitempty"`
+	DoNotStripVendorModules          bool     `json:",omitempty"`
 
 	ProductFsverityGenerateMetadata bool `json:",omitempty"`
 
@@ -721,6 +744,8 @@ type PartitionVariables struct {
 	BootloaderInUpdatePackage           bool     `json:",omitempty"`
 
 	BoardFastbootInfoFile string `json:",omitempty"`
+
+	TargetRecoveryWipe string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {

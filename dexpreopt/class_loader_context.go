@@ -328,7 +328,12 @@ func (clcMap ClassLoaderContextMap) addContext(ctx android.ModuleInstallPathCont
 		} else if clc.Host == hostPath && clc.Device == devicePath {
 			// Ok, the same library with the same paths. Don't re-add it, but don't raise an error
 			// either, as the same library may be reachable via different transitional dependencies.
+			// For the same library brought in by different dependencies, some of them don't carry all the
+			// fields, so we populate the fields from other dependencies when available.
 			clc.Optional = clc.Optional && optional
+			if len(clc.Subcontexts) == 0 {
+				clc.Subcontexts = subcontexts
+			}
 			return nil
 		} else {
 			// Fail, as someone is trying to add the same library with different paths. This likely

@@ -25,8 +25,9 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/gobtools"
 )
+
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
 
 var (
 	// Constants of property names used in compliance metadata of modules
@@ -128,46 +129,25 @@ var (
 // ComplianceMetadataInfo provides all metadata of a module, e.g. name, module type, package, license,
 // dependencies, built/installed files, etc. It is a wrapper on a map[string]string with some utility
 // methods to get/set properties' values.
+// @auto-generate: gob
 type ComplianceMetadataInfo struct {
-	properties          map[string]string
-	filesContained      []string
-	prebuiltFilesCopied []string
-}
-
-type complianceMetadataInfoGob struct {
-	Properties          map[string]string
-	FilesContained      []string
-	PrebuiltFilesCopied []string
+	properties             map[string]string
+	filesContained         []string
+	prebuiltFilesCopied    []string
+	platformGeneratedFiles []string
+	productCopyFiles       []string
+	kernelModuleCopyFiles  []string
 }
 
 func NewComplianceMetadataInfo() *ComplianceMetadataInfo {
 	return &ComplianceMetadataInfo{
-		properties:          map[string]string{},
-		filesContained:      make([]string, 0),
-		prebuiltFilesCopied: make([]string, 0),
+		properties:             map[string]string{},
+		filesContained:         make([]string, 0),
+		prebuiltFilesCopied:    make([]string, 0),
+		platformGeneratedFiles: make([]string, 0),
+		kernelModuleCopyFiles:  make([]string, 0),
+		productCopyFiles:       make([]string, 0),
 	}
-}
-
-func (m *ComplianceMetadataInfo) ToGob() *complianceMetadataInfoGob {
-	return &complianceMetadataInfoGob{
-		Properties:          m.properties,
-		FilesContained:      m.filesContained,
-		PrebuiltFilesCopied: m.prebuiltFilesCopied,
-	}
-}
-
-func (m *ComplianceMetadataInfo) FromGob(data *complianceMetadataInfoGob) {
-	m.properties = data.Properties
-	m.filesContained = data.FilesContained
-	m.prebuiltFilesCopied = data.PrebuiltFilesCopied
-}
-
-func (c *ComplianceMetadataInfo) GobEncode() ([]byte, error) {
-	return gobtools.CustomGobEncode[complianceMetadataInfoGob](c)
-}
-
-func (c *ComplianceMetadataInfo) GobDecode(data []byte) error {
-	return gobtools.CustomGobDecode[complianceMetadataInfoGob](data, c)
 }
 
 func (c *ComplianceMetadataInfo) SetStringValue(propertyName string, value string) {
@@ -195,6 +175,30 @@ func (c *ComplianceMetadataInfo) SetPrebuiltFilesCopied(files []string) {
 
 func (c *ComplianceMetadataInfo) GetPrebuiltFilesCopied() []string {
 	return c.prebuiltFilesCopied
+}
+
+func (c *ComplianceMetadataInfo) SetPlatformGeneratedFiles(files []string) {
+	c.platformGeneratedFiles = files
+}
+
+func (c *ComplianceMetadataInfo) GetPlatformGeneratedFiles() []string {
+	return c.platformGeneratedFiles
+}
+
+func (c *ComplianceMetadataInfo) SetProductCopyFiles(files []string) {
+	c.productCopyFiles = files
+}
+
+func (c *ComplianceMetadataInfo) GetProductCopyFiles() []string {
+	return c.productCopyFiles
+}
+
+func (c *ComplianceMetadataInfo) SetKernelModuleCopyFiles(files []string) {
+	c.kernelModuleCopyFiles = files
+}
+
+func (c *ComplianceMetadataInfo) GetKernelModuleCopyFiles() []string {
+	return c.kernelModuleCopyFiles
 }
 
 func (c *ComplianceMetadataInfo) getStringValue(propertyName string) string {
@@ -246,6 +250,20 @@ func buildComplianceMetadataProvider(ctx *moduleContext, m *ModuleBase) {
 		installed = append(installed, ctx.katiSymlinks.InstallPaths()...)
 		installed = append(installed, ctx.katiInitRcInstalls.InstallPaths()...)
 		installed = append(installed, ctx.katiVintfInstalls.InstallPaths()...)
+		// The following module types use PackageFiles instead of InstallFiles so here we need to
+		// collect the fullInstallPaths from the packagingSpecs.
+		// TODO: b/409854522
+		if strings.HasPrefix(ctx.ModuleType(), "sdk_library_internal") ||
+			ctx.ModuleType() == "bpf" ||
+			ctx.ModuleType() == "libbpf_prog" ||
+			ctx.ModuleType() == "avbpubkey__loadHookModule" ||
+			(ctx.ModuleType() == "prebuilt_etc" &&
+				slices.Contains([]string{"preloaded-classes", "public.libraries.android.txt"}, ctx.ModuleName())) ||
+			(ctx.ModuleType() == "prebuilt_root" && ctx.ModuleName() == "init.environ.rc-soong") {
+			for _, s := range ctx.packagingSpecs {
+				installed = append(installed, s.fullInstallPath)
+			}
+		}
 		complianceMetadataInfo.SetListValue(ComplianceMetadataProp.INSTALLED_FILES, FirstUniqueStrings(installed.Strings()))
 	}
 	ctx.setProvider(ComplianceMetadataProvider, complianceMetadataInfo)
@@ -361,6 +379,18 @@ func (c *complianceMetadataSingleton) GenerateBuildActions(ctx SingletonContext)
 						}
 						sort.Strings(allFiles)
 
+						destToKernelModuleMap := make(map[string]string)
+						for _, p := range metadataInfo.GetKernelModuleCopyFiles() {
+							pair := strings.Split(p, "::")
+							destToKernelModuleMap[pair[1]] = p
+						}
+
+						destToProductCopyFiles := make(map[string]string)
+						for _, pcf := range metadataInfo.GetProductCopyFiles() {
+							pair := strings.Split(pcf, ":")
+							destToProductCopyFiles[pair[1]] = pcf
+						}
+
 						csvHeaders := "installed_file,module_path,is_soong_module,is_prebuilt_make_module,product_copy_files,kernel_module_copy_files,is_platform_generated,static_libs,whole_static_libs,license_text"
 						csvContent := make([]string, 0, len(allFiles)+1)
 						csvContent = append(csvContent, csvHeaders)
@@ -368,6 +398,12 @@ func (c *complianceMetadataSingleton) GenerateBuildActions(ctx SingletonContext)
 							if _, ok := prebuiltFilesSrcDest[file]; ok {
 								srcDestPair := prebuiltFilesSrcDest[file]
 								csvContent = append(csvContent, file+",,,,"+srcDestPair+",,,,,")
+							} else if slices.Contains(metadataInfo.platformGeneratedFiles, file) {
+								csvContent = append(csvContent, file+",,,,,,Y,,,build/soong/licenses/LICENSE")
+							} else if km, ok := destToKernelModuleMap[file]; ok {
+								csvContent = append(csvContent, file+",,,,,"+km+",,,,")
+							} else if p, ok := destToProductCopyFiles[file]; ok {
+								csvContent = append(csvContent, file+",,,,"+p+",,,,,")
 							} else {
 								csvContent = append(csvContent, file+",,Y,,,,,,,")
 							}

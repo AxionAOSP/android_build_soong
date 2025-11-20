@@ -26,8 +26,6 @@ import (
 
 	"android/soong/aidl_library"
 	"android/soong/android"
-
-	"github.com/google/blueprint"
 )
 
 func init() {
@@ -3124,17 +3122,6 @@ func TestImageVariants(t *testing.T) {
 
 	ctx := prepareForCcTest.RunTestWithBp(t, bp)
 
-	hasDep := func(m android.Module, wantDep android.Module) bool {
-		t.Helper()
-		var found bool
-		ctx.VisitDirectDeps(m, func(dep blueprint.Module) {
-			if dep == wantDep {
-				found = true
-			}
-		})
-		return found
-	}
-
 	testDepWithVariant := func(imageVariant string) {
 		imageVariantStr := ""
 		if imageVariant != "core" {
@@ -3142,7 +3129,8 @@ func TestImageVariants(t *testing.T) {
 		}
 		binFooModule := ctx.ModuleForTests(t, "binfoo", "android"+imageVariantStr+"_arm64_armv8-a").Module()
 		libBarModule := ctx.ModuleForTests(t, "libbar", "android"+imageVariantStr+"_arm64_armv8-a_shared").Module()
-		android.AssertBoolEquals(t, "binfoo should have dependency on libbar with image variant "+imageVariant, true, hasDep(binFooModule, libBarModule))
+		android.AssertBoolEquals(t, "binfoo should have dependency on libbar with image variant "+imageVariant, true,
+			android.HasDirectDep(ctx, binFooModule, libBarModule))
 	}
 
 	testDepWithVariant("core")

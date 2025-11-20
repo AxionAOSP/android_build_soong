@@ -58,7 +58,7 @@ func (t *toolchainArm) RustTriple() string {
 
 func (t *toolchainArm) ToolchainLinkFlags() string {
 	// Prepend the lld flags from cc_config so we stay in sync with cc
-	return "${config.DeviceGlobalLinkFlags} ${cc_config.ArmLldflags} ${config.ArmToolchainLinkFlags}"
+	return "${config.DeviceGlobalLinkFlags} ${cc_config.ArmLdflags} ${config.ArmToolchainLinkFlags}"
 }
 
 func (t *toolchainArm) ToolchainRustFlags() string {

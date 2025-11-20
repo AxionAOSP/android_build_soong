@@ -803,3 +803,65 @@ func TestRamdiskPartitionSetsDevNodes(t *testing.T) {
 		java.CheckModuleHasDependency(t, result.TestContext, "ramdisk_filesystem", "android_common", "ramdisk_node_list"),
 	)
 }
+
+func TestFileSystemWithNativeBridgeDeps(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		fixture,
+		android.PrepareForNativeBridgeEnabled,
+	).RunTestWithBp(t, `
+		android_filesystem {
+			name: "myfilesystem",
+			compile_multilib: "both",
+			native_bridge_supported: true,
+			deps: ["lib_no_native_bridge", "lib_both"],
+			multilib: {
+				native_bridge: {
+					deps: ["lib_both", "lib_only_native_bridge"],
+				},
+			},
+		}
+
+		cc_library {
+			name: "lib_no_native_bridge",
+			stl: "none",
+			system_shared_libs: [],
+		}
+		// Device arch and NativeBridge arch
+		cc_library {
+			name: "lib_both",
+			native_bridge_supported: true,
+			stl: "none",
+			system_shared_libs: [],
+		}
+		cc_library {
+			name: "lib_only_native_bridge",
+			native_bridge_supported: true,
+			enabled: false,
+			target: {
+				native_bridge: {
+					enabled: true,
+				},
+			},
+			stl: "none",
+			system_shared_libs: [],
+		}
+	`)
+
+	// produces "myfilesystem.img"
+	result.ModuleForTests(t, "myfilesystem", "android_common").Output("myfilesystem.img")
+
+	fs := result.ModuleForTests(t, "myfilesystem", "android_common").Module().(*filesystem)
+	expected := []string{
+		// Non NativeBridge
+		"lib64/lib_no_native_bridge.so",
+		"lib64/lib_both.so",
+		// NativeBridge
+		"lib/arm/lib_both.so",
+		"lib/arm/lib_only_native_bridge.so",
+		"lib64/arm64/lib_both.so",
+		"lib64/arm64/lib_only_native_bridge.so",
+	}
+	for _, e := range expected {
+		android.AssertStringListContains(t, "missing entry", fs.entries, e)
+	}
+}

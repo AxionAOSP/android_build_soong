@@ -23,3 +23,9 @@ bootstrap_go_package {
     ],
     pluginFor: ["soong_build"],
 }
+
+all_release_configs {
+    name: "all_release_configs",
+    // Visibility must be limited to host tests!
+    visibility: ["//build/make/tools/finalization/finalization-test"],
+}

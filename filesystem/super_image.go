@@ -240,8 +240,8 @@ func (s *superImage) buildMiscInfo(ctx android.ModuleContext, superEmpty bool) (
 			missingPartitionErrorMessage += fmt.Sprintf("%s image listed in partition groups, but its module was not specified. ", partitionType)
 			return
 		}
-		mod := ctx.GetDirectDepWithTag(*name, subImageDepTag)
-		if mod == nil {
+		mod := ctx.GetDirectDepProxyWithTag(*name, subImageDepTag)
+		if mod.IsNil() {
 			ctx.ModuleErrorf("Could not get dep %q", *name)
 			return
 		}

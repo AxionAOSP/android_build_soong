@@ -63,6 +63,8 @@ type NoticeXmlModule struct {
 
 	props noticeXmlProperties
 
+	disabled bool
+
 	outputFile android.OutputPath
 }
 
@@ -70,9 +72,18 @@ type noticeXmlProperties struct {
 	Partition_name string
 }
 
+func (nx *NoticeXmlModule) UseGenericConfig() bool {
+	return false
+}
+
 func (nx *NoticeXmlModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	prodVars := ctx.Config().ProductVariables()
-	buildFingerprintFile := android.PathForArbitraryOutput(ctx, "target", "product", android.String(prodVars.DeviceName), "build_fingerprint.txt")
+	// No build action needs to be done in notice_xml module type if notice xml generation is disabled
+	if ctx.Config().DisableNoticeXmlGeneration() {
+		nx.disabled = true
+		return
+	}
+
+	buildFingerprintFile := ctx.Config().BuildFingerprintFile(ctx)
 	implicits := []android.Path{buildFingerprintFile}
 
 	output := android.PathForModuleOut(ctx, "NOTICE.xml.gz")
@@ -101,5 +112,6 @@ func (nx *NoticeXmlModule) AndroidMkEntries() []android.AndroidMkEntries {
 	return []android.AndroidMkEntries{{
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(nx.outputFile),
+		Disabled:   nx.disabled,
 	}}
 }

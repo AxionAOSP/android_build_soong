@@ -23,8 +23,9 @@ bootstrap_go_package {
         "golang-protobuf-encoding-prototext",
         "golang-protobuf-reflect-protoreflect",
         "golang-protobuf-runtime-protoimpl",
-        "soong-cmd-release_config-proto",
         "blueprint-pathtools",
+        "soong-android",
+        "soong-cmd-release_config-proto",
     ],
     srcs: [
         "flag_artifact.go",
@@ -33,5 +34,9 @@ bootstrap_go_package {
         "release_config.go",
         "release_configs.go",
         "util.go",
+    ],
+    testSrcs: [
+        "flag_declaration_test.go",
+        "flag_value_test.go",
     ],
 }

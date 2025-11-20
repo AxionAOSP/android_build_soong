@@ -181,7 +181,7 @@ func createInitBootImage(ctx android.LoadHookContext) bool {
 		&filesystem.BootimgProperties{
 			Boot_image_type:             proptools.StringPtr("init_boot"),
 			Ramdisk_module:              proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "ramdisk")),
-			Header_version:              proptools.StringPtr(partitionVariables.BoardBootHeaderVersion),
+			Header_version:              proptools.StringPtr(partitionVariables.BoardInitBootHeaderVersion),
 			Security_patch:              securityPatch,
 			Partition_size:              partitionSize,
 			Use_avb:                     avbInfo.avbEnable,

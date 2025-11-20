@@ -15,7 +15,6 @@
 package apex
 
 import (
-	"fmt"
 	"slices"
 	"sort"
 	"strconv"
@@ -48,6 +47,16 @@ var (
 		CommandDeps: []string{"${deapexer}"},
 		Description: "decompress $out",
 	})
+	// Compares the declared apps of `prebuilt_apex` with the actual apks
+	validateApkInPrebuiltApex = pctx.StaticRule("validateApkinPrebuiltApex", blueprint.RuleParams{
+		Command: `rm -rf ${out} ${actualApks} &&` +
+			` ${apex_ls} ${in} | grep apk$$ | awk -F '/' '{print $$NF}' | sort -u > ${actualApks} &&` +
+			` cmp -s ${expectedApks} ${actualApks} && touch ${out}` +
+			` || (echo "Found diffs between "apps" property of ${apexName} and actual contents of ${in}.` +
+			` Please ensure that all apk-in-apexes are declared in 'apps' property." && exit 1)`,
+		CommandDeps: []string{"${apex_ls}"},
+		Description: "validate apk in prebuilt_apex $out",
+	}, "expectedApks", "actualApks", "apexName")
 )
 
 type prebuilt interface {
@@ -335,19 +344,19 @@ func (m ApexPrebuiltDepInSameApexChecker) OutgoingDepIsInSameApex(tag blueprint.
 }
 
 func (p *prebuiltCommon) checkExportedDependenciesArePrebuilts(ctx android.ModuleContext) {
-	ctx.VisitDirectDeps(func(dep android.Module) {
+	ctx.VisitDirectDepsProxy(func(dep android.ModuleProxy) {
 		tag := ctx.OtherModuleDependencyTag(dep)
 		depName := ctx.OtherModuleName(dep)
 		if exportedTag, ok := tag.(exportedDependencyTag); ok {
 			propertyName := exportedTag.name
 
 			// It is an error if the other module is not a prebuilt.
-			if !android.IsModulePrebuilt(dep) {
+			if !android.IsModulePrebuilt(ctx, dep) {
 				ctx.PropertyErrorf(propertyName, "%q is not a prebuilt module", depName)
 			}
 
 			// It is an error if the other module is not an ApexModule.
-			if _, ok := dep.(android.ApexModule); !ok {
+			if _, ok := android.OtherModuleProvider(ctx, dep, android.ApexInfoProvider); !ok {
 				ctx.PropertyErrorf(propertyName, "%q is not usable within an apex", depName)
 			}
 		}
@@ -370,8 +379,6 @@ type Prebuilt struct {
 	properties PrebuiltProperties
 
 	inputApex android.Path
-
-	provenanceMetaDataFile android.Path
 }
 
 type ApexFileProperties struct {
@@ -483,7 +490,7 @@ func (p *prebuiltCommon) getDeapexerPropertiesIfNeeded(ctx android.ModuleContext
 	commonModules := []string{}
 	dexpreoptProfileGuidedModules := []string{}
 	exportedFiles := []string{}
-	ctx.WalkDeps(func(child, parent android.Module) bool {
+	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
 		tag := ctx.OtherModuleDependencyTag(child)
 
 		// If the child is not in the same apex as the parent then ignore it and all its children.
@@ -491,15 +498,14 @@ func (p *prebuiltCommon) getDeapexerPropertiesIfNeeded(ctx android.ModuleContext
 			return false
 		}
 
-		name := java.ModuleStemForDeapexing(child)
+		name := java.ModuleStemForDeapexing(ctx, child)
 		if _, ok := tag.(android.RequiresFilesFromPrebuiltApexTag); ok {
 			commonModules = append(commonModules, name)
 
-			extract := child.(android.RequiredFilesFromPrebuiltApex)
-			requiredFiles := extract.RequiredFilesFromPrebuiltApex(ctx)
-			exportedFiles = append(exportedFiles, requiredFiles...)
+			info := android.OtherModuleProviderOrDefault(ctx, child, android.RequiredFilesFromPrebuiltApexInfoProvider)
+			exportedFiles = append(exportedFiles, info.RequiredFilesFromPrebuiltApex...)
 
-			if extract.UseProfileGuidedDexpreopt() {
+			if info.UseProfileGuidedDexpreopt {
 				dexpreoptProfileGuidedModules = append(dexpreoptProfileGuidedModules, name)
 			}
 
@@ -627,7 +633,7 @@ func (p *prebuiltCommon) provideApexExportsInfo(ctx android.ModuleContext, di *a
 // Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file
 // with information about whether source or prebuilt of an apex was used during the build.
 func (p *prebuiltCommon) providePrebuiltInfo(ctx android.ModuleContext) {
-	info := android.PrebuiltInfo{
+	info := android.PrebuiltJsonInfo{
 		Name:        p.BaseModuleName(),
 		Is_prebuilt: true,
 	}
@@ -635,14 +641,14 @@ func (p *prebuiltCommon) providePrebuiltInfo(ctx android.ModuleContext) {
 	if p.prebuiltCommonProperties.Prebuilt_info != nil {
 		info.Prebuilt_info_file_path = android.PathForModuleSrc(ctx, *p.prebuiltCommonProperties.Prebuilt_info).String()
 	}
-	android.SetProvider(ctx, android.PrebuiltInfoProvider, info)
+	android.SetProvider(ctx, android.PrebuiltJsonInfoProvider, info)
 }
 
 // Uses an object provided by its deps to validate that the contents of bcpf have been added to the global
 // PRODUCT_APEX_BOOT_JARS
 // This validation will only run on the apex which is active for this product/release_config
 func validateApexClasspathFragments(ctx android.ModuleContext) {
-	ctx.VisitDirectDeps(func(m android.Module) {
+	ctx.VisitDirectDepsProxy(func(m android.ModuleProxy) {
 		if info, exists := android.OtherModuleProvider(ctx, m, java.ClasspathFragmentValidationInfoProvider); exists {
 			ctx.ModuleErrorf("%s in contents of %s must also be declared in PRODUCT_APEX_BOOT_JARS", info.UnknownJars, info.ClasspathFragmentModuleName)
 		}
@@ -701,7 +707,7 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		p.installApexSystemServerFiles(ctx)
 		installDeps := slices.Concat(p.compatSymlinks, p.extraInstalledFiles)
 		p.installedFile = ctx.InstallFile(p.installDir, p.installFilename, p.inputApex, installDeps...)
-		p.provenanceMetaDataFile = provenance.GenerateArtifactProvenanceMetaData(ctx, p.inputApex, p.installedFile)
+		provenance.GenerateArtifactProvenanceMetaData(ctx, p.inputApex, p.installedFile)
 	}
 
 	p.addApkCertsInfo(ctx)
@@ -711,19 +717,40 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	android.SetProvider(ctx, filesystem.ApexKeyPathInfoProvider, filesystem.ApexKeyPathInfo{p.apexKeysPath})
 }
 
-// `addApkCertsInfo` sets a provider that will be used to create apkcerts.txt
-func (p *Prebuilt) addApkCertsInfo(ctx android.ModuleContext) {
-	formatLine := func(cert java.Certificate, name, partition string) string {
-		pem := cert.AndroidMkString()
-		var key string
-		if cert.Key == nil {
-			key = ""
-		} else {
-			key = cert.Key.String()
-		}
-		return fmt.Sprintf(`name="%s" certificate="%s" private_key="%s" partition="%s"`, name, pem, key, partition)
+// Creates a timestamp file that will be used to validate that there is no mismtach
+// between apks declared via `apps` and the actual apks inside the apex.
+func (p *Prebuilt) validateApkInPrebuiltApex(ctx android.ModuleContext, appInfos java.AppInfos) android.Path {
+	timestamp := android.PathForModuleOut(ctx, "apk_in_prebuilt_apex.timestamp")
+	// Create a list of expected installed apks.
+	var installedApks []string
+	for _, appInfo := range appInfos {
+		installedApks = append(installedApks, appInfo.InstallApkName+".apk")
+	}
+	expectedApksFile := android.PathForModuleOut(ctx, "expected_apk_in_prebuilt_apex.txt")
+	if len(installedApks) == 0 {
+		android.WriteFileRuleVerbatim(ctx, expectedApksFile, "") // Without newline
+	} else {
+		android.WriteFileRule(ctx, expectedApksFile, strings.Join(android.SortedUniqueStrings(installedApks), "\n")) // With newline
 	}
 
+	actualApksFile := android.PathForModuleOut(ctx, "actual_apk_in_prebuilt_apex.txt")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:           validateApkInPrebuiltApex,
+		Input:          p.inputApex,
+		Output:         timestamp,
+		Implicit:       expectedApksFile,
+		ImplicitOutput: actualApksFile,
+		Args: map[string]string{
+			"expectedApks": expectedApksFile.String(),
+			"actualApks":   actualApksFile.String(),
+			"apexName":     p.Name(),
+		},
+	})
+	return timestamp
+}
+
+// `addApkCertsInfo` sets a provider that will be used to create apkcerts.txt
+func (p *Prebuilt) addApkCertsInfo(ctx android.ModuleContext) {
 	// Determine if this prebuilt_apex contains any .apks
 	var appInfos java.AppInfos
 	ctx.VisitDirectDepsProxyWithTag(appInPrebuiltApexTag, func(app android.ModuleProxy) {
@@ -737,28 +764,29 @@ func (p *Prebuilt) addApkCertsInfo(ctx android.ModuleContext) {
 		return appInfos[i].InstallApkName < appInfos[j].InstallApkName
 	})
 
-	if len(appInfos) == 0 {
-		return
-	}
-
-	// Set a provider for use by `android_device`.
-	// `android_device` will create an apkcerts.txt with the list of installed apps for that device.
-	android.SetProvider(ctx, java.AppInfosProvider, appInfos)
-
-	// Set a Make variable for legacy apkcerts.txt creation
-	// p.apkCertsFile will become `LOCAL_APKCERTS_FILE`
+	// Create p.apkCertsFile with information about apk-in-apex
+	// p.apkCertsFile will become `LOCAL_APKCERTS_FILE` for Make packaging system
+	// p.apkCertsFile will be propagated to android_device for Soong packaging system
 	var lines []string
 	for _, appInfo := range appInfos {
-		lines = append(lines, formatLine(appInfo.Certificate, appInfo.InstallApkName+".apk", p.PartitionTag(ctx.DeviceConfig())))
+		lines = append(lines, java.FormatApkCertsLine(appInfo.Certificate, appInfo.InstallApkName+".apk", p.PartitionTag(ctx.DeviceConfig())))
 	}
-	if len(lines) > 0 {
-		p.apkCertsFile = android.PathForModuleOut(ctx, "apkcerts.txt")
-		android.WriteFileRule(ctx, p.apkCertsFile, strings.Join(lines, "\n"))
+	apkCertsFile := android.PathForModuleOut(ctx, "apkcerts.txt")
+	var validations android.Paths
+	if p.IsInstallable() {
+		// Skip the validation for non-installable prebuilt apexes (e.g. used in CTS tests).
+		validations = append(validations, p.validateApkInPrebuiltApex(ctx, appInfos))
 	}
-}
+	android.WriteFileRule(ctx, apkCertsFile, strings.Join(lines, "\n"), validations...)
 
-func (p *Prebuilt) ProvenanceMetaDataFile() android.Path {
-	return p.provenanceMetaDataFile
+	// Skip exporting the apkcerts file if there were missing dependencies, because soong will
+	// cause all build rules of a module with missing dependencies to fail to build.
+	if len(ctx.GetMissingDependencies()) == 0 {
+		p.apkCertsFile = apkCertsFile
+		android.SetProvider(ctx, java.ApkCertInfoProvider, java.ApkCertInfo{
+			ApkCertsFile: p.apkCertsFile,
+		})
+	}
 }
 
 // extract registers the build actions to extract an apex from .apks file

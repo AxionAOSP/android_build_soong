@@ -32,6 +32,7 @@ func initTestConfig(buildDir string, env map[string]string) *config {
 	// Copy the real PATH value to the test environment, it's needed by
 	// NonHermeticHostSystemTool() used in x86_darwin_host.go
 	envCopy["PATH"] = os.Getenv("PATH")
+	envCopy["TARGET_PRODUCT"] = "test_product"
 
 	config := &config{
 		productVariables: ProductVariables{
@@ -56,8 +57,11 @@ func initTestConfig(buildDir string, env map[string]string) *config {
 		outDir:       buildDir,
 		soongOutDir:  filepath.Join(buildDir, "soong"),
 		captureBuild: true,
-		env:          envCopy,
-		OncePer:      &OncePer{},
+		modulesForTests: &modulesForTests{
+			moduleGroups: make(map[string]*moduleGroupForTests),
+		},
+		env:     envCopy,
+		OncePer: &OncePer{},
 
 		// Set testAllowNonExistentPaths so that test contexts don't need to specify every path
 		// passed to PathForSource or PathForModuleSrc.
@@ -82,7 +86,10 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 
 	config.mockFileSystem(bp, fs)
 
-	config.genericConfig = initTestConfig(buildDir, env)
+	// RunTest() from fixture copies the reference of config to generic config. However, old test
+	// cases that do not use the test fixture still require initialized generic config.
+	config.genericConfigField = initTestConfig(buildDir, env)
+	config.genericConfigField.mockFileSystem(bp, fs)
 	overrideGenericConfig(config)
 
 	return Config{config}
@@ -143,6 +150,7 @@ func modifyTestConfigForMuslArm64HostCross(config Config) {
 func TestArchConfig(buildDir string, env map[string]string, bp string, fs map[string][]byte) Config {
 	testConfig := TestConfig(buildDir, env, bp, fs)
 	modifyTestConfigToSupportArchMutator(testConfig)
+	modifyTestConfigToSupportArchMutator(testConfig.genericConfig())
 	return testConfig
 }
 

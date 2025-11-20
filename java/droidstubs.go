@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -36,6 +37,7 @@ type StubsInfo struct {
 }
 
 type DroidStubsInfo struct {
+	AconfigProtoFiles   android.Paths
 	CurrentApiTimestamp android.Path
 	EverythingStubsInfo StubsInfo
 	ExportableStubsInfo StubsInfo
@@ -437,6 +439,8 @@ func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if d.properties.Api_levels_module != nil {
 		ctx.AddDependency(ctx.Module(), metalavaAPILevelsModuleTag, proptools.String(d.properties.Api_levels_module))
 	}
+
+	d.EmbeddableSdkLibraryComponent.setComponentDependencyInfoProvider(ctx)
 }
 
 func (d *Droidstubs) sdkValuesFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, metadataDir android.WritablePath) {
@@ -593,6 +597,18 @@ func (d *Droidstubs) apiLevelsGenerationFlags(ctx android.ModuleContext, cmd *an
 
 	filename := proptools.StringDefault(d.properties.Api_levels_jar_filename, "android.jar")
 
+	// If generating the android API then include android.test.*.jars in the set
+	// of files passed to Metalava.
+	filenames := []string{filename}
+	if filename == "android.jar" {
+		filenames = append(
+			filenames,
+			"android.test.base.jar",
+			"android.test.mock.jar",
+			"android.test.runner.jar",
+		)
+	}
+
 	// TODO: Avoid the duplication of API surfaces, reuse apiScope.
 	// Add all relevant --android-jar-pattern patterns for Metalava.
 	// When parsing a stub jar for a specific version, Metalava picks the first pattern that defines
@@ -648,7 +664,7 @@ func (d *Droidstubs) apiLevelsGenerationFlags(ctx android.ModuleContext, cmd *an
 						extensions_dir = t.Dir.String() + "/extensions"
 					}
 					cmd.Implicit(dep)
-				} else if depBase == filename {
+				} else if slices.Contains(filenames, depBase) {
 					// Check to see if it matches a dessert release for an SDK, e.g. Android, Car, Wear, etc..
 					cmd.Implicit(dep)
 				} else if depBase == AndroidPlusUpdatableJar && d.properties.Extensions_info_file != nil {
@@ -688,7 +704,16 @@ func (d *Droidstubs) apiLevelsGenerationFlags(ctx android.ModuleContext, cmd *an
 				addPattern(AndroidPlusUpdatableJar)
 			}
 
+			// Always add the main jar, e.g. android.jar. This will be overridden by
+			// android-plus-updatable.jar if a pattern for it was added as that comes
+			// first and neither has a library placeholder.
 			addPattern(filename)
+
+			// If additional file names were added then they are assumed to be
+			// libraries so match them using a {library} placeholder.
+			if len(filenames) > 1 {
+				addPattern("{library}.jar")
+			}
 		}
 
 		if extensions_dir != "" {
@@ -1251,7 +1276,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Add options for the other optional tasks: API-lint and check-released.
 	// We generate separate timestamp files for them.
-	doApiLint := BoolDefault(d.properties.Check_api.Api_lint.Enabled, false) && !ctx.Config().PartialCompileFlags().Disable_api_lint
+	doApiLint := BoolDefault(d.properties.Check_api.Api_lint.Enabled, false)
 	doCheckReleased := apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released")
 
 	writeSdkValues := Bool(d.properties.Write_sdk_values)
@@ -1380,15 +1405,12 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		if d.apiLintTimestamp != nil {
 			cmd.Validation(d.apiLintTimestamp)
 		}
-
 		if d.checkLastReleasedApiTimestamp != nil {
 			cmd.Validation(d.checkLastReleasedApiTimestamp)
 		}
-
 		if d.checkNullabilityWarningsTimestamp != nil {
 			cmd.Validation(d.checkNullabilityWarningsTimestamp)
 		}
-
 		rule.Build("metalavaCurrentApiCheck", "check current API")
 
 		d.updateCurrentApiTimestamp = android.PathForModuleOut(ctx, Everything.String(), "update_current_api.timestamp")
@@ -1407,6 +1429,9 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			Input(d.removedApiFile).Flag(removedApiFile.String())
 
 		msg = "failed to update public API"
+		if ctx.Config().GetBuildFlagBool("RELEASE_SRC_DIR_IS_READ_ONLY") {
+			msg += ". You may need `BUILD_BROKEN_SRC_DIR_IS_WRITABLE=true`"
+		}
 
 		rule.Command().
 			Text("touch").Output(d.updateCurrentApiTimestamp).
@@ -1419,6 +1444,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	droidInfo := DroidStubsInfo{
+		AconfigProtoFiles:   deps.aconfigProtoFiles,
 		CurrentApiTimestamp: d.CurrentApiTimestamp(),
 		EverythingStubsInfo: StubsInfo{},
 		ExportableStubsInfo: StubsInfo{},
@@ -1591,6 +1617,10 @@ type PrebuiltStubsSources struct {
 
 func (d *PrebuiltStubsSources) StubsSrcJar(_ StubsType) (android.Path, error) {
 	return d.stubsSrcJar, nil
+}
+
+func (p *PrebuiltStubsSources) DepsMutator(ctx android.BottomUpMutatorContext) {
+	p.EmbeddableSdkLibraryComponent.setComponentDependencyInfoProvider(ctx)
 }
 
 func (p *PrebuiltStubsSources) GenerateAndroidBuildActions(ctx android.ModuleContext) {

@@ -69,9 +69,9 @@ func newEvent(name, desc string) *event {
 	}
 }
 
-func (e event) perfInfo() soong_metrics_proto.PerfInfo {
+func (e event) perfInfo() *soong_metrics_proto.PerfInfo {
 	realTime := uint64(_now().Sub(e.start).Nanoseconds())
-	perfInfo := soong_metrics_proto.PerfInfo{
+	perfInfo := &soong_metrics_proto.PerfInfo{
 		Description:           proto.String(e.desc),
 		Name:                  proto.String(e.name),
 		StartTime:             proto.Uint64(uint64(e.start.UnixNano())),
@@ -154,6 +154,6 @@ func (t *EventTracer) Begin(name, desc string) {
 
 // End performs post calculations such as duration of the event, aggregates
 // the collected performance information into PerfInfo protobuf message.
-func (t *EventTracer) End() soong_metrics_proto.PerfInfo {
+func (t *EventTracer) End() *soong_metrics_proto.PerfInfo {
 	return t.pop().perfInfo()
 }

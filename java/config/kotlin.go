@@ -26,6 +26,7 @@ var (
 )
 
 func init() {
+	pctx.HostBinToolVariable("KotlinIncrementalClientBinary", "kotlin-incremental-client")
 	pctx.SourcePathVariable("KotlincCmd", "external/kotlinc/bin/kotlinc")
 	pctx.SourcePathVariable("KotlinCompilerJar", "external/kotlinc/lib/kotlin-compiler.jar")
 	pctx.SourcePathVariable("KotlinPreloaderJar", "external/kotlinc/lib/kotlin-preloader.jar")
@@ -33,6 +34,7 @@ func init() {
 	pctx.SourcePathVariable("KotlinScriptRuntimeJar", "external/kotlinc/lib/kotlin-script-runtime.jar")
 	pctx.SourcePathVariable("KotlinTrove4jJar", "external/kotlinc/lib/trove4j.jar")
 	pctx.SourcePathVariable("KotlinKaptJar", "external/kotlinc/lib/kotlin-annotation-processing.jar")
+	pctx.SourcePathVariable("KotlinKaptEmbeddableJar", "external/kotlinc/lib/kotlin-annotation-processing-embeddable-2.1.10.jar")
 	pctx.SourcePathVariable("KotlinAnnotationJar", "external/kotlinc/lib/annotations-13.0.jar")
 	pctx.SourcePathVariable("KotlinStdlibJar", KotlinStdlibJar)
 	pctx.SourcePathVariable("KotlinAbiGenPluginJar", "external/kotlinc/lib/jvm-abi-gen.jar")

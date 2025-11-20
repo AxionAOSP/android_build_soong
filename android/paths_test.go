@@ -1537,7 +1537,7 @@ func TestPathsForModuleSrc_AllowMissingDependencies(t *testing.T) {
 
 	AssertArrayString(t, "foo missing deps", []string{"a", "b", "c"}, foo.missingDeps)
 	AssertArrayString(t, "foo srcs", []string{}, foo.srcs)
-	AssertStringEquals(t, "foo src", "", foo.src)
+	AssertStringEquals(t, "foo src", "Missing_PathForModuleSrc_file", foo.src)
 
 	bar := result.ModuleForTests(t, "bar", "").Module().(*pathForModuleSrcTestModule)
 

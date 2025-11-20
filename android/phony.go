@@ -15,11 +15,14 @@
 package android
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/google/blueprint"
 )
+
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
 
 var phonyMapOnceKey = NewOnceKey("phony")
 
@@ -27,6 +30,7 @@ type phonyMap map[string]Paths
 
 var phonyMapLock sync.Mutex
 
+// @auto-generate: gob
 type ModulePhonyInfo struct {
 	Phonies map[string]Paths
 }
@@ -40,6 +44,9 @@ func getSingletonPhonyMap(config Config) phonyMap {
 }
 
 func addSingletonPhony(config Config, name string, deps ...Path) {
+	if name == "" {
+		panic("Phony name cannot be the empty string")
+	}
 	phonyMap := getSingletonPhonyMap(config)
 	phonyMapLock.Lock()
 	defer phonyMapLock.Unlock()
@@ -73,7 +80,15 @@ func (p *phonySingleton) GenerateBuildActions(ctx SingletonContext) {
 		// be generated in the packaging step. Instead of emitting a blueprint/ninja phony directly,
 		// create a makefile that defines the phonies that will be included in the packaging step.
 		// Make will dedup the phonies there.
+		phonyFileSize := 0
+		for _, phony := range p.phonyList {
+			phonyFileSize += 2*len(phony) + 11
+			for _, dep := range p.phonyMap[phony] {
+				phonyFileSize += len(dep.String()) + 1
+			}
+		}
 		var buildPhonyFileContents strings.Builder
+		buildPhonyFileContents.Grow(phonyFileSize)
 		for _, phony := range p.phonyList {
 			buildPhonyFileContents.WriteString(".PHONY: ")
 			buildPhonyFileContents.WriteString(phony)
@@ -85,6 +100,9 @@ func (p *phonySingleton) GenerateBuildActions(ctx SingletonContext) {
 				buildPhonyFileContents.WriteString(dep.String())
 			}
 			buildPhonyFileContents.WriteString("\n")
+		}
+		if buildPhonyFileContents.Len() != phonyFileSize {
+			panic(fmt.Sprintf("phonyFileSize calculation incorrect, expected %d, actual len: %d", phonyFileSize, buildPhonyFileContents.Len()))
 		}
 		buildPhonyFile := PathForOutput(ctx, "soong_phony_targets.mk")
 		writeValueIfChanged(ctx, absolutePath(buildPhonyFile.String()), buildPhonyFileContents.String())

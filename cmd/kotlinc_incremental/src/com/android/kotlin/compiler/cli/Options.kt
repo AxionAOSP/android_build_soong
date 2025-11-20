@@ -14,14 +14,8 @@
  * limitations under the License.
  */
 
-package com.android.kotlin.compiler.client
+package com.android.kotlin.compiler.cli
 
-import com.google.common.truth.Truth.assertThat
-import org.junit.Test
-
-class MainTest {
-    @Test
-    fun testMain() {
-        assertThat(true).isTrue()
-    }
+interface Options {
+    val passThroughArgs: MutableList<String>
 }

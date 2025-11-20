@@ -664,7 +664,7 @@ func dirBpToPreparer(bps map[string]string) FixturePreparer {
 
 func dependsOn(result *TestResult, module TestingModule, possibleDependency TestingModule) bool {
 	depends := false
-	visit := func(dependency blueprint.Module) {
+	visit := func(dependency Module) {
 		if dependency == possibleDependency.module {
 			depends = true
 		}
@@ -675,7 +675,7 @@ func dependsOn(result *TestResult, module TestingModule, possibleDependency Test
 
 func numDeps(result *TestResult, module TestingModule) int {
 	count := 0
-	visit := func(dependency blueprint.Module) {
+	visit := func(dependency Module) {
 		count++
 	}
 	result.VisitDirectDeps(module.module, visit)
@@ -687,11 +687,11 @@ func getModule(result *TestResult, moduleName string) TestingModule {
 }
 
 func findModuleById(result *TestResult, id string) (module TestingModule) {
-	visit := func(candidate blueprint.Module) {
+	visit := func(candidate Module) {
 		testModule, ok := candidate.(*testModule)
 		if ok {
 			if testModule.properties.Id == id {
-				module = newTestingModule(result.fixture.t, result.config, testModule)
+				module = newTestingModule(result.fixture.t, result.config, testModule, result.ModuleToProxy(testModule))
 			}
 		}
 	}
@@ -734,6 +734,7 @@ func newTestModule() Module {
 
 type blueprintTestModule struct {
 	blueprint.SimpleName
+	blueprint.ModuleBase
 	properties struct {
 		Deps []string
 	}

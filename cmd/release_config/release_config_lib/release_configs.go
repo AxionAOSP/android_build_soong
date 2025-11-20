@@ -16,6 +16,7 @@ package release_config_lib
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -188,7 +189,7 @@ func ReleaseConfigsFactory() (c *ReleaseConfigs) {
 	releaseAconfigValueSets := FlagArtifact{
 		FlagDeclaration: &rc_proto.FlagDeclaration{
 			Name:        proto.String("RELEASE_ACONFIG_VALUE_SETS"),
-			Namespace:   proto.String("android_UNKNOWN"),
+			Namespace:   proto.String("build"),
 			Description: proto.String("Aconfig value sets assembled by release-config"),
 			Workflow:    &workflowManual,
 			Containers:  []string{"system", "system_ext", "product", "vendor"},
@@ -211,15 +212,49 @@ func (configs *ReleaseConfigs) GetSortedReleaseConfigs() (ret []*ReleaseConfig) 
 	return ret
 }
 
-func ReleaseConfigMapFactory(protoPath string) (m *ReleaseConfigMap) {
+func ReleaseConfigMapFactory(protoPath string) (m *ReleaseConfigMap, err error) {
 	m = &ReleaseConfigMap{
 		path:                       protoPath,
 		ReleaseConfigContributions: make(map[string]*ReleaseConfigContribution),
 	}
-	if protoPath != "" {
-		LoadMessage(protoPath, &m.proto)
+	if protoPath == "" {
+		return m, nil
 	}
-	return m
+	LoadMessage(protoPath, &m.proto)
+	if m.proto.DefaultContainers == nil {
+		return nil, fmt.Errorf("Release config map %s lacks default_containers", protoPath)
+	}
+	for _, container := range m.proto.DefaultContainers {
+		if !validContainer(container) {
+			return nil, fmt.Errorf("Release config map %s has invalid container %s", protoPath, container)
+		}
+	}
+	return m, nil
+}
+
+func ReleaseConfigContributionFactory(protoPath string, dirIndex int) (rcc *ReleaseConfigContribution, err error) {
+	rcc = &ReleaseConfigContribution{path: protoPath, DeclarationIndex: dirIndex}
+	if protoPath == "" {
+		return rcc, nil
+	}
+	LoadMessage(protoPath, &rcc.proto)
+
+	switch {
+	case rcc.proto.Name == nil:
+		return nil, fmt.Errorf("%s does not specify name", protoPath)
+	case fmt.Sprintf("%s.textproto", *rcc.proto.Name) != filepath.Base(protoPath):
+		return nil, fmt.Errorf("%s incorrectly declares release config %s", protoPath, *rcc.proto.Name)
+	}
+
+	// Provide a default value for ReleaseConfigType if not specified.
+	if rcc.proto.ReleaseConfigType == nil {
+		if *rcc.proto.Name == "root" {
+			rcc.proto.ReleaseConfigType = rc_proto.ReleaseConfigType_EXPLICIT_INHERITANCE_CONFIG.Enum()
+		} else {
+			rcc.proto.ReleaseConfigType = rc_proto.ReleaseConfigType_RELEASE_CONFIG.Enum()
+		}
+	}
+	return rcc, nil
 }
 
 // Find the top of the release config contribution directory.
@@ -260,19 +295,11 @@ func EnumerateReleaseConfigs(dir string) ([]string, error) {
 	return ret, err
 }
 
-func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex int) error {
+func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex int, declarationsOnly bool) error {
 	if _, err := os.Stat(path); err != nil {
 		return fmt.Errorf("%s does not exist\n", path)
 	}
-	m := ReleaseConfigMapFactory(path)
-	if m.proto.DefaultContainers == nil {
-		return fmt.Errorf("Release config map %s lacks default_containers", path)
-	}
-	for _, container := range m.proto.DefaultContainers {
-		if !validContainer(container) {
-			return fmt.Errorf("Release config map %s has invalid container %s", path, container)
-		}
-	}
+	m, err := ReleaseConfigMapFactory(path)
 	configs.FilesUsedMap[path] = true
 	dir := filepath.Dir(path)
 	// Record any aliases, checking for duplicates.
@@ -287,7 +314,6 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 		}
 		configs.Aliases[name] = alias.Target
 	}
-	var err error
 	// Temporarily allowlist duplicate flag declaration files to prevent
 	// more from entering the tree while we work to clean up the duplicates
 	// that already exist.
@@ -302,31 +328,27 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 			DuplicateDeclarationAllowlist[flag] = true
 		}
 	}
+	var declarationErrors []error
 	err = WalkTextprotoFiles(dir, "flag_declarations", func(path string, d fs.DirEntry, err error) error {
-		flagDeclaration := FlagDeclarationFactory(path)
-		// Container must be specified.
+		// Gather up all errors found in flag declarations and report them together, so that it is easier to
+		// find all of the duplicate declarations, for example.
+		flagDeclaration, err := FlagDeclarationFactory(path)
+		if err != nil {
+			declarationErrors = append(declarationErrors, err)
+			return nil
+		}
+		// If not given, set Containers to the default for this directory.
 		if flagDeclaration.Containers == nil {
 			flagDeclaration.Containers = m.proto.DefaultContainers
-		} else {
-			for _, container := range flagDeclaration.Containers {
-				if !validContainer(container) {
-					return fmt.Errorf("Flag declaration %s has invalid container %s", path, container)
-				}
-			}
-		}
-		if flagDeclaration.Namespace == nil {
-			return fmt.Errorf("Flag declaration %s has no namespace.", path)
 		}
 
 		m.FlagDeclarations = append(m.FlagDeclarations, *flagDeclaration)
 		name := *flagDeclaration.Name
-		if name == "RELEASE_ACONFIG_VALUE_SETS" {
-			return fmt.Errorf("%s: %s is a reserved build flag", path, name)
-		}
 		if def, ok := configs.FlagArtifacts[name]; !ok {
 			configs.FlagArtifacts[name] = &FlagArtifact{FlagDeclaration: flagDeclaration, DeclarationIndex: ConfigDirIndex}
 		} else if !proto.Equal(def.FlagDeclaration, flagDeclaration) || !DuplicateDeclarationAllowlist[name] {
-			return fmt.Errorf("Duplicate definition of %s in %s", *flagDeclaration.Name, path)
+			declarationErrors = append(declarationErrors, fmt.Errorf("Duplicate definition of %s in %s", *flagDeclaration.Name, path))
+			return nil
 		}
 		// Set the initial value in the flag artifact.
 		configs.FilesUsedMap[path] = true
@@ -334,12 +356,17 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 			FlagValue{path: path, proto: rc_proto.FlagValue{
 				Name: proto.String(name), Value: flagDeclaration.Value}})
 		if configs.FlagArtifacts[name].Redacted {
-			return fmt.Errorf("%s may not be redacted by default.", name)
+			declarationErrors = append(declarationErrors, fmt.Errorf("%s may not be redacted by default.", name))
+			return nil
 		}
 		return nil
 	})
 	if err != nil {
-		return err
+		// While we no longer return an error, if we do later, we need to also report that error.
+		declarationErrors = append(declarationErrors, err)
+	}
+	if len(declarationErrors) > 0 {
+		return errors.Join(declarationErrors...)
 	}
 
 	subDirs := func(subdir string) (ret []string) {
@@ -358,63 +385,53 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 	}
 
 	err = WalkTextprotoFiles(dir, "release_configs", func(path string, d fs.DirEntry, err error) error {
-		releaseConfigContribution := &ReleaseConfigContribution{path: path, DeclarationIndex: ConfigDirIndex}
-		LoadMessage(path, &releaseConfigContribution.proto)
-		name := *releaseConfigContribution.proto.Name
-		if fmt.Sprintf("%s.textproto", name) != filepath.Base(path) {
-			return fmt.Errorf("%s incorrectly declares release config %s", path, name)
+		rcc, err := ReleaseConfigContributionFactory(path, ConfigDirIndex)
+		if err != nil {
+			return err
 		}
-		releaseConfigType := releaseConfigContribution.proto.ReleaseConfigType
-		if releaseConfigType == nil {
-			if name == "root" {
-				releaseConfigType = rc_proto.ReleaseConfigType_EXPLICIT_INHERITANCE_CONFIG.Enum()
-			} else {
-				releaseConfigType = rc_proto.ReleaseConfigType_RELEASE_CONFIG.Enum()
-			}
-		}
+		name := *rcc.proto.Name
 		if _, ok := configs.ReleaseConfigs[name]; !ok {
 			configs.ReleaseConfigs[name] = ReleaseConfigFactory(name, ConfigDirIndex)
-			configs.ReleaseConfigs[name].ReleaseConfigType = *releaseConfigType
+			configs.ReleaseConfigs[name].ReleaseConfigType = *rcc.proto.ReleaseConfigType
 		}
 		config := configs.ReleaseConfigs[name]
-		if config.ReleaseConfigType != *releaseConfigType {
-			return fmt.Errorf("%s mismatching ReleaseConfigType value %s", path, *releaseConfigType)
+		if config.ReleaseConfigType != *rcc.proto.ReleaseConfigType {
+			return fmt.Errorf("%s mismatching ReleaseConfigType value %s", path, *rcc.proto.ReleaseConfigType)
 		}
 		config.FilesUsedMap[path] = true
-		config.DisallowLunchUse = config.DisallowLunchUse || releaseConfigContribution.proto.GetDisallowLunchUse()
+		config.DisallowLunchUse = config.DisallowLunchUse || rcc.proto.GetDisallowLunchUse()
 		inheritNames := make(map[string]bool)
 		for _, inh := range config.InheritNames {
 			inheritNames[inh] = true
 		}
 		// If this contribution says to inherit something we already inherited, we do not want the duplicate.
-		for _, cInh := range releaseConfigContribution.proto.Inherits {
+		for _, cInh := range rcc.proto.Inherits {
 			if !inheritNames[cInh] {
 				config.InheritNames = append(config.InheritNames, cInh)
 				inheritNames[cInh] = true
 			}
 		}
 
-		// Only walk flag_values/{RELEASE} for defined releases.
-		err2 := WalkTextprotoFiles(dir, filepath.Join("flag_values", name), func(path string, d fs.DirEntry, err error) error {
-			flagValue := FlagValueFactory(path)
-			if fmt.Sprintf("%s.textproto", *flagValue.proto.Name) != filepath.Base(path) {
-				return fmt.Errorf("%s incorrectly sets value for flag %s", path, *flagValue.proto.Name)
+		if !declarationsOnly {
+			// Only walk flag_values/{RELEASE} for defined releases.
+			err2 := WalkTextprotoFiles(dir, filepath.Join("flag_values", name), func(path string, d fs.DirEntry, err error) error {
+				flagValue, err := FlagValueFactory(path)
+				if err != nil {
+					return err
+				}
+				config.FilesUsedMap[path] = true
+				rcc.FlagValues = append(rcc.FlagValues, flagValue)
+				return nil
+			})
+			if err2 != nil {
+				return err2
 			}
-			if *flagValue.proto.Name == "RELEASE_ACONFIG_VALUE_SETS" {
-				return fmt.Errorf("%s: %s is a reserved build flag", path, *flagValue.proto.Name)
-			}
-			config.FilesUsedMap[path] = true
-			releaseConfigContribution.FlagValues = append(releaseConfigContribution.FlagValues, flagValue)
-			return nil
-		})
-		if err2 != nil {
-			return err2
 		}
-		if releaseConfigContribution.proto.GetAconfigFlagsOnly() {
+		if rcc.proto.GetAconfigFlagsOnly() {
 			config.AconfigFlagsOnly = true
 		}
-		m.ReleaseConfigContributions[name] = releaseConfigContribution
-		config.Contributions = append(config.Contributions, releaseConfigContribution)
+		m.ReleaseConfigContributions[name] = rcc
+		config.Contributions = append(config.Contributions, rcc)
 		return nil
 	})
 	if err != nil {
@@ -533,7 +550,7 @@ func (configs *ReleaseConfigs) GenerateReleaseConfigs(targetRelease string) erro
 	return nil
 }
 
-func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease string, useBuildVar, allowMissing bool) (*ReleaseConfigs, error) {
+func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease string, useBuildVar, allowMissing, declarationsOnly bool) (*ReleaseConfigs, error) {
 	var err error
 
 	if len(releaseConfigMapPaths) == 0 {
@@ -553,6 +570,7 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease strin
 	configs.allowMissing = allowMissing
 	mapsRead := make(map[string]bool)
 	var idx int
+	var loadErrors []error
 	for _, releaseConfigMapPath := range releaseConfigMapPaths {
 		// Maintain an ordered list of release config directories.
 		configDir := filepath.Dir(releaseConfigMapPath)
@@ -564,11 +582,14 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease strin
 		configs.configDirs = append(configs.configDirs, configDir)
 		// Force the path to be the textproto path, so that both the scl and textproto formats can coexist.
 		releaseConfigMapPath = filepath.Join(configDir, "release_config_map.textproto")
-		err = configs.LoadReleaseConfigMap(releaseConfigMapPath, idx)
+		err = configs.LoadReleaseConfigMap(releaseConfigMapPath, idx, declarationsOnly)
 		if err != nil {
-			return nil, err
+			loadErrors = append(loadErrors, err)
 		}
 		idx += 1
+	}
+	if len(loadErrors) > 0 {
+		return nil, errors.Join(loadErrors...)
 	}
 
 	// Now that we have all of the release config maps, can meld them and generate the artifacts.

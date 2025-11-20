@@ -16,7 +16,6 @@ package cc
 
 import (
 	"fmt"
-	"io"
 	"path/filepath"
 	"strings"
 
@@ -212,19 +211,6 @@ func (library *libraryDecorator) androidMkWriteExportedFlags(entries *android.An
 	}
 }
 
-func (library *libraryDecorator) androidMkEntriesWriteAdditionalDependenciesForSourceAbiDiff(entries *android.AndroidMkInfo) {
-	if !library.static() {
-		entries.AddPaths("LOCAL_ADDITIONAL_DEPENDENCIES", library.sAbiDiff)
-	}
-}
-
-// TODO(ccross): remove this once apex/androidmk.go is converted to AndroidMkEntries
-func (library *libraryDecorator) androidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer) {
-	if !library.static() {
-		fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES +=", strings.Join(library.sAbiDiff.Strings(), " "))
-	}
-}
-
 func (library *libraryDecorator) prepareAndroidMKProviderInfo(config android.Config, ctx AndroidMkContext, entries *android.AndroidMkInfo) {
 	if library.static() {
 		entries.Class = "STATIC_LIBRARIES"
@@ -245,7 +231,6 @@ func (library *libraryDecorator) prepareAndroidMKProviderInfo(config android.Con
 	}
 
 	library.androidMkWriteExportedFlags(entries)
-	library.androidMkEntriesWriteAdditionalDependenciesForSourceAbiDiff(entries)
 
 	if entries.OutputFile.Valid() {
 		_, _, ext := android.SplitFileExt(entries.OutputFile.Path().Base())
@@ -391,10 +376,6 @@ func (fuzz *fuzzBinary) prepareAndroidMKProviderInfo(config android.Config, ctx 
 	ctx.subAndroidMk(config, entries, fuzz.binaryDecorator)
 
 	entries.SetBool("LOCAL_IS_FUZZ_TARGET", true)
-	if fuzz.installedSharedDeps != nil {
-		// TOOD: move to install dep
-		entries.AddStrings("LOCAL_FUZZ_INSTALLED_SHARED_DEPS", fuzz.installedSharedDeps...)
-	}
 }
 
 func (test *testLibrary) prepareAndroidMKProviderInfo(config android.Config, ctx AndroidMkContext, entries *android.AndroidMkInfo) {

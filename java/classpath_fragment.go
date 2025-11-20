@@ -104,17 +104,14 @@ type classpathJar struct {
 func gatherPossibleApexModuleNamesAndStems(ctx android.ModuleContext, contents []string, tag blueprint.DependencyTag) []string {
 	set := map[string]struct{}{}
 	for _, name := range contents {
-		dep := ctx.GetDirectDepWithTag(name, tag)
-		if dep == nil && ctx.Config().AllowMissingDependencies() {
+		dep := ctx.GetDirectDepProxyWithTag(name, tag)
+		if dep.IsNil() && ctx.Config().AllowMissingDependencies() {
 			// Ignore apex boot jars from dexpreopt if it does not exist, and missing deps are allowed.
 			continue
 		}
-		set[ModuleStemForDeapexing(dep)] = struct{}{}
-		if m, ok := dep.(ModuleWithStem); ok {
-			set[m.Stem()] = struct{}{}
-		} else {
-			ctx.PropertyErrorf("contents", "%v is not a ModuleWithStem", name)
-		}
+		info := android.OtherModuleProviderOrDefault(ctx, dep, JavaInfoProvider)
+		set[ModuleStemForDeapexing(ctx, dep)] = struct{}{}
+		set[info.Stem] = struct{}{}
 	}
 	return android.SortedKeys(set)
 }
@@ -129,12 +126,15 @@ func configuredJarListToClasspathJars(ctx android.ModuleContext, configuredJars 
 				classpath: classpathType,
 				path:      paths[i],
 			}
-			ctx.VisitDirectDepsIf(func(m android.Module) bool {
-				return m.Name() == configuredJars.Jar(i)
-			}, func(m android.Module) {
-				if s, ok := m.(*SdkLibrary); ok {
-					minSdkVersion := s.MinSdkVersion(ctx)
-					maxSdkVersion := s.MaxSdkVersion(ctx)
+			ctx.VisitDirectDepsProxy(func(m android.ModuleProxy) {
+				if m.Name() != configuredJars.Jar(i) {
+					return
+				}
+				if _, ok := android.OtherModuleProvider(ctx, m, SdkLibraryInfoProvider); ok {
+					info := android.OtherModuleProviderOrDefault(ctx, m, JavaInfoProvider)
+					commonInfo := android.OtherModulePointerProviderOrDefault(ctx, m, android.CommonModuleInfoProvider)
+					minSdkVersion := *commonInfo.MinSdkVersion.ApiLevel
+					maxSdkVersion := info.MaxSdkVersion
 					// TODO(208456999): instead of mapping "current" to latest, min_sdk_version should never be set to "current"
 					if minSdkVersion.Specified() {
 						if minSdkVersion.IsCurrent() {

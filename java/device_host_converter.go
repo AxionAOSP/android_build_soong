@@ -102,7 +102,7 @@ func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleCont
 	var transitiveImplementationJars []depset.DepSet[android.Path]
 	var transitiveResourceJars []depset.DepSet[android.Path]
 
-	ctx.VisitDirectDepsWithTag(deviceHostConverterDepTag, func(m android.Module) {
+	ctx.VisitDirectDepsProxyWithTag(deviceHostConverterDepTag, func(m android.ModuleProxy) {
 		if dep, ok := android.OtherModuleProvider(ctx, m, JavaInfoProvider); ok {
 			d.headerJars = append(d.headerJars, dep.HeaderJars...)
 			d.implementationJars = append(d.implementationJars, dep.ImplementationJars...)
@@ -158,6 +158,21 @@ func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleCont
 	setExtraJavaInfo(ctx, d, javaInfo)
 	android.SetProvider(ctx, JavaInfoProvider, javaInfo)
 
+	if ctx.Os() != android.Windows { // Make does not support Windows Java modules
+		if d.combinedImplementationJar != nil {
+			ctx.CheckbuildFile(d.combinedImplementationJar)
+		}
+		if d.combinedHeaderJar != nil {
+			ctx.CheckbuildFile(d.combinedHeaderJar)
+		}
+	}
+
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"JAVA_LIBRARIES"}
+	if d.combinedImplementationJar != nil {
+		moduleInfoJSON.ClassesJar = []string{d.combinedImplementationJar.String()}
+	}
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
 }
 
 func (d *DeviceHostConverter) HeaderJars() android.Paths {
@@ -181,10 +196,6 @@ func (d *DeviceHostConverter) AidlIncludeDirs() android.Paths {
 }
 
 func (d *DeviceHostConverter) ClassLoaderContexts() dexpreopt.ClassLoaderContextMap {
-	return nil
-}
-
-func (d *DeviceHostConverter) JacocoReportClassesFile() android.Path {
 	return nil
 }
 

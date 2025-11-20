@@ -274,6 +274,7 @@ var (
 	outgoingTransitionContextPool = pool.New[outgoingTransitionContextImpl]()
 	incomingTransitionContextPool = pool.New[incomingTransitionContextImpl]()
 	bottomUpMutatorContextPool    = pool.New[bottomUpMutatorContext]()
+	baseModuleContextPool         = pool.New[baseModuleContext]()
 )
 
 type bottomUpMutatorContext struct {
@@ -302,6 +303,9 @@ func (x *registerMutatorsContext) BottomUp(name string, m BottomUpMutator) Mutat
 		if a, ok := ctx.Module().(Module); ok {
 			mctx := bottomUpMutatorContextFactory(ctx, a, finalPhase)
 			defer bottomUpMutatorContextPool.Put(mctx)
+			if mctx.config.captureBuild {
+				mctx.config.modulesForTests.Insert(mctx.ModuleName(), mctx.Module())
+			}
 			m(mctx)
 		}
 	}
@@ -494,6 +498,9 @@ func registerDepsMutator(ctx RegisterMutatorsContext) {
 
 func (b *bottomUpMutatorContext) Rename(name string) {
 	b.bp.Rename(name)
+	if b.config.captureBuild {
+		b.config.modulesForTests.Rename(b.Module().base().commonProperties.DebugName, name)
+	}
 	b.Module().base().commonProperties.DebugName = name
 }
 

@@ -94,7 +94,7 @@ func (f *filesystemCreator) createVbmetaPartitions(ctx android.LoadHookContext, 
 			ctx.ModuleErrorf("No rollback index found for chained avb partition %q", chainedName)
 			continue
 		}
-		ril, err := strconv.ParseInt(props.RollbackIndexLocation, 10, 32)
+		ril, err := strconv.ParseInt(props.RollbackIndexLocation, 10, 64)
 		if err != nil {
 			ctx.ModuleErrorf("Rollback index location must be an int, got %q", props.RollbackIndexLocation)
 			continue
@@ -104,7 +104,7 @@ func (f *filesystemCreator) createVbmetaPartitions(ctx android.LoadHookContext, 
 		// in soong.
 		var rollbackIndex *int64
 		if props.RollbackIndex != ctx.Config().PlatformSecurityPatch() {
-			i, err := strconv.ParseInt(props.RollbackIndex, 10, 32)
+			i, err := strconv.ParseInt(props.RollbackIndex, 10, 64)
 			if err != nil {
 				ctx.ModuleErrorf("Rollback index must be an int, got %q", props.RollbackIndex)
 				continue
@@ -161,7 +161,7 @@ func (f *filesystemCreator) createVbmetaPartitions(ctx android.LoadHookContext, 
 		algorithm = proptools.StringPtr(partitionVars.BoardAvbAlgorithm)
 	}
 	if len(partitionVars.BoardAvbRollbackIndex) > 0 {
-		parsedRi, err := strconv.ParseInt(partitionVars.BoardAvbRollbackIndex, 10, 32)
+		parsedRi, err := strconv.ParseInt(partitionVars.BoardAvbRollbackIndex, 10, 64)
 		if err != nil {
 			ctx.ModuleErrorf("Rollback index location must be an int, got %q", partitionVars.BoardAvbRollbackIndex)
 		}

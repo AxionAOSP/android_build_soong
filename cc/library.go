@@ -16,7 +16,6 @@ package cc
 
 import (
 	"fmt"
-	"io"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -805,9 +804,6 @@ type libraryInterface interface {
 	// Gets the ABI properties for vendor, product, or platform variant
 	getHeaderAbiCheckerProperties(m *Module) headerAbiCheckerProperties
 
-	// Write LOCAL_ADDITIONAL_DEPENDENCIES for ABI diff
-	androidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer)
-
 	apexAvailable() []string
 
 	setAPIListCoverageXMLPath(out android.ModuleOutPath)
@@ -1085,10 +1081,6 @@ func (library *libraryDecorator) moduleInfoJSON(ctx ModuleContext, moduleInfoJSO
 	library.baseLinker.moduleInfoJSON(ctx, moduleInfoJSON)
 }
 
-func (library *libraryDecorator) testSuiteInfo(ctx ModuleContext) {
-	// not a test
-}
-
 func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 
@@ -1296,17 +1288,20 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		}
 	}
 
+	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.StaticLibObjs.sAbiDumpFiles...)
+	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.WholeStaticLibObjs.sAbiDumpFiles...)
+	library.linkSAbiDumpFiles(ctx, deps, objs, fileName, unstrippedOutputFile)
+
+	validations := slices.Concat(objs.tidyDepFiles, library.sAbiDiff)
+
 	transformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs,
 		deps.StaticLibs, deps.LateStaticLibs, deps.WholeStaticLibs, linkerDeps, deps.CrtBegin,
-		deps.CrtEnd, false, builderFlags, outputFile, implicitOutputs, objs.tidyDepFiles)
+		deps.CrtEnd, false, builderFlags, outputFile, implicitOutputs, validations)
 
 	objs.coverageFiles = append(objs.coverageFiles, deps.StaticLibObjs.coverageFiles...)
 	objs.coverageFiles = append(objs.coverageFiles, deps.WholeStaticLibObjs.coverageFiles...)
-	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.StaticLibObjs.sAbiDumpFiles...)
-	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.WholeStaticLibObjs.sAbiDumpFiles...)
 
 	library.coverageOutputFile = transformCoverageFilesToZip(ctx, objs, library.getLibName(ctx))
-	library.linkSAbiDumpFiles(ctx, deps, objs, fileName, unstrippedOutputFile)
 
 	var transitiveStaticLibrariesForOrdering depset.DepSet[android.Path]
 	if static := ctx.GetDirectDepsProxyWithTag(staticVariantTag); len(static) > 0 {
@@ -1563,7 +1558,10 @@ func (library *libraryDecorator) optInAbiDiff(ctx android.ModuleContext,
 
 	// Most opt-in libraries do not have dumps for all default architectures.
 	if ctx.Config().HasDeviceProduct() {
-		errorMessage += " --product " + ctx.Config().DeviceProduct()
+		// Instead of showing the product name directly, use an env variable to
+		// the error message to avoid changing build rules just because of lunch
+		// target change.
+		errorMessage += " --product $$TARGET_PRODUCT"
 	}
 
 	library.sourceAbiDiff(ctx, sourceDump, referenceDump, baseName, nameExt,
@@ -1919,7 +1917,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 		CtxIsForPlatform(ctx) && !ctx.isPreventInstall() {
 		installPath := getUnversionedLibraryInstallPath(ctx).Join(ctx, file.Base())
 
-		ctx.ModuleBuild(pctx, android.ModuleBuildParams{
+		ctx.Build(pctx, android.BuildParams{
 			Rule:        android.Cp,
 			Description: "install " + installPath.Base(),
 			Output:      installPath,

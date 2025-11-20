@@ -227,6 +227,9 @@ func (proto *protobufDecorator) genModFileContents() string {
 			lines,
 			"pub mod empty {",
 			"    pub use protobuf::well_known_types::empty::Empty;",
+			"}",
+			"pub mod wrappers {",
+			"    pub use protobuf::well_known_types::wrappers::*;",
 			"}")
 	}
 

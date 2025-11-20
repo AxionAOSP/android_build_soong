@@ -18,7 +18,6 @@ import (
 	"maps"
 	"strings"
 
-	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -80,23 +79,6 @@ func FileGroupFactory() Module {
 	return module
 }
 
-var _ blueprint.JSONActionSupplier = (*fileGroup)(nil)
-
-func (fg *fileGroup) JSONActions() []blueprint.JSONAction {
-	ins := make([]string, 0, len(fg.srcs))
-	outs := make([]string, 0, len(fg.srcs))
-	for _, p := range fg.srcs {
-		ins = append(ins, p.String())
-		outs = append(outs, p.Rel())
-	}
-	return []blueprint.JSONAction{
-		blueprint.JSONAction{
-			Inputs:  ins,
-			Outputs: outs,
-		},
-	}
-}
-
 func (fg *fileGroup) GenerateAndroidBuildActions(ctx ModuleContext) {
 	srcs := PathsForModuleSrcExcludes(ctx, fg.properties.Srcs.GetOrDefault(ctx, nil), fg.properties.Exclude_srcs.GetOrDefault(ctx, nil))
 	srcs = append(srcs, PathsForModuleSrc(ctx, fg.properties.Device_first_srcs.GetOrDefault(ctx, nil))...)
@@ -109,7 +91,7 @@ func (fg *fileGroup) GenerateAndroidBuildActions(ctx ModuleContext) {
 	var intermediateCacheOutputPaths Paths
 	var srcjars Paths
 	modeInfos := make(map[string]ModeInfo)
-	ctx.VisitDirectDeps(func(module Module) {
+	ctx.VisitDirectDepsProxy(func(module ModuleProxy) {
 		if dep, ok := OtherModuleProvider(ctx, module, CodegenInfoProvider); ok {
 			aconfigDeclarations = append(aconfigDeclarations, dep.AconfigDeclarations...)
 			intermediateCacheOutputPaths = append(intermediateCacheOutputPaths, dep.IntermediateCacheOutputPaths...)

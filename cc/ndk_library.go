@@ -298,17 +298,17 @@ func CompileStubLibrary(ctx android.ModuleContext, flags Flags, src android.Path
 func (this *stubDecorator) findImplementationLibrary(ctx ModuleContext) android.Path {
 	dep := ctx.GetDirectDepProxyWithTag(strings.TrimSuffix(ctx.ModuleName(), ndkLibrarySuffix),
 		stubImplementation)
-	if dep == nil {
+	if dep.IsNil() {
 		ctx.ModuleErrorf("Could not find implementation for stub: ")
 		return nil
 	}
-	if _, ok := android.OtherModuleProvider(ctx, *dep, CcInfoProvider); !ok {
+	if _, ok := android.OtherModuleProvider(ctx, dep, CcInfoProvider); !ok {
 		ctx.ModuleErrorf("Implementation for stub is not correct module type")
 		return nil
 	}
-	output := android.OtherModuleProviderOrDefault(ctx, *dep, LinkableInfoProvider).UnstrippedOutputFile
+	output := android.OtherModuleProviderOrDefault(ctx, dep, LinkableInfoProvider).UnstrippedOutputFile
 	if output == nil {
-		ctx.ModuleErrorf("implementation module (%s) has no output", *dep)
+		ctx.ModuleErrorf("implementation module (%s) has no output", dep)
 		return nil
 	}
 

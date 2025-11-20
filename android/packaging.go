@@ -20,15 +20,17 @@ import (
 	"sort"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/gobtools"
 	"github.com/google/blueprint/proptools"
 	"github.com/google/blueprint/uniquelist"
 )
+
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
 
 // PackagingSpec abstracts a request to place a built artifact at a certain path in a package. A
 // package can be the traditional <partition>.img, but isn't limited to those. Other examples could
 // be a new filesystem image that is a subset of system.img (e.g. for an Android-like mini OS
 // running on a VM), or a zip archive for some of the host tools.
+// @auto-generate: gob
 type PackagingSpec struct {
 	// Path relative to the root of the package
 	relPathInPackage string
@@ -75,23 +77,9 @@ type PackagingSpec struct {
 
 	// String representation of the variation of the module where this packaging spec is output of
 	variation string
-}
 
-type packagingSpecGob struct {
-	RelPathInPackage      string
-	SrcPath               Path
-	SymlinkTarget         string
-	Executable            bool
-	EffectiveLicenseFiles Paths
-	Partition             string
-	SkipInstall           bool
-	AconfigPaths          Paths
-	ArchType              ArchType
-	Overrides             []string
-	Owner                 string
-	RequiresFullInstall   bool
-	FullInstallPath       InstallPath
-	Variation             string
+	// Whether the owner module is a prebuilt module or not
+	prebuilt bool
 }
 
 func (p *PackagingSpec) Owner() string {
@@ -102,48 +90,8 @@ func (p *PackagingSpec) Variation() string {
 	return p.variation
 }
 
-func (p *PackagingSpec) ToGob() *packagingSpecGob {
-	return &packagingSpecGob{
-		RelPathInPackage:      p.relPathInPackage,
-		SrcPath:               p.srcPath,
-		SymlinkTarget:         p.symlinkTarget,
-		Executable:            p.executable,
-		EffectiveLicenseFiles: p.effectiveLicenseFiles.ToSlice(),
-		Partition:             p.partition,
-		SkipInstall:           p.skipInstall,
-		AconfigPaths:          p.aconfigPaths.ToSlice(),
-		ArchType:              p.archType,
-		Overrides:             p.overrides.ToSlice(),
-		Owner:                 p.owner,
-		RequiresFullInstall:   p.requiresFullInstall,
-		FullInstallPath:       p.fullInstallPath,
-		Variation:             p.variation,
-	}
-}
-
-func (p *PackagingSpec) FromGob(data *packagingSpecGob) {
-	p.relPathInPackage = data.RelPathInPackage
-	p.srcPath = data.SrcPath
-	p.symlinkTarget = data.SymlinkTarget
-	p.executable = data.Executable
-	p.effectiveLicenseFiles = uniquelist.Make(data.EffectiveLicenseFiles)
-	p.partition = data.Partition
-	p.skipInstall = data.SkipInstall
-	p.aconfigPaths = uniquelist.Make(data.AconfigPaths)
-	p.archType = data.ArchType
-	p.overrides = uniquelist.Make(data.Overrides)
-	p.owner = data.Owner
-	p.requiresFullInstall = data.RequiresFullInstall
-	p.fullInstallPath = data.FullInstallPath
-	p.variation = data.Variation
-}
-
-func (p *PackagingSpec) GobEncode() ([]byte, error) {
-	return gobtools.CustomGobEncode[packagingSpecGob](p)
-}
-
-func (p *PackagingSpec) GobDecode(data []byte) error {
-	return gobtools.CustomGobDecode[packagingSpecGob](data, p)
+func (p *PackagingSpec) Prebuilt() bool {
+	return p.prebuilt
 }
 
 func (p *PackagingSpec) Equals(other *PackagingSpec) bool {
@@ -279,19 +227,21 @@ type DepsProperty struct {
 }
 
 type packagingMultilibProperties struct {
-	First    DepsProperty `android:"arch_variant"`
-	Common   DepsProperty `android:"arch_variant"`
-	Lib32    DepsProperty `android:"arch_variant"`
-	Lib64    DepsProperty `android:"arch_variant"`
-	Both     DepsProperty `android:"arch_variant"`
-	Prefer32 DepsProperty `android:"arch_variant"`
+	First         DepsProperty `android:"arch_variant"`
+	Common        DepsProperty `android:"arch_variant"`
+	Lib32         DepsProperty `android:"arch_variant"`
+	Lib64         DepsProperty `android:"arch_variant"`
+	Both          DepsProperty `android:"arch_variant"`
+	Prefer32      DepsProperty `android:"arch_variant"`
+	Native_bridge DepsProperty `android:"arch_variant"`
 }
 
 type packagingArchProperties struct {
-	Arm64  DepsProperty
-	Arm    DepsProperty
-	X86_64 DepsProperty
-	X86    DepsProperty
+	Arm64   DepsProperty
+	Arm     DepsProperty
+	X86_64  DepsProperty
+	X86     DepsProperty
+	Riscv64 DepsProperty
 }
 
 type PackagingProperties struct {
@@ -315,7 +265,8 @@ func (p *PackagingBase) packagingBase() *PackagingBase {
 // multi target, deps is selected for each of the targets and is NOT selected for the current
 // architecture which would be Common.
 // It returns two lists, the normal and high priority deps, respectively.
-func (p *PackagingBase) getDepsForArch(ctx BaseModuleContext, arch ArchType) ([]string, []string) {
+func (p *PackagingBase) getDepsForTarget(ctx BaseModuleContext, target Target) ([]string, []string) {
+	arch := target.Arch.ArchType
 	var normalDeps []string
 	var highPriorityDeps []string
 
@@ -327,7 +278,10 @@ func (p *PackagingBase) getDepsForArch(ctx BaseModuleContext, arch ArchType) ([]
 		return len(prop.Deps.GetOrDefault(ctx, nil)) > 0 || len(prop.High_priority_deps) > 0
 	}
 
-	if arch == ctx.Target().Arch.ArchType && len(ctx.MultiTargets()) == 0 {
+	if target.NativeBridge == NativeBridgeEnabled {
+		get(p.properties.Multilib.Native_bridge)
+		return FirstUniqueStrings(normalDeps), FirstUniqueStrings(highPriorityDeps)
+	} else if arch == ctx.Target().Arch.ArchType && len(ctx.MultiTargets()) == 0 {
 		get(p.properties.DepsProperty)
 	} else if arch.Multilib == "lib32" {
 		get(p.properties.Multilib.Lib32)
@@ -395,6 +349,8 @@ func (p *PackagingBase) getDepsForArch(ctx BaseModuleContext, arch ArchType) ([]
 			get(p.properties.Arch.X86_64)
 		case X86:
 			get(p.properties.Arch.X86)
+		case Riscv64:
+			get(p.properties.Arch.Riscv64)
 		}
 	}
 
@@ -488,7 +444,7 @@ func (p *PackagingBase) AddDeps(ctx BottomUpMutatorContext, depTag blueprint.Dep
 		ctx.AddFarVariationDependencies(targetVariation, depTagToUse, dep)
 	}
 	for _, t := range getSupportedTargets(ctx) {
-		normalDeps, highPriorityDeps := p.getDepsForArch(ctx, t.Arch.ArchType)
+		normalDeps, highPriorityDeps := p.getDepsForTarget(ctx, t)
 		for _, dep := range normalDeps {
 			addDep(t, dep, false)
 		}
@@ -508,6 +464,7 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 
 	// list of module names overridden
 	overridden := make(map[string]bool)
+	nativeBridgeOverridden := make(map[string]bool)
 
 	// all installed modules which are not overridden.
 	modulesToInstall := make(map[string]bool)
@@ -525,6 +482,11 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 			}
 		}
 		return false
+	}
+
+	isNativeBridgeVariant := func(m ModuleOrProxy) bool {
+		commonInfo := OtherModulePointerProviderOrDefault(ctx, m, CommonModuleInfoProvider)
+		return commonInfo.Target.NativeBridge == NativeBridgeEnabled
 	}
 
 	// find all overridden modules and packaging specs
@@ -556,21 +518,26 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 			}
 
 			for o := range ps.overrides.Iter() {
-				overridden[o] = true
+				if !isNativeBridgeVariant(child) {
+					overridden[o] = true
+				} else {
+					nativeBridgeOverridden[o] = true
+				}
 			}
 		}
 	})
 
 	// gather modules to install, skipping overridden modules
-	ctx.WalkDeps(func(child, parent Module) bool {
-		owner := ctx.OtherModuleName(child)
-		if o, ok := child.(OverridableModule); ok {
-			if overriddenBy := o.GetOverriddenBy(); overriddenBy != "" {
-				owner = overriddenBy
+	ctx.WalkDepsProxy(func(child, parent ModuleProxy) bool {
+		owner := OtherModuleNameWithPossibleOverride(ctx, child)
+		if !isNativeBridgeVariant(child) {
+			if overridden[owner] {
+				return false
 			}
-		}
-		if overridden[owner] {
-			return false
+		} else {
+			if nativeBridgeOverridden[owner] {
+				return false
+			}
 		}
 		modulesToInstall[owner] = true
 		return true

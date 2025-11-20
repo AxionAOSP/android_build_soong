@@ -19,8 +19,6 @@ import (
 	"testing"
 
 	"android/soong/android"
-
-	"github.com/google/blueprint"
 )
 
 func TestLibraryHeaders(t *testing.T) {
@@ -85,7 +83,7 @@ func TestPrebuiltLibraryHeadersPreferred(t *testing.T) {
 			prebuiltDep := ctx.ModuleForTests(t, "prebuilt_headers", "android_arm64_armv8-a")
 			hasSourceDep := false
 			hasPrebuiltDep := false
-			ctx.VisitDirectDeps(lib.Module(), func(dep blueprint.Module) {
+			ctx.VisitDirectDeps(lib.Module(), func(dep android.Module) {
 				if dep == sourceDep.Module() {
 					hasSourceDep = true
 				}

@@ -25,7 +25,9 @@ bootstrap_go_package {
         "androidmk.go",
         "api_level.go",
         "builder.go",
+        "builder_gob_enc.go",
         "cc.go",
+        "cc_gob_enc.go",
         "ccdeps.go",
         "cc_preprocess_no_configuration.go",
         "check.go",
@@ -34,6 +36,8 @@ bootstrap_go_package {
         "generated_cc_library.go",
         "image.go",
         "linkable.go",
+        "linkable_gob_enc.go",
+        "llvm_coverage_tools_zip.go",
         "lto.go",
         "makevars.go",
         "misc_disted_files.go",
@@ -42,6 +46,7 @@ bootstrap_go_package {
         "proto.go",
         "rs.go",
         "sanitize.go",
+        "sanitize_gob_enc.go",
         "sabi.go",
         "sdk.go",
         "snapshot_prebuilt.go",
@@ -61,6 +66,7 @@ bootstrap_go_package {
 
         "binary.go",
         "binary_sdk_member.go",
+        "binary_sdk_member_gob_enc.go",
         "fuzz.go",
         "image_sdk_traits.go",
         "library.go",
@@ -74,6 +80,8 @@ bootstrap_go_package {
         "ndk_headers.go",
         "ndk_library.go",
         "ndk_sysroot.go",
+
+        "ndk_translation_package.go",
 
         "llndk_library.go",
 

@@ -36,9 +36,9 @@ func (l *licenseSdkMemberType) AddDependencies(ctx SdkDependencyContext, depende
 	ctx.AddDependency(ctx.Module(), dependencyTag, names...)
 }
 
-func (l *licenseSdkMemberType) IsInstance(module Module) bool {
+func (l *licenseSdkMemberType) IsInstance(ctx ModuleContext, module ModuleProxy) bool {
 	// Verify that the module being added is compatible with this module type.
-	_, ok := module.(*licenseModule)
+	_, ok := OtherModuleProvider(ctx, module, LicenseInfoProvider)
 	return ok
 }
 
@@ -86,12 +86,12 @@ type licenseSdkMemberProperties struct {
 	License_text Paths
 }
 
-func (p *licenseSdkMemberProperties) PopulateFromVariant(_ SdkMemberContext, variant Module) {
+func (p *licenseSdkMemberProperties) PopulateFromVariant(ctx SdkMemberContext, variant ModuleProxy) {
 	// Populate the properties from the variant.
-	l := variant.(*licenseModule)
-	p.License_kinds = l.properties.License_kinds
-	p.License_text = make(Paths, 0, len(l.base().commonProperties.Effective_license_text))
-	for _, np := range l.base().commonProperties.Effective_license_text {
+	licenseInfo := OtherModuleProviderOrDefault(ctx.SdkModuleContext(), variant, LicenseInfoProvider)
+	p.License_kinds = licenseInfo.EffectiveLicenseKinds
+	p.License_text = make(Paths, 0, len(licenseInfo.EffectiveLicenseText))
+	for _, np := range licenseInfo.EffectiveLicenseText {
 		p.License_text = append(p.License_text, np.Path)
 	}
 }

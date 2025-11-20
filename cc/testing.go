@@ -104,6 +104,7 @@ func commonDefaultModules() string {
 			name: "libclang_rt.hwasan",
 			defaults: ["toolchain_libs_defaults"],
 			srcs: [""],
+			double_loadable: true,
 		}
 
 		cc_prebuilt_library_static {
@@ -130,6 +131,7 @@ func commonDefaultModules() string {
 		cc_prebuilt_library_shared {
 			name: "libclang_rt.ubsan_standalone",
 			defaults: ["toolchain_libs_defaults"],
+			double_loadable: true,
 			srcs: [""],
 		}
 

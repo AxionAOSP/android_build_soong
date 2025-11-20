@@ -77,7 +77,7 @@ func (this *sbomSingleton) GenerateBuildActions(ctx SingletonContext) {
 		},
 	})
 
-	if !ctx.Config().UnbundledBuildApps() {
+	if !ctx.Config().HasUnbundledBuildApps() {
 		// When building SBOM of products, phony rule "sbom" is for generating product SBOM in Soong.
 		ctx.Build(pctx, BuildParams{
 			Rule:   blueprint.Phony,

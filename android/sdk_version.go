@@ -231,7 +231,7 @@ func (s SdkSpec) ForVendorPartition(ctx EarlyModuleContext) SdkSpec {
 	if s.Kind == SdkPublic || s.Kind == SdkSystem {
 		if s.ApiLevel.IsCurrent() {
 			if i, err := strconv.Atoi(currentSdkVersion); err == nil {
-				apiLevel := uncheckedFinalApiLevel(i)
+				apiLevel := UncheckedFinalApiLevel(i)
 				return SdkSpec{s.Kind, apiLevel, s.Raw}
 			}
 			panic(fmt.Errorf("BOARD_CURRENT_API_LEVEL_FOR_VENDOR_MODULES must be either \"current\" or a number, but was %q", currentSdkVersion))

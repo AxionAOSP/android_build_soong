@@ -2740,16 +2740,6 @@ func TestMultiplePrebuilts(t *testing.T) {
 			contents: ["%v"],
 		}
 	`
-	hasDep := func(ctx *android.TestResult, m android.Module, wantDep android.Module) bool {
-		t.Helper()
-		var found bool
-		ctx.VisitDirectDeps(m, func(dep blueprint.Module) {
-			if dep == wantDep {
-				found = true
-			}
-		})
-		return found
-	}
 
 	hasFileWithStem := func(m android.TestingModule, stem string) bool {
 		t.Helper()
@@ -2793,7 +2783,8 @@ func TestMultiplePrebuilts(t *testing.T) {
 		// check that rdep gets the correct variation of dep
 		foo := ctx.ModuleForTests(t, "foo", "android_common")
 		expectedDependency := ctx.ModuleForTests(t, tc.expectedDependencyName, "android_common")
-		android.AssertBoolEquals(t, fmt.Sprintf("expected dependency from %s to %s\n", foo.Module().Name(), tc.expectedDependencyName), true, hasDep(ctx, foo.Module(), expectedDependency.Module()))
+		android.AssertBoolEquals(t, fmt.Sprintf("expected dependency from %s to %s\n", foo.Module().Name(), tc.expectedDependencyName),
+			true, android.HasDirectDep(ctx, foo.Module(), expectedDependency.Module()))
 
 		// check that output file of dep is always bar.jar
 		// The filename should be agnostic to source/prebuilt/prebuilt_version
@@ -2918,6 +2909,59 @@ func TestApiLibraryAconfigDeclarations(t *testing.T) {
 	manifest := m.Output("metalava.sbox.textproto")
 	cmdline := String(android.RuleBuilderSboxProtoForTests(t, result.TestContext, manifest).Commands[0].Command)
 	android.AssertStringDoesContain(t, "flagged api hide command not included", cmdline, "flags-config-exportable.xml")
+}
+
+func TestDroidstubsAconfigPropagation(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		android.FixtureMergeMockFs(map[string][]byte{
+			"a/A.java":      nil,
+			"a/current.txt": nil,
+			"a/removed.txt": nil,
+		}),
+	).RunTestWithBp(t, `
+	aconfig_declarations {
+		name: "bar",
+		package: "com.example.package",
+		container: "com.android.foo",
+		srcs: [
+			"bar.aconfig",
+		],
+	}
+	droidstubs {
+		name: "foo",
+		srcs: ["a/A.java"],
+		api_surface: "public",
+		check_api: {
+			current: {
+				api_file: "a/current.txt",
+				removed_api_file: "a/removed.txt",
+			}
+		},
+		aconfig_declarations: [
+			"bar",
+		],
+	}
+
+	java_library {
+		name: "baz",
+		srcs: [
+			":foo",
+		],
+	}
+	`)
+
+	bazModule := result.ModuleForTests(t, "baz", "android_common").Module()
+	javaInfo, _ := android.OtherModuleProvider(result, bazModule, JavaInfoProvider)
+	aconfigProtos := javaInfo.AconfigIntermediateCacheOutputPaths
+
+	android.AssertIntEquals(t, "Expected to provide one aconfig proto file", 1, len(aconfigProtos))
+	android.AssertStringDoesContain(
+		t,
+		"Expected to provide bar/aconfig-cache.pb",
+		strings.Join(aconfigProtos.Strings(), " "),
+		"bar/aconfig-cache.pb",
+	)
 }
 
 func TestTestOnly(t *testing.T) {
@@ -3150,7 +3194,7 @@ func assertTestOnlyAndTopLevel(t *testing.T, ctx *android.TestResult, expectedTe
 		}
 	}
 
-	ctx.VisitAllModules(func(m blueprint.Module) {
+	ctx.VisitAllModules(func(m android.Module) {
 		addActuals(m, android.TestOnlyProviderKey)
 
 	})
@@ -3171,7 +3215,7 @@ func TestNativeRequiredDepOfJavaBinary(t *testing.T) {
 	t.Parallel()
 	findDepsOfModule := func(ctx *android.TestContext, module android.Module, depName string) []blueprint.Module {
 		var ret []blueprint.Module
-		ctx.VisitDirectDeps(module, func(dep blueprint.Module) {
+		ctx.VisitDirectDeps(module, func(dep android.Module) {
 			if dep.Name() == depName {
 				ret = append(ret, dep)
 			}

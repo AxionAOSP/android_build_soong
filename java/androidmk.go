@@ -102,8 +102,8 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.SetPath("LOCAL_SOONG_CLASSES_JAR", library.implementationAndResourcesJar)
 					entries.SetPath("LOCAL_SOONG_HEADER_JAR", library.headerJarFile)
 
-					if library.jacocoReportClassesFile != nil {
-						entries.SetPath("LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR", library.jacocoReportClassesFile)
+					if library.jacocoInfo.ReportClassesFile != nil {
+						entries.SetPath("LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR", library.jacocoInfo.ReportClassesFile)
 					}
 
 					requiredUsesLibs, optionalUsesLibs := library.classLoaderContexts.UsesLibs()
@@ -112,8 +112,6 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.SetOptionalPath("LOCAL_SOONG_PROGUARD_DICT", library.dexer.proguardDictionary)
 					entries.SetOptionalPath("LOCAL_SOONG_PROGUARD_USAGE_ZIP", library.dexer.proguardUsageZip)
 					entries.SetString("LOCAL_MODULE_STEM", library.Stem())
-
-					entries.SetOptionalPaths("LOCAL_SOONG_LINT_REPORTS", library.linter.reports)
 
 					if library.dexpreopter.configPath != nil {
 						entries.SetPath("LOCAL_SOONG_DEXPREOPT_CONFIG", library.dexpreopter.configPath)
@@ -336,8 +334,8 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 				if app.bundleFile != nil {
 					entries.SetPath("LOCAL_SOONG_BUNDLE", app.bundleFile)
 				}
-				if app.jacocoReportClassesFile != nil {
-					entries.SetPath("LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR", app.jacocoReportClassesFile)
+				if app.jacocoInfo.ReportClassesFile != nil {
+					entries.SetPath("LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR", app.jacocoInfo.ReportClassesFile)
 				}
 				entries.SetOptionalPath("LOCAL_SOONG_PROGUARD_DICT", app.dexer.proguardDictionary)
 				entries.SetOptionalPath("LOCAL_SOONG_PROGUARD_USAGE_ZIP", app.dexer.proguardUsageZip)
@@ -359,7 +357,7 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.AddStrings("LOCAL_OVERRIDES_PACKAGES", app.getOverriddenPackages()...)
 
 				if app.embeddedJniLibs {
-					jniSymbols := app.JNISymbolsInstalls(app.installPathForJNISymbols.String())
+					jniSymbols := JNISymbolsInstalls(app.jniLibs, app.installPathForJNISymbols.String())
 					entries.SetString("LOCAL_SOONG_JNI_LIBS_SYMBOLS", jniSymbols.String())
 				} else {
 					var names []string
@@ -382,8 +380,6 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 					install := app.onDeviceDir + "/" + extra.Base()
 					entries.AddStrings("LOCAL_SOONG_BUILT_INSTALLED", extra.String()+":"+install)
 				}
-
-				entries.SetOptionalPaths("LOCAL_SOONG_LINT_REPORTS", app.linter.reports)
 
 				entries.AddStrings("LOCAL_SOONG_LOGTAGS_FILES", app.logtagsSrcs.Strings()...)
 			},

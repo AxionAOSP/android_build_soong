@@ -29,7 +29,7 @@ var (
 	defaultBindgenFlags = []string{""}
 
 	// bindgen should specify its own Clang revision so updating Clang isn't potentially blocked on bindgen failures.
-	bindgenClangVersion = "clang-r530567"
+	bindgenClangVersion = "clang-r547379"
 
 	_ = pctx.VariableFunc("bindgenClangVersion", func(ctx android.PackageVarContext) string {
 		if override := ctx.Config().Getenv("LLVM_BINDGEN_PREBUILTS_VERSION"); override != "" {
@@ -299,6 +299,10 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	// The Clang version used by CXX can be newer than the one used by Bindgen, and uses warning related flags that
 	// it cannot recognize. Turn off unknown warning flags warning.
 	cflags = append(cflags, "-Wno-unknown-warning-option")
+
+	// The main file for bindgen usually is header where #pragma once is actually best practice.
+	// Don't pollute the build log with unnecessary warnings.
+	cflags = append(cflags, "-Wno-pragma-once-outside-header")
 
 	// Suppress warnings while testing a new compiler.
 	if ctx.Config().IsEnvTrue("LLVM_NEXT") {

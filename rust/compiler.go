@@ -15,11 +15,11 @@
 package rust
 
 import (
-	"android/soong/cc"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"android/soong/cc"
 
 	"github.com/google/blueprint/proptools"
 
@@ -35,23 +35,23 @@ const (
 )
 
 type compiler interface {
-	initialize(ctx ModuleContext)
 	compilerFlags(ctx ModuleContext, flags Flags) Flags
 	cfgFlags(ctx ModuleContext, flags Flags) Flags
-	featureFlags(ctx ModuleContext, module *Module, flags Flags) Flags
+	featureFlags(ctx ModuleContext, flags Flags) Flags
 	baseCompilerProps() BaseCompilerProperties
 	compilerProps() []interface{}
 	compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput
 	compilerDeps(ctx DepsContext, deps Deps) Deps
 	crateName() string
 	edition() string
-	features(ctx android.ConfigurableEvaluatorContext, module *Module) []string
+	features(ctx ModuleContext) []string
 	rustdoc(ctx ModuleContext, flags Flags, deps PathDeps) android.OptionalPath
 	Thinlto() bool
+	begin(ctx BaseModuleContext)
 
 	// Output directory in which source-generated code from dependencies is
 	// copied. This is equivalent to Cargo's OUT_DIR variable.
-	cargoOutDir() android.OptionalPath
+	cargoOutDir(ctx ModuleContext) android.OptionalPath
 
 	// cargoPkgVersion returns the value of the Cargo_pkg_version property.
 	cargoPkgVersion() string
@@ -75,11 +75,14 @@ type compiler interface {
 	unstrippedOutputFilePath() android.Path
 	strippedOutputFilePath() android.OptionalPath
 
-	checkedCrateRootPath() (android.Path, error)
+	crateRootPath(ctx ModuleContext) android.Path
+	crateSources(ctx ModuleContext) android.Paths
 
 	Aliases() map[string]string
 
 	moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON)
+
+	emitType() string
 }
 
 func (compiler *baseCompiler) edition() string {
@@ -108,9 +111,9 @@ type installLocation int
 const (
 	InstallInSystem installLocation = 0
 	InstallInData                   = iota
+	NoInstall                       = iota
 
-	incorrectSourcesError = "srcs can only contain one path for a rust file and source providers prefixed by \":\""
-	genSubDir             = "out/"
+	genSubDir = "out/"
 )
 
 type BaseCompilerProperties struct {
@@ -243,6 +246,12 @@ type BaseCompilerProperties struct {
 		// be enabled for production builds unless there's a clear need to disable it.
 		Thin *bool `android:"arch_variant"`
 	} `android:"arch_variant"`
+
+	// Set this to true to use an expansive default set of source file requirements
+	// (all .rs, .h, .xml, and .md files in the module tree).
+	// This is primarily for tracking sources for RBE purposes. Currently defaults
+	// to true, though this may change in the future.
+	Use_expansive_default_srcs *bool
 }
 
 type baseCompiler struct {
@@ -264,20 +273,9 @@ type baseCompiler struct {
 
 	// stripped output file.
 	strippedOutputFile android.OptionalPath
-
-	// If a crate has a source-generated dependency, a copy of the source file
-	// will be available in cargoOutDir (equivalent to Cargo OUT_DIR).
-	// This is stored internally because it may not be available during
-	// singleton-generation passes like rustdoc/rust_project.json, but should
-	// be stashed during initial generation.
-	cachedCargoOutDir android.ModuleOutPath
-	// Calculated crate root cached internally because ModuleContext is not
-	// available to singleton targets like rustdoc/rust_project.json
-	cachedCrateRootPath android.Path
-	// If cachedCrateRootPath is nil after initialization, this will contain
-	// an explanation of why
-	cachedCrateRootError error
 }
+
+func (compiler *baseCompiler) begin(ctx BaseModuleContext) {}
 
 func (compiler *baseCompiler) Disabled() bool {
 	return false
@@ -353,6 +351,7 @@ func (compiler *baseCompiler) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *
 }
 
 var _ compiler = (*baseCompiler)(nil)
+var _ autoDeppable = (*baseCompiler)(nil)
 
 func (compiler *baseCompiler) inData() bool {
 	return compiler.location == InstallInData
@@ -375,23 +374,22 @@ func cfgsToFlags(cfgs []string) []string {
 	return flags
 }
 
-func (compiler *baseCompiler) features(ctx android.ConfigurableEvaluatorContext, module *Module) []string {
-	eval := module.ConfigurableEvaluator(ctx)
-	return compiler.Properties.Features.GetOrDefault(eval, nil)
+func (compiler *baseCompiler) features(ctx ModuleContext) []string {
+	return compiler.Properties.Features.GetOrDefault(ctx, nil)
 }
 
-func (compiler *baseCompiler) featuresToFlags(ctx android.ConfigurableEvaluatorContext, module *Module) []string {
+func (compiler *baseCompiler) featuresToFlags(ctx ModuleContext) []string {
 	flags := []string{}
-	for _, feature := range compiler.features(ctx, module) {
+	for _, feature := range compiler.features(ctx) {
 		flags = append(flags, "--cfg 'feature=\""+feature+"\"'")
 	}
 
 	return flags
 }
 
-func (compiler *baseCompiler) featureFlags(ctx ModuleContext, module *Module, flags Flags) Flags {
-	flags.RustFlags = append(flags.RustFlags, compiler.featuresToFlags(ctx, module)...)
-	flags.RustdocFlags = append(flags.RustdocFlags, compiler.featuresToFlags(ctx, module)...)
+func (compiler *baseCompiler) featureFlags(ctx ModuleContext, flags Flags) Flags {
+	flags.RustFlags = append(flags.RustFlags, compiler.featuresToFlags(ctx)...)
+	flags.RustdocFlags = append(flags.RustdocFlags, compiler.featuresToFlags(ctx)...)
 
 	return flags
 }
@@ -435,6 +433,7 @@ func CommonDefaultFlags(ctx android.ModuleContext, toolchain config.Toolchain, f
 	if ctx.Os() == android.Linux {
 		// Add -lc, -lrt, -ldl, -lpthread, -lm and -lgcc_s to glibc builds to match
 		// the default behavior of device builds.
+		flags.RustFlags = append(flags.RustFlags, config.LinuxHostGlobalRustFlags...)
 		flags.LinkFlags = append(flags.LinkFlags, config.LinuxHostGlobalLinkFlags...)
 	} else if ctx.Os() == android.Darwin {
 		// Add -lc, -ldl, -lpthread and -lm to glibc darwin builds to match the default
@@ -494,18 +493,8 @@ func (compiler *baseCompiler) rustdoc(ctx ModuleContext, flags Flags,
 	return android.OptionalPath{}
 }
 
-func (compiler *baseCompiler) initialize(ctx ModuleContext) {
-	compiler.cachedCargoOutDir = android.PathForModuleOut(ctx, genSubDir)
-	if compiler.Properties.Crate_root == nil {
-		compiler.cachedCrateRootPath, compiler.cachedCrateRootError = srcPathFromModuleSrcs(ctx, compiler.Properties.Srcs)
-	} else {
-		compiler.cachedCrateRootPath = android.PathForModuleSrc(ctx, *compiler.Properties.Crate_root)
-		compiler.cachedCrateRootError = nil
-	}
-}
-
-func (compiler *baseCompiler) cargoOutDir() android.OptionalPath {
-	return android.OptionalPathForPath(compiler.cachedCargoOutDir)
+func (compiler *baseCompiler) cargoOutDir(ctx ModuleContext) android.OptionalPath {
+	return android.OptionalPathForPath(android.PathForModuleOut(ctx, genSubDir))
 }
 
 func (compiler *baseCompiler) cargoEnvCompat() bool {
@@ -543,6 +532,13 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 			deps.Stdlibs = append(deps.Stdlibs, stdlib)
 		}
 	}
+
+	if ctx.Windows() {
+		if ctx.ModuleName() != "libwinpthread" {
+			deps.StaticLibs = append(deps.StaticLibs, "libwinpthread")
+		}
+	}
+
 	return deps
 }
 
@@ -647,20 +643,40 @@ func (compiler *baseCompiler) relativeInstallPath() string {
 	return String(compiler.Properties.Relative_install_path)
 }
 
-func (compiler *baseCompiler) checkedCrateRootPath() (android.Path, error) {
-	return compiler.cachedCrateRootPath, compiler.cachedCrateRootError
+func (compiler *baseCompiler) crateRootPath(ctx ModuleContext) android.Path {
+	if compiler.Properties.Crate_root == nil {
+		return srcPathFromModuleSrcs(ctx, compiler.Properties.Srcs)
+	} else {
+		return android.PathForModuleSrc(ctx, *compiler.Properties.Crate_root)
+	}
 }
 
-func crateRootPath(ctx ModuleContext, compiler compiler) android.Path {
-	root, err := compiler.checkedCrateRootPath()
-	if err != nil {
-		ctx.PropertyErrorf("srcs", err.Error())
+func (compiler *baseCompiler) crateSources(ctx ModuleContext) android.Paths {
+	crateSources := android.PathsForModuleSrc(ctx, compiler.Properties.Srcs)
+
+	// By default use an expansive set of required sources.
+	// Check for UseRBE here since this isn't necessary for local builds and can
+	// break some tests as the MockFS doesn't support globbing in all instances.
+	if BoolDefault(compiler.Properties.Use_expansive_default_srcs, true) && ctx.Config().IsEnvTrue("RBE_RUST") {
+		crateSources = append(crateSources, android.PathsForModuleSrc(ctx,
+			[]string{
+				"*.md",
+				"**/*.md",
+				"*.rs",
+				"**/*.rs",
+				"*.proto",
+				"**/*.proto",
+				"*.xml",
+				"**/*.xml",
+				"*.h",
+				"**/*.h"})...)
 	}
-	return root
+
+	return crateSources
 }
 
 // Returns the Path for the main source file along with Paths for generated source files from modules listed in srcs.
-func srcPathFromModuleSrcs(ctx ModuleContext, srcs []string) (android.Path, error) {
+func srcPathFromModuleSrcs(ctx ModuleContext, srcs []string) android.Path {
 	// The srcs can contain strings with prefix ":".
 	// They are dependent modules of this module, with android.SourceDepTag.
 	// They are not the main source file compiled by rustc.
@@ -673,22 +689,35 @@ func srcPathFromModuleSrcs(ctx ModuleContext, srcs []string) (android.Path, erro
 		}
 	}
 	if numSrcs > 1 {
-		return nil, errors.New(incorrectSourcesError)
+		ctx.PropertyErrorf("srcs", "srcs can only contain one path for a rust file and source providers prefixed by \":\"")
+		return nil
 	}
 
 	// If a main source file is not provided we expect only a single SourceProvider module to be defined
 	// within srcs, with the expectation that the first source it provides is the entry point.
 	if srcIndex != 0 {
-		return nil, errors.New("main source file must be the first in srcs")
+		ctx.PropertyErrorf("srcs", "main source file must be the first in srcs")
+		return nil
 	} else if numSrcs > 1 {
-		return nil, errors.New("only a single generated source module can be defined without a main source file.")
+		ctx.PropertyErrorf("srcs", "only a single generated source module can be defined without a main source file.")
+		return nil
 	}
 
 	// TODO: b/297264540 - once all modules are sandboxed, we need to select the proper
 	// entry point file from Srcs rather than taking the first one
 	paths := android.PathsForModuleSrc(ctx, srcs)
 	if len(paths) == 0 {
-		return nil, errors.New("srcs must not be empty")
+		ctx.PropertyErrorf("srcs", "srcs must not be empty")
+		return nil
 	}
-	return paths[srcIndex], nil
+	return paths[srcIndex]
+}
+
+// Returns an emit type corresponding to the `--emit=` rustc flag.
+func (compiler *baseCompiler) emitType() string {
+	return "link"
+}
+
+func (compiler *baseCompiler) autoDep(ctx android.BottomUpMutatorContext) autoDep {
+	panic("baseCompiler does not implement autoDep()")
 }

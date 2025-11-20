@@ -32,20 +32,22 @@ type srcBaseFileInstallBaseFileTuple struct {
 // prebuilt src files grouped by the install partitions.
 // Each groups are a mapping of the relative install path to the name of the files
 type prebuiltSrcGroupByInstallPartition struct {
-	system     map[string][]srcBaseFileInstallBaseFileTuple
-	system_ext map[string][]srcBaseFileInstallBaseFileTuple
-	product    map[string][]srcBaseFileInstallBaseFileTuple
-	vendor     map[string][]srcBaseFileInstallBaseFileTuple
-	recovery   map[string][]srcBaseFileInstallBaseFileTuple
+	system      map[string][]srcBaseFileInstallBaseFileTuple
+	system_ext  map[string][]srcBaseFileInstallBaseFileTuple
+	product     map[string][]srcBaseFileInstallBaseFileTuple
+	vendor      map[string][]srcBaseFileInstallBaseFileTuple
+	recovery    map[string][]srcBaseFileInstallBaseFileTuple
+	vendor_dlkm map[string][]srcBaseFileInstallBaseFileTuple
 }
 
 func newPrebuiltSrcGroupByInstallPartition() *prebuiltSrcGroupByInstallPartition {
 	return &prebuiltSrcGroupByInstallPartition{
-		system:     map[string][]srcBaseFileInstallBaseFileTuple{},
-		system_ext: map[string][]srcBaseFileInstallBaseFileTuple{},
-		product:    map[string][]srcBaseFileInstallBaseFileTuple{},
-		vendor:     map[string][]srcBaseFileInstallBaseFileTuple{},
-		recovery:   map[string][]srcBaseFileInstallBaseFileTuple{},
+		system:      map[string][]srcBaseFileInstallBaseFileTuple{},
+		system_ext:  map[string][]srcBaseFileInstallBaseFileTuple{},
+		product:     map[string][]srcBaseFileInstallBaseFileTuple{},
+		vendor:      map[string][]srcBaseFileInstallBaseFileTuple{},
+		recovery:    map[string][]srcBaseFileInstallBaseFileTuple{},
+		vendor_dlkm: map[string][]srcBaseFileInstallBaseFileTuple{},
 	}
 }
 
@@ -77,6 +79,8 @@ func appendIfCorrectInstallPartition(partitionToInstallPathList []partitionToIns
 				srcMap = srcGroup.vendor
 			case "recovery":
 				srcMap = srcGroup.recovery
+			case "vendor_dlkm":
+				srcMap = srcGroup.vendor_dlkm
 			}
 			if srcMap != nil {
 				srcMap[relativeInstallDir] = append(srcMap[relativeInstallDir], srcBaseFileInstallBaseFileTuple{
@@ -134,6 +138,7 @@ func processProductCopyFiles(ctx android.LoadHookContext) map[string]*prebuiltSr
 	partitionToInstallPathList := []partitionToInstallPath{
 		{name: "recovery", installPath: "recovery/root"},
 		{name: "vendor", installPath: ctx.DeviceConfig().VendorPath()},
+		{name: "vendor_dlkm", installPath: ctx.DeviceConfig().VendorDlkmPath()},
 		{name: "product", installPath: ctx.DeviceConfig().ProductPath()},
 		{name: "system_ext", installPath: ctx.DeviceConfig().SystemExtPath()},
 		{name: "system", installPath: "system"},
@@ -157,11 +162,14 @@ func processProductCopyFiles(ctx android.LoadHookContext) map[string]*prebuiltSr
 type prebuiltModuleProperties struct {
 	Name *string
 
-	Soc_specific        *bool
-	Product_specific    *bool
-	System_ext_specific *bool
-	Recovery            *bool
-	Ramdisk             *bool
+	From_product_copy_files *bool
+
+	Soc_specific         *bool
+	Product_specific     *bool
+	System_ext_specific  *bool
+	Vendor_dlkm_specific *bool
+	Recovery             *bool
+	Ramdisk              *bool
 
 	Srcs []string
 
@@ -274,6 +282,8 @@ func prebuiltEtcModuleProps(ctx android.LoadHookContext, moduleName, partition, 
 		moduleProps.Product_specific = proptools.BoolPtr(true)
 	case "vendor":
 		moduleProps.Soc_specific = proptools.BoolPtr(true)
+	case "vendor_dlkm":
+		moduleProps.Vendor_dlkm_specific = proptools.BoolPtr(true)
 	case "recovery":
 		// To match the logic in modulePartition() in android/paths.go
 		if ctx.DeviceConfig().BoardUsesRecoveryAsBoot() && strings.HasPrefix(destDir, "first_stage_ramdisk") {
@@ -283,6 +293,7 @@ func prebuiltEtcModuleProps(ctx android.LoadHookContext, moduleName, partition, 
 		}
 	}
 
+	moduleProps.From_product_copy_files = proptools.BoolPtr(true)
 	moduleProps.No_full_install = proptools.BoolPtr(true)
 	moduleProps.NamespaceExportedToMake = true
 	moduleProps.Visibility = []string{"//visibility:public"}
@@ -404,15 +415,18 @@ func createPrebuiltEtcModules(ctx android.LoadHookContext) (ret []string) {
 		ret = append(ret, createPrebuiltEtcModulesForPartition(ctx, "product", srcDir, groupedSource.product)...)
 		ret = append(ret, createPrebuiltEtcModulesForPartition(ctx, "vendor", srcDir, groupedSource.vendor)...)
 		ret = append(ret, createPrebuiltEtcModulesForPartition(ctx, "recovery", srcDir, groupedSource.recovery)...)
+		ret = append(ret, createPrebuiltEtcModulesForPartition(ctx, "vendor_dlkm", srcDir, groupedSource.vendor_dlkm)...)
 	}
 
 	return ret
 }
 
-func createAvbpubkeyModule(ctx android.LoadHookContext) bool {
+func createAvbpubkeyModule(ctx android.LoadHookContext) {
 	avbKeyPath := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BoardAvbKeyPath
 	if avbKeyPath == "" {
-		return false
+		// Use default
+		// https://cs.android.com/android/_/android/platform/build/+/045a3d6a3e359633a14853a5a5e1e4f2a11cbdae:core/Makefile;l=4548;bpv=1;bpt=0;drc=a951ebf0198006f7fd38073a05c442d0eb92f97b
+		avbKeyPath = "external/avb/test/data/testkey_rsa4096.pem"
 	}
 	ctx.CreateModuleInDirectory(
 		etc.AvbpubkeyModuleFactory,
@@ -423,13 +437,14 @@ func createAvbpubkeyModule(ctx android.LoadHookContext) bool {
 			Private_key      *string
 			No_full_install  *bool
 			Visibility       []string
+			Licenses         []string
 		}{
 			Name:             proptools.StringPtr("system_other_avbpubkey"),
 			Product_specific: proptools.BoolPtr(true),
 			Private_key:      proptools.StringPtr(avbKeyPath),
 			No_full_install:  proptools.BoolPtr(true),
 			Visibility:       []string{"//visibility:public"},
+			Licenses:         []string{"Android-Apache-2.0"},
 		},
 	)
-	return true
 }

@@ -15,13 +15,13 @@
 package rust
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/depset"
+	"github.com/google/blueprint/pathtools"
 
 	"android/soong/android"
 	"android/soong/cc"
@@ -310,6 +310,8 @@ func (library *libraryDecorator) stdLinkage(device bool) RustLinkage {
 	if library.static() || library.MutatedProperties.VariantIsStaticStd {
 		return RlibLinkage
 	} else if library.baseCompiler.preferRlib() {
+		return RlibLinkage
+	} else if !device {
 		return RlibLinkage
 	}
 	return DylibLinkage
@@ -624,7 +626,9 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) F
 				"-install_name @rpath/"+library.sharedLibFilename(ctx),
 			)
 		} else {
-			flags.LinkFlags = append(flags.LinkFlags, "-Wl,-soname="+library.sharedLibFilename(ctx))
+			if !ctx.Windows() {
+				flags.LinkFlags = append(flags.LinkFlags, "-Wl,-soname="+library.sharedLibFilename(ctx))
+			}
 		}
 	}
 
@@ -635,7 +639,10 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	var outputFile android.ModuleOutPath
 	var ret buildOutput
 	var fileName string
-	crateRootPath := crateRootPath(ctx, library)
+	crateRootPath := library.crateRootPath(ctx)
+
+	deps.SrcFiles = append(deps.SrcFiles, crateRootPath)
+	deps.SrcFiles = append(deps.SrcFiles, library.crateSources(ctx)...)
 
 	if library.sourceProvider != nil {
 		deps.srcProviderFiles = append(deps.srcProviderFiles, library.sourceProvider.Srcs()...)
@@ -675,9 +682,19 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.depLinkFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.rustLibObjects...)
-	flags.LinkFlags = append(flags.LinkFlags, deps.sharedLibObjects...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.staticLibObjects...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.wholeStaticLibObjects...)
+
+	if ctx.Windows() {
+		for _, lib := range deps.sharedLibObjects {
+			// Windows uses the .lib import library at link-time and at runtime
+			// uses the .dll library, so we need to make sure we're passing the
+			// import library to the linker.
+			flags.LinkFlags = append(flags.LinkFlags, pathtools.ReplaceExtension(lib, "lib"))
+		}
+	} else {
+		flags.LinkFlags = append(flags.LinkFlags, deps.sharedLibObjects...)
+	}
 
 	if String(library.Properties.Version_script) != "" {
 		if String(library.Properties.Extra_exported_symbols) != "" {
@@ -687,7 +704,8 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		if library.shared() {
 			// "-Wl,--android-version-script" signals to the rustcLinker script
 			// that the default version script should be removed.
-			flags.LinkFlags = append(flags.LinkFlags, "-Wl,--android-version-script="+android.PathForModuleSrc(ctx, String(library.Properties.Version_script)).String())
+			flags.LinkerScriptFlags = append(flags.LinkerScriptFlags,
+				"-Wl,--android-version-script="+android.PathForModuleSrc(ctx, String(library.Properties.Version_script)).String())
 			deps.LinkerDeps = append(deps.LinkerDeps, android.PathForModuleSrc(ctx, String(library.Properties.Version_script)))
 		} else if !library.static() && !library.rlib() {
 			// We include rlibs here because rust_ffi produces rlib variants
@@ -785,16 +803,17 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	return ret
 }
 
-func (library *libraryDecorator) checkedCrateRootPath() (android.Path, error) {
+func (library *libraryDecorator) crateRootPath(ctx ModuleContext) android.Path {
 	if library.sourceProvider != nil {
 		srcs := library.sourceProvider.Srcs()
 		if len(srcs) == 0 {
-			return nil, errors.New("Source provider generated 0 sources")
+			ctx.PropertyErrorf("srcs", "Source provider generated 0 sources")
+			return nil
 		}
 		// Assume the first source from the source provider is the library entry point.
-		return srcs[0], nil
+		return srcs[0]
 	} else {
-		return library.baseCompiler.checkedCrateRootPath()
+		return library.baseCompiler.crateRootPath(ctx)
 	}
 }
 
@@ -809,7 +828,7 @@ func (library *libraryDecorator) getApiStubsCcFlags(ctx ModuleContext) cc.Flags 
 	minSdkVersion := cc.MinSdkVersion(ctx.RustModule(), cc.CtxIsForPlatform(ctx), ctx.Device(), platformSdkVersion)
 
 	// Collect common CC compilation flags
-	ccFlags = cc.CommonLinkerFlags(ctx, ccFlags, true, toolchain, false)
+	ccFlags = cc.CommonLinkerFlags(ctx, ccFlags, toolchain, false)
 	ccFlags = cc.CommonLibraryLinkerFlags(ctx, ccFlags, toolchain, library.getStem(ctx))
 	ccFlags = cc.AddStubLibraryCompilerFlags(ccFlags)
 	ccFlags = cc.AddTargetFlags(ctx, ccFlags, toolchain, minSdkVersion, false)
@@ -856,7 +875,7 @@ func (library *libraryDecorator) rustdoc(ctx ModuleContext, flags Flags,
 		return android.OptionalPath{}
 	}
 
-	return android.OptionalPathForPath(Rustdoc(ctx, crateRootPath(ctx, library),
+	return android.OptionalPathForPath(Rustdoc(ctx, library.crateRootPath(ctx),
 		deps, flags))
 }
 
@@ -942,7 +961,8 @@ func (libraryTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 	if library.buildRlib() {
 		variants = append(variants, rlibVariation)
 	}
-	if library.buildDylib() {
+	if library.buildDylib() && !ctx.Host() {
+		// Hosts do not produce dylib variants.
 		variants = append(variants, dylibVariation)
 	}
 
@@ -1039,6 +1059,10 @@ func (libstdTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 		// Only create a variant if a library is actually being built.
 		if library, ok := m.compiler.(libraryInterface); ok {
 			if library.rlib() && !library.sysroot() {
+				if ctx.Host() {
+					// Hosts do not produce dylib variants, so there's only one std option.
+					return []string{"rlib-std"}
+				}
 				return []string{"rlib-std", "dylib-std"}
 			}
 		}

@@ -189,6 +189,21 @@ func Banner(config Config, make_vars map[string]string) string {
 			fmt.Fprintf(b, "%s=%s\n", name, make_vars[name])
 		}
 	}
+	if config.partialCompileRequested {
+		if partialCompile, ok := config.environ.Get("SOONG_PARTIAL_COMPILE"); ok {
+			// If we are only dumping variables, do not say that partial compile is disabled.
+			if config.disableUsePartialCompile && !config.isDumpVar {
+				fmt.Fprintf(b,
+					"SOONG_PARTIAL_COMPILE=%s # Inactive because of build arguments\n",
+					partialCompile)
+			} else {
+				fmt.Fprintf(b, "SOONG_PARTIAL_COMPILE=%s\n", partialCompile)
+			}
+		}
+	}
+
+	// Normally config.soongOnlyRequested already takes into account PRODUCT_SOONG_ONLY,
+	// except when doing `get_build_var report_config`, which is run during envsetup.
 	if config.skipKatiControlledByFlags {
 		fmt.Fprintf(b, "SOONG_ONLY=%t\n", config.soongOnlyRequested)
 	} else { // default for this product
@@ -295,6 +310,7 @@ func runMakeProductConfig(ctx Context, config Config) {
 		"BUILD_BROKEN_USES_BUILD_STATIC_JAVA_LIBRARY",
 		"BUILD_BROKEN_USES_BUILD_STATIC_LIBRARY",
 		"RELEASE_BUILD_EXECUTION_METRICS",
+		"RELEASE_SRC_DIR_IS_READ_ONLY",
 	}, exportEnvVars...), BannerVars...)
 
 	makeVars, err := dumpMakeVars(ctx, config, config.Arguments(), allVars, true, "")
@@ -316,7 +332,15 @@ func runMakeProductConfig(ctx Context, config Config) {
 	config.SetNinjaArgs(strings.Fields(makeVars["NINJA_GOALS"]))
 	config.SetTargetDevice(makeVars["TARGET_DEVICE"])
 	config.SetTargetDeviceDir(makeVars["TARGET_DEVICE_DIR"])
-	config.sandboxConfig.SetSrcDirIsRO(makeVars["BUILD_BROKEN_SRC_DIR_IS_WRITABLE"] == "false")
+	if makeVars["RELEASE_SRC_DIR_IS_READ_ONLY"] == "true" {
+		// If the release config says source is read-only, then make it read-write only if
+		// BUILD_BROKEN_SRC_DIR_IS_WRITABLE=true.
+		config.sandboxConfig.SetSrcDirIsRO(makeVars["BUILD_BROKEN_SRC_DIR_IS_WRITABLE"] != "true")
+	} else {
+		// If the release config says source is not read-only, then make it read-only only if
+		// BUILD_BROKEN_SRC_DIR_IS_WRITABLE=false.
+		config.sandboxConfig.SetSrcDirIsRO(makeVars["BUILD_BROKEN_SRC_DIR_IS_WRITABLE"] == "false")
+	}
 	config.sandboxConfig.SetSrcDirRWAllowlist(strings.Fields(makeVars["BUILD_BROKEN_SRC_DIR_RW_ALLOWLIST"]))
 
 	config.SetBuildBrokenDupRules(makeVars["BUILD_BROKEN_DUP_RULES"] == "true")
@@ -332,6 +356,8 @@ func runMakeProductConfig(ctx Context, config Config) {
 			config.skipKatiNinja = true
 		}
 	}
+
+	ctx.Metrics.SetSoongOnly(config.soongOnlyRequested)
 
 	// Print the banner like make did
 	if !env.IsEnvTrue("ANDROID_QUIET_BUILD") {

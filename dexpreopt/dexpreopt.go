@@ -497,6 +497,8 @@ func dexpreoptCommand(ctx android.BuilderContext, globalSoong *GlobalSoongConfig
 		cmd.FlagWithInput("--profile-file=", profile)
 	}
 
+	cmd.Text("$(cat").Input(globalSoong.AssumeValueFlags).Text(")")
+
 	rule.Install(odexPath, odexInstallPath)
 	rule.Install(vdexPath, vdexInstallPath)
 }

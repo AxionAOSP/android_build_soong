@@ -22,8 +22,9 @@ import (
 	"sync"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/gobtools"
 )
+
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
 
 // Adds cross-cutting licenses dependency to propagate license metadata through the build system.
 //
@@ -36,7 +37,7 @@ type licensesDependencyTag struct {
 	blueprint.BaseDependencyTag
 }
 
-func (l licensesDependencyTag) SdkMemberType(Module) SdkMemberType {
+func (l licensesDependencyTag) SdkMemberType(_ ModuleContext, _ ModuleProxy) SdkMemberType {
 	// Add the supplied module to the sdk as a license module.
 	return LicenseModuleSdkMemberType
 }
@@ -56,55 +57,26 @@ var (
 )
 
 // Describes the property provided by a module to reference applicable licenses.
-type applicableLicensesProperty interface {
-	// The name of the property. e.g. default_applicable_licenses or licenses
-	getName() string
-	// The values assigned to the property. (Must reference license modules.)
-	getStrings() []string
-}
-
-type applicableLicensesPropertyImpl struct {
+// @auto-generate: gob
+type applicableLicensesProperty struct {
 	name             string
 	licensesProperty *[]string
 }
 
-type applicableLicensesPropertyImplGob struct {
-	Name             string
-	LicensesProperty []string
-}
-
-func (a *applicableLicensesPropertyImpl) ToGob() *applicableLicensesPropertyImplGob {
-	return &applicableLicensesPropertyImplGob{
-		Name:             a.name,
-		LicensesProperty: *a.licensesProperty,
-	}
-}
-
-func (a *applicableLicensesPropertyImpl) FromGob(data *applicableLicensesPropertyImplGob) {
-	a.name = data.Name
-	a.licensesProperty = &data.LicensesProperty
-}
-
-func (a applicableLicensesPropertyImpl) GobEncode() ([]byte, error) {
-	return gobtools.CustomGobEncode[applicableLicensesPropertyImplGob](&a)
-}
-
-func (a *applicableLicensesPropertyImpl) GobDecode(data []byte) error {
-	return gobtools.CustomGobDecode[applicableLicensesPropertyImplGob](data, a)
-}
-
-func newApplicableLicensesProperty(name string, licensesProperty *[]string) applicableLicensesProperty {
-	return applicableLicensesPropertyImpl{
+func newApplicableLicensesProperty(name string, licensesProperty *[]string) *applicableLicensesProperty {
+	return &applicableLicensesProperty{
 		name:             name,
 		licensesProperty: licensesProperty,
 	}
 }
 
-func (p applicableLicensesPropertyImpl) getName() string {
+// The name of the property. e.g. default_applicable_licenses or licenses
+func (p applicableLicensesProperty) getName() string {
 	return p.name
 }
 
-func (p applicableLicensesPropertyImpl) getStrings() []string {
+// The values assigned to the property. (Must reference license modules.)
+func (p applicableLicensesProperty) getStrings() []string {
 	return *p.licensesProperty
 }
 
@@ -340,7 +312,7 @@ func getLicenses(ctx BaseModuleContext, module Module) []string {
 }
 
 // Returns whether a module is an allowed list of modules that do not have or need applicable licenses.
-func exemptFromRequiredApplicableLicensesProperty(module Module) bool {
+func exemptFromRequiredApplicableLicensesProperty(module ModuleOrProxy) bool {
 	switch reflect.TypeOf(module).String() {
 	case "*android.licenseModule": // is a license, doesn't need one
 	case "*android.licenseKindModule": // is a license, doesn't need one
@@ -357,6 +329,7 @@ func exemptFromRequiredApplicableLicensesProperty(module Module) bool {
 }
 
 // LicensesInfo contains information about licenses for a specific module.
+// @auto-generate: gob
 type LicensesInfo struct {
 	// The list of license modules this depends upon, either explicitly or through default package
 	// configuration.

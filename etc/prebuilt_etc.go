@@ -92,6 +92,7 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_system", PrebuiltSystemFactory)
 	ctx.RegisterModuleType("prebuilt_first_stage_ramdisk", PrebuiltFirstStageRamdiskFactory)
 	ctx.RegisterModuleType("prebuilt_any", PrebuiltAnyFactory)
+	ctx.RegisterModuleType("prebuilt_lib", PrebuiltLibFactory)
 
 	ctx.RegisterModuleType("prebuilt_defaults", defaultsFactory)
 
@@ -105,6 +106,14 @@ type PrebuiltEtcInfo struct {
 }
 
 var PrebuiltEtcInfoProvider = blueprint.NewProvider[PrebuiltEtcInfo]()
+
+// If this provider is set, it means this module was converted from PRODUCT_COPY_FILES
+type ProductCopyFilesModuleInfo struct {
+	// The entries as they would've appeared in PRODUCT_COPY_FILES, that is, src:dst
+	ProductCopyFileEntries []string
+}
+
+var ProductCopyFilesModuleProvider = blueprint.NewProvider[ProductCopyFilesModuleInfo]()
 
 var PrepareForTestWithPrebuiltEtc = android.FixtureRegisterWithContext(RegisterPrebuiltEtcBuildComponents)
 
@@ -154,6 +163,11 @@ type PrebuiltEtcProperties struct {
 
 	// Install to partition oem when set to true.
 	Oem_specific *bool `android:"arch_variant"`
+
+	// If this prebuilt_* module was auto-generated from a PRODUCT_COPY_FILES entry.
+	// Used for licensing/compliance/SBOM, as some legacy methods of specifying licenses were
+	// specific to PRODUCT_COPY_FILES.
+	From_product_copy_files *bool
 }
 
 // Dsts is useful in that it allows prebuilt_* modules to easily map the source files to the
@@ -223,7 +237,7 @@ type PrebuiltEtc struct {
 	// prebuilt_firmware.
 	socInstallDirBase      string
 	installDirPaths        []android.InstallPath
-	additionalDependencies *android.Paths
+	additionalDependencies android.Paths
 
 	usedSrcsProperty bool
 
@@ -344,7 +358,7 @@ func (p *PrebuiltEtc) InstallDirPath() android.InstallPath {
 // This allows other derivative modules (e.g. prebuilt_etc_xml) to perform
 // additional steps (like validating the src) before the file is installed.
 func (p *PrebuiltEtc) SetAdditionalDependencies(paths android.Paths) {
-	p.additionalDependencies = &paths
+	p.additionalDependencies = paths
 }
 
 func (p *PrebuiltEtc) OutputFile() android.Path {
@@ -522,7 +536,7 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		p.SkipInstall()
 	}
 	for _, ip := range installs {
-		ip.addInstallRules(ctx)
+		ip.addInstallRules(ctx, p.additionalDependencies)
 	}
 
 	p.updateModuleInfoJSON(ctx)
@@ -530,6 +544,16 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.SetOutputFiles(p.outputFilePaths.Paths(), "")
 
 	SetCommonPrebuiltEtcInfo(ctx, p)
+
+	if proptools.Bool(p.properties.From_product_copy_files) {
+		entries := make([]string, 0, len(installs))
+		for _, install := range installs {
+			entries = append(entries, fmt.Sprintf("%s:%s", install.sourceFilePath, filepath.Join(install.installDirPath.String(), install.filename)))
+		}
+		android.SetProvider(ctx, ProductCopyFilesModuleProvider, ProductCopyFilesModuleInfo{
+			ProductCopyFileEntries: entries,
+		})
+	}
 }
 
 func SetCommonPrebuiltEtcInfo(ctx android.ModuleContext, p PrebuiltEtcModule) {
@@ -559,14 +583,15 @@ type installProperties struct {
 
 // utility function to add install rules to the build graph.
 // Reduces code duplication between Soong and Mixed build analysis
-func (ip *installProperties) addInstallRules(ctx android.ModuleContext) {
+func (ip *installProperties) addInstallRules(ctx android.ModuleContext, validations android.Paths) {
 	// Copy the file from src to a location in out/ with the correct `filename`
 	// This ensures that outputFilePath has the correct name for others to
 	// use, as the source file may have a different name.
 	ctx.Build(pctx, android.BuildParams{
-		Rule:   android.Cp,
-		Output: ip.outputFilePath,
-		Input:  ip.sourceFilePath,
+		Rule:        android.Cp,
+		Output:      ip.outputFilePath,
+		Input:       ip.sourceFilePath,
+		Validations: validations,
 	})
 
 	installPath := ctx.InstallFile(ip.installDirPath, ip.filename, ip.outputFilePath)
@@ -608,9 +633,6 @@ func (p *PrebuiltEtc) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.AddStrings("LOCAL_MODULE_SYMLINKS", p.properties.Symlinks...)
 				}
 				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !p.Installable())
-				if p.additionalDependencies != nil {
-					entries.AddStrings("LOCAL_ADDITIONAL_DEPENDENCIES", p.additionalDependencies.Strings()...)
-				}
 			},
 		},
 	}}
@@ -752,7 +774,7 @@ func PrebuiltUserShareFactory() android.Module {
 	return module
 }
 
-// prebuild_usr_share_host is for a host prebuilt artifact that is installed in
+// prebuilt_usr_share_host is for a host prebuilt artifact that is installed in
 // $(HOST_OUT)/usr/share/<sub_dir> directory.
 func PrebuiltUserShareHostFactory() android.Module {
 	module := &PrebuiltEtc{}
@@ -780,7 +802,7 @@ func PrebuiltUserKeyLayoutFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "usr/keylayout")
 	// This module is device-only
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)
 	return module
 }
@@ -791,7 +813,7 @@ func PrebuiltUserKeyCharsFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "usr/keychars")
 	// This module is device-only
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)
 	return module
 }
@@ -802,7 +824,7 @@ func PrebuiltUserIdcFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "usr/idc")
 	// This module is device-only
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)
 	return module
 }
@@ -856,6 +878,20 @@ func PrebuiltFirmwareFactory() android.Module {
 	module := &PrebuiltEtc{}
 	module.socInstallDirBase = "firmware"
 	InitPrebuiltEtcModule(module, "etc/firmware")
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+// prebuilt_lib installs a prebuilt file to <partition>/lib directory for system
+// image.
+// If soc_specific property is set to true, the prebuilt file is installed to the
+// vendor <partition>/lib directory for vendor image.
+func PrebuiltLibFactory() android.Module {
+	module := &PrebuiltEtc{}
+	module.socInstallDirBase = "lib"
+	InitPrebuiltEtcModule(module, "lib")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)

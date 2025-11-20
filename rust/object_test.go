@@ -1,4 +1,4 @@
-// Copyright 2024 Google Inc. All rights reserved.
+// Copyright 2025 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package android
+package rust
 
-import "encoding/gob"
+import (
+	"strings"
+	"testing"
+)
 
-func init() {
-	gob.Register(applicableLicensesPropertyImpl{})
-	gob.Register(extraFilesZip{})
-	gob.Register(InstallPath{})
-	gob.Register(ModuleGenPath{})
-	gob.Register(ModuleObjPath{})
-	gob.Register(ModuleOutPath{})
-	gob.Register(OutputPath{})
-	gob.Register(PhonyPath{})
-	gob.Register(SourcePath{})
-	gob.Register(unstableInfo{})
+// Smoke test rust_object_host and also check the emit type is correct.
+func TestObjectEmitType(t *testing.T) {
+	ctx := testRust(t, `
+		rust_object_host {
+			name: "foors",
+			srcs: ["foo.rs"],
+			crate_name: "foo",
+		}`)
+
+	libfooRlib := ctx.ModuleForTests(t, "foors", "linux_glibc_x86_64").Rule("rustc")
+	if !strings.Contains(libfooRlib.Args["emitType"], "obj") {
+		t.Errorf("rust_object_host not emitting type obj")
+	}
 }

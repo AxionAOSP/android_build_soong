@@ -69,9 +69,6 @@ type BaseLinkerProperties struct {
 	// don't link in libclang_rt.builtins-*.a
 	No_libcrt *bool `android:"arch_variant"`
 
-	// Use clang lld instead of gnu ld.
-	Use_clang_lld *bool `android:"arch_variant"`
-
 	// -l arguments to pass to linker for host-provided shared libraries
 	Host_ldlibs []string `android:"arch_variant"`
 
@@ -445,13 +442,6 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 
-func (linker *baseLinker) useClangLld(ctx ModuleContext) bool {
-	if linker.Properties.Use_clang_lld != nil {
-		return Bool(linker.Properties.Use_clang_lld)
-	}
-	return true
-}
-
 // Check whether the SDK version is not older than the specific one
 func CheckSdkVersionAtLeast(ctx ModuleContext, SdkVersion android.ApiLevel) bool {
 	if ctx.minSdkVersion() == "current" {
@@ -471,8 +461,7 @@ func CheckSdkVersionAtLeast(ctx ModuleContext, SdkVersion android.ApiLevel) bool
 
 // ModuleContext extends BaseModuleContext
 // BaseModuleContext should know if LLD is used?
-func CommonLinkerFlags(ctx android.ModuleContext, flags Flags, useClangLld bool,
-	toolchain config.Toolchain, allow_undefined_symbols bool) Flags {
+func CommonLinkerFlags(ctx android.ModuleContext, flags Flags, toolchain config.Toolchain, allow_undefined_symbols bool) Flags {
 	hod := "Host"
 	if ctx.Os().Class == android.Device {
 		hod = "Device"
@@ -483,11 +472,7 @@ func CommonLinkerFlags(ctx android.ModuleContext, flags Flags, useClangLld bool,
 		ctx.ModuleErrorf("trying to add CommonLinkerFlags to non-LinkableInterface module.")
 		return flags
 	}
-	if useClangLld {
-		flags.Global.LdFlags = append(flags.Global.LdFlags, fmt.Sprintf("${config.%sGlobalLldflags}", hod))
-	} else {
-		flags.Global.LdFlags = append(flags.Global.LdFlags, fmt.Sprintf("${config.%sGlobalLdflags}", hod))
-	}
+	flags.Global.LdFlags = append(flags.Global.LdFlags, fmt.Sprintf("${config.%sGlobalLdflags}", hod))
 
 	if allow_undefined_symbols {
 		if ctx.Darwin() {
@@ -498,11 +483,7 @@ func CommonLinkerFlags(ctx android.ModuleContext, flags Flags, useClangLld bool,
 		flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--no-undefined")
 	}
 
-	if useClangLld {
-		flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.Lldflags())
-	} else {
-		flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.Ldflags())
-	}
+	flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.Ldflags())
 
 	if !toolchain.Bionic() && ctx.Os() != android.LinuxMusl {
 		if !ctx.Windows() {
@@ -531,8 +512,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	toolchain := ctx.toolchain()
 	allow_undefined_symbols := Bool(linker.Properties.Allow_undefined_symbols)
 
-	flags = CommonLinkerFlags(ctx, flags, linker.useClangLld(ctx), toolchain,
-		allow_undefined_symbols)
+	flags = CommonLinkerFlags(ctx, flags, toolchain, allow_undefined_symbols)
 
 	if !toolchain.Bionic() && ctx.Os() != android.LinuxMusl {
 		CheckBadHostLdlibs(ctx, "host_ldlibs", linker.Properties.Host_ldlibs)
@@ -541,23 +521,21 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 
 	CheckBadLinkerFlags(ctx, "ldflags", linker.Properties.Ldflags)
 
-	if linker.useClangLld(ctx) {
-		if !BoolDefault(linker.Properties.Pack_relocations, packRelocationsDefault) {
-			flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--pack-dyn-relocs=none")
-		} else if ctx.Device() {
-			// SHT_RELR relocations are only supported at API level >= 30.
-			// ANDROID_RELR relocations were supported at API level >= 28.
-			// Relocation packer was supported at API level >= 23.
-			// Do the best we can...
-			if (!ctx.useSdk() && ctx.minSdkVersion() == "") || CheckSdkVersionAtLeast(ctx, android.FirstShtRelrVersion) {
-				flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--pack-dyn-relocs=android+relr")
-			} else if CheckSdkVersionAtLeast(ctx, android.FirstAndroidRelrVersion) {
-				flags.Global.LdFlags = append(flags.Global.LdFlags,
-					"-Wl,--pack-dyn-relocs=android+relr",
-					"-Wl,--use-android-relr-tags")
-			} else if CheckSdkVersionAtLeast(ctx, android.FirstPackedRelocationsVersion) {
-				flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--pack-dyn-relocs=android")
-			}
+	if !BoolDefault(linker.Properties.Pack_relocations, packRelocationsDefault) {
+		flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--pack-dyn-relocs=none")
+	} else if ctx.Device() {
+		// SHT_RELR relocations are only supported at API level >= 30.
+		// ANDROID_RELR relocations were supported at API level >= 28.
+		// Relocation packer was supported at API level >= 23.
+		// Do the best we can...
+		if (!ctx.useSdk() && ctx.minSdkVersion() == "") || CheckSdkVersionAtLeast(ctx, android.FirstShtRelrVersion) {
+			flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--pack-dyn-relocs=android+relr")
+		} else if CheckSdkVersionAtLeast(ctx, android.FirstAndroidRelrVersion) {
+			flags.Global.LdFlags = append(flags.Global.LdFlags,
+				"-Wl,--pack-dyn-relocs=android+relr",
+				"-Wl,--use-android-relr-tags")
+		} else if CheckSdkVersionAtLeast(ctx, android.FirstPackedRelocationsVersion) {
+			flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--pack-dyn-relocs=android")
 		}
 	}
 

@@ -38,6 +38,8 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 func init() {
 	RegisterAndroidMkBuildComponents(InitRegistrationContext)
 }
@@ -358,12 +360,13 @@ func (d *distCopies) Strings() (ret []string) {
 // This gets the dist contributuions from the given module that were specified in the Android.bp
 // file using the dist: property. It does not include contribututions that the module's
 // implementation may have defined with ctx.DistForGoals(), for that, see DistProvider.
-func getDistContributions(ctx ConfigAndOtherModuleProviderContext, mod Module) *distContributions {
-	amod := mod.base()
-	name := amod.BaseModuleName()
+func getDistContributions(ctx ConfigAndOtherModuleProviderContext, mod ModuleOrProxy) *distContributions {
+	name := mod.Name()
 
 	info := OtherModuleProviderOrDefault(ctx, mod, InstallFilesProvider)
 	availableTaggedDists := info.DistFiles
+
+	commonInfo := OtherModulePointerProviderOrDefault(ctx, mod, CommonModuleInfoProvider)
 
 	if len(availableTaggedDists) == 0 {
 		// Nothing dist-able for this module.
@@ -378,7 +381,7 @@ func getDistContributions(ctx ConfigAndOtherModuleProviderContext, mod Module) *
 	}
 
 	// Iterate over this module's dist structs, merged from the dist and dists properties.
-	for _, dist := range amod.Dists() {
+	for _, dist := range commonInfo.Dists {
 		// Get the list of goals this dist should be enabled for. e.g. sdk, droidcore
 		goals := strings.Join(dist.Targets, " ")
 
@@ -501,12 +504,12 @@ func (a *AndroidMkEntries) GetDistForGoals(mod Module) []string {
 // fillInEntries goes through the common variable processing and calls the extra data funcs to
 // generate and fill in AndroidMkEntries's in-struct data, ready to be flushed to a file.
 type fillInEntriesContext interface {
-	ModuleDir(module blueprint.Module) string
-	ModuleSubDir(module blueprint.Module) string
+	ModuleDir(module ModuleOrProxy) string
+	ModuleSubDir(module ModuleOrProxy) string
 	Config() Config
-	otherModuleProvider(module blueprint.Module, provider blueprint.AnyProviderKey) (any, bool)
-	ModuleType(module blueprint.Module) string
-	OtherModulePropertyErrorf(module Module, property string, fmt string, args ...interface{})
+	otherModuleProvider(module ModuleOrProxy, provider blueprint.AnyProviderKey) (any, bool)
+	ModuleType(module ModuleOrProxy) string
+	OtherModulePropertyErrorf(module ModuleOrProxy, property string, fmt string, args ...interface{})
 	HasMutatorFinished(mutatorName string) bool
 }
 
@@ -570,10 +573,12 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod Module) {
 		a.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", proptools.Bool(base.commonProperties.No_full_install))
 	}
 
+	moduleBuildTargetsInfo := OtherModuleProviderOrDefault(ctx, mod, ModuleBuildTargetsProvider)
+
 	if info.UncheckedModule {
 		a.SetBool("LOCAL_DONT_CHECK_MODULE", true)
-	} else if info.CheckbuildTarget != nil {
-		a.SetPath("LOCAL_CHECKED_MODULE", info.CheckbuildTarget)
+	} else if moduleBuildTargetsInfo.CheckbuildTarget != nil {
+		a.SetPath("LOCAL_CHECKED_MODULE", moduleBuildTargetsInfo.CheckbuildTarget)
 	} else {
 		a.SetOptionalPath("LOCAL_CHECKED_MODULE", a.OutputFile)
 	}
@@ -582,9 +587,8 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod Module) {
 		a.AddStrings("LOCAL_TEST_DATA", androidMkDataPaths(info.TestData)...)
 	}
 
-	if am, ok := mod.(ApexModule); ok {
-		a.SetBoolIfTrue("LOCAL_NOT_AVAILABLE_FOR_PLATFORM", am.NotAvailableForPlatform())
-	}
+	platformAvailabilityInfo := OtherModuleProviderOrDefault(ctx, mod, PlatformAvailabilityInfoProvider)
+	a.SetBoolIfTrue("LOCAL_NOT_AVAILABLE_FOR_PLATFORM", platformAvailabilityInfo.NotAvailableToPlatform)
 
 	archStr := base.Arch().ArchType.String()
 	host := false
@@ -716,10 +720,10 @@ func AndroidMkSingleton() Singleton {
 
 type androidMkSingleton struct{}
 
-func allModulesSorted(ctx SingletonContext) []Module {
-	var allModules []Module
+func allModulesSorted(ctx SingletonContext) []ModuleOrProxy {
+	var allModules []ModuleOrProxy
 
-	ctx.VisitAllModules(func(module Module) {
+	ctx.VisitAllModulesOrProxies(func(module ModuleOrProxy) {
 		allModules = append(allModules, module)
 	})
 
@@ -776,7 +780,7 @@ func (so *soongOnlyAndroidMkSingleton) GenerateBuildActions(ctx SingletonContext
 // the androidmk singleton that just focuses on getting the dist contributions
 // TODO(b/397766191): Change the signature to take ModuleProxy
 // Please only access the module's internal data through providers.
-func (so *soongOnlyAndroidMkSingleton) soongOnlyBuildActions(ctx SingletonContext, mods []Module) {
+func (so *soongOnlyAndroidMkSingleton) soongOnlyBuildActions(ctx SingletonContext, mods []ModuleOrProxy) {
 	allDistContributions, moduleInfoJSONs := getSoongOnlyDataFromMods(ctx, mods)
 
 	singletonDists := getSingletonDists(ctx.Config())
@@ -804,7 +808,7 @@ func (so *soongOnlyAndroidMkSingleton) soongOnlyBuildActions(ctx SingletonContex
 		ctx.Phony("droidcore-unbundled", moduleInfoJSONPath)
 		allDistContributions = append(allDistContributions, distContributions{
 			copiesForGoals: []*copiesForGoals{{
-				goals: "general-tests droidcore-unbundled",
+				goals: "general-tests droidcore-unbundled haiku module-info",
 				copies: []distCopy{{
 					from: moduleInfoJSONPath,
 					dest: "module-info.json",
@@ -886,7 +890,7 @@ func distsToDistContributions(dists []dist) *distContributions {
 
 // getSoongOnlyDataFromMods gathers data from the given modules needed in soong-only builds.
 // Currently, this is the dist contributions, and the module-info.json contents.
-func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []Module) ([]distContributions, []*ModuleInfoJSON) {
+func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []ModuleOrProxy) ([]distContributions, []*ModuleInfoJSON) {
 	var allDistContributions []distContributions
 	var moduleInfoJSONs []*ModuleInfoJSON
 	for _, mod := range mods {
@@ -908,7 +912,7 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []Module) ([]distCo
 				continue
 			}
 			if moduleInfoJSON, ok := OtherModuleProvider(ctx, mod, ModuleInfoJSONProvider); ok {
-				moduleInfoJSONs = append(moduleInfoJSONs, moduleInfoJSON...)
+				moduleInfoJSONs = append(moduleInfoJSONs, moduleInfoJSON.Data...)
 			}
 			if contribution := getDistContributions(ctx, mod); contribution != nil {
 				allDistContributions = append(allDistContributions, *contribution)
@@ -921,28 +925,28 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []Module) ([]distCo
 					data.Include = "$(BUILD_PREBUILT)"
 				}
 
-				data.fillInData(ctx, mod)
+				data.fillInData(ctx, mod.(Module))
 				if data.Entries.disabled() {
 					continue
 				}
 				if moduleInfoJSON, ok := OtherModuleProvider(ctx, mod, ModuleInfoJSONProvider); ok {
-					moduleInfoJSONs = append(moduleInfoJSONs, moduleInfoJSON...)
+					moduleInfoJSONs = append(moduleInfoJSONs, moduleInfoJSON.Data...)
 				}
-				if contribution := getDistContributions(ctx, mod); contribution != nil {
+				if contribution := getDistContributions(ctx, mod.(Module)); contribution != nil {
 					allDistContributions = append(allDistContributions, *contribution)
 				}
 			}
 			if x, ok := mod.(AndroidMkEntriesProvider); ok {
 				entriesList := x.AndroidMkEntries()
 				for _, entries := range entriesList {
-					entries.fillInEntries(ctx, mod)
+					entries.fillInEntries(ctx, mod.(Module))
 					if entries.disabled() {
 						continue
 					}
 					if moduleInfoJSON, ok := OtherModuleProvider(ctx, mod, ModuleInfoJSONProvider); ok {
-						moduleInfoJSONs = append(moduleInfoJSONs, moduleInfoJSON...)
+						moduleInfoJSONs = append(moduleInfoJSONs, moduleInfoJSON.Data...)
 					}
-					if contribution := getDistContributions(ctx, mod); contribution != nil {
+					if contribution := getDistContributions(ctx, mod.(Module)); contribution != nil {
 						allDistContributions = append(allDistContributions, *contribution)
 					}
 				}
@@ -952,7 +956,7 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []Module) ([]distCo
 	return allDistContributions, moduleInfoJSONs
 }
 
-func translateAndroidMk(ctx SingletonContext, absMkFile string, moduleInfoJSONPath WritablePath, mods []Module) error {
+func translateAndroidMk(ctx SingletonContext, absMkFile string, moduleInfoJSONPath WritablePath, mods []ModuleOrProxy) error {
 	buf := &bytes.Buffer{}
 
 	var moduleInfoJSONs []*ModuleInfoJSON
@@ -967,7 +971,7 @@ func translateAndroidMk(ctx SingletonContext, absMkFile string, moduleInfoJSONPa
 			return err
 		}
 
-		if ctx.PrimaryModule(mod) == mod {
+		if ctx.IsPrimaryModule(mod) {
 			typeStats[ctx.ModuleType(mod)] += 1
 		}
 	}
@@ -1012,7 +1016,7 @@ func writeModuleInfoJSON(ctx SingletonContext, moduleInfoJSONs []*ModuleInfoJSON
 	return nil
 }
 
-func translateAndroidMkModule(ctx SingletonContext, w io.Writer, moduleInfoJSONs *[]*ModuleInfoJSON, mod Module) error {
+func translateAndroidMkModule(ctx SingletonContext, w io.Writer, moduleInfoJSONs *[]*ModuleInfoJSON, mod ModuleOrProxy) error {
 	defer func() {
 		if r := recover(); r != nil {
 			panic(fmt.Errorf("%s in translateAndroidMkModule for module %s variant %s",
@@ -1028,9 +1032,9 @@ func translateAndroidMkModule(ctx SingletonContext, w io.Writer, moduleInfoJSONs
 	} else {
 		switch x := mod.(type) {
 		case AndroidMkDataProvider:
-			err = translateAndroidModule(ctx, w, moduleInfoJSONs, mod, x)
+			err = translateAndroidModule(ctx, w, moduleInfoJSONs, mod.(Module), x)
 		case AndroidMkEntriesProvider:
-			err = translateAndroidMkEntriesModule(ctx, w, moduleInfoJSONs, mod, x)
+			err = translateAndroidMkEntriesModule(ctx, w, moduleInfoJSONs, mod.(Module), x)
 		default:
 			// Not exported to make so no make variables to set.
 		}
@@ -1135,7 +1139,7 @@ func translateAndroidModule(ctx SingletonContext, w io.Writer, moduleInfoJSONs *
 
 	if !data.Entries.disabled() {
 		if moduleInfoJSON, ok := OtherModuleProvider(ctx, mod, ModuleInfoJSONProvider); ok {
-			*moduleInfoJSONs = append(*moduleInfoJSONs, moduleInfoJSON...)
+			*moduleInfoJSONs = append(*moduleInfoJSONs, moduleInfoJSON.Data...)
 		}
 	}
 
@@ -1178,7 +1182,7 @@ func translateAndroidMkEntriesModule(ctx SingletonContext, w io.Writer, moduleIn
 
 		if providesModuleInfoJSON && !entries.disabled() {
 			// append only the name matching moduleInfoJSON entry
-			for _, m := range moduleInfoJSON {
+			for _, m := range moduleInfoJSON.Data {
 				if m.RegisterNameOverride == entries.OverrideName && m.SubName == entries.SubName {
 					*moduleInfoJSONs = append(*moduleInfoJSONs, m)
 				}
@@ -1270,11 +1274,13 @@ func AndroidMkEmitAssignList(w io.Writer, varName string, lists ...[]string) {
 	fmt.Fprintln(w)
 }
 
+// @auto-generate: gob
 type AndroidMkProviderInfo struct {
 	PrimaryInfo AndroidMkInfo
 	ExtraInfo   []AndroidMkInfo
 }
 
+// @auto-generate: gob
 type AndroidMkInfo struct {
 	// Android.mk class string, e.g. EXECUTABLES, JAVA_LIBRARIES, ETC
 	Class string
@@ -1327,7 +1333,7 @@ var AndroidMkInfoProvider = blueprint.NewProvider[*AndroidMkProviderInfo]()
 // TODO(b/397766191): Change the signature to take ModuleProxy
 // Please only access the module's internal data through providers.
 func translateAndroidMkEntriesInfoModule(ctx SingletonContext, w io.Writer, moduleInfoJSONs *[]*ModuleInfoJSON,
-	mod Module, providerInfo *AndroidMkProviderInfo) error {
+	mod ModuleOrProxy, providerInfo *AndroidMkProviderInfo) error {
 	commonInfo := OtherModulePointerProviderOrDefault(ctx, mod, CommonModuleInfoProvider)
 	if commonInfo.SkipAndroidMkProcessing {
 		return nil
@@ -1350,7 +1356,7 @@ func translateAndroidMkEntriesInfoModule(ctx SingletonContext, w io.Writer, modu
 
 	if !info.PrimaryInfo.disabled() {
 		if moduleInfoJSON, ok := OtherModuleProvider(ctx, mod, ModuleInfoJSONProvider); ok {
-			*moduleInfoJSONs = append(*moduleInfoJSONs, moduleInfoJSON...)
+			*moduleInfoJSONs = append(*moduleInfoJSONs, moduleInfoJSON.Data...)
 		}
 	}
 
@@ -1474,7 +1480,7 @@ func (a *AndroidMkInfo) AddCompatibilityTestSuites(suites ...string) {
 
 // TODO(b/397766191): Change the signature to take ModuleProxy
 // Please only access the module's internal data through providers.
-func (a *AndroidMkInfo) fillInEntries(ctx fillInEntriesContext, mod Module, commonInfo *CommonModuleInfo) {
+func (a *AndroidMkInfo) fillInEntries(ctx fillInEntriesContext, mod ModuleOrProxy, commonInfo *CommonModuleInfo) {
 	helperInfo := AndroidMkInfo{
 		EntryMap: make(map[string][]string),
 	}
@@ -1529,10 +1535,12 @@ func (a *AndroidMkInfo) fillInEntries(ctx fillInEntriesContext, mod Module, comm
 		helperInfo.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", commonInfo.NoFullInstall)
 	}
 
+	moduleBuildTargetsInfo := OtherModuleProviderOrDefault(ctx, mod, ModuleBuildTargetsProvider)
+
 	if info.UncheckedModule {
 		helperInfo.SetBool("LOCAL_DONT_CHECK_MODULE", true)
-	} else if info.CheckbuildTarget != nil {
-		helperInfo.SetPath("LOCAL_CHECKED_MODULE", info.CheckbuildTarget)
+	} else if moduleBuildTargetsInfo.CheckbuildTarget != nil {
+		helperInfo.SetPath("LOCAL_CHECKED_MODULE", moduleBuildTargetsInfo.CheckbuildTarget)
 	} else {
 		helperInfo.SetOptionalPath("LOCAL_CHECKED_MODULE", a.OutputFile)
 	}
@@ -1541,8 +1549,8 @@ func (a *AndroidMkInfo) fillInEntries(ctx fillInEntriesContext, mod Module, comm
 		helperInfo.AddStrings("LOCAL_TEST_DATA", androidMkDataPaths(info.TestData)...)
 	}
 
-	if commonInfo.IsApexModule {
-		helperInfo.SetBoolIfTrue("LOCAL_NOT_AVAILABLE_FOR_PLATFORM", commonInfo.NotAvailableForPlatform)
+	if platformAvailabilityInfo, ok := OtherModuleProvider(ctx, mod, PlatformAvailabilityInfoProvider); ok {
+		helperInfo.SetBoolIfTrue("LOCAL_NOT_AVAILABLE_FOR_PLATFORM", platformAvailabilityInfo.NotAvailableToPlatform)
 	}
 
 	archStr := commonInfo.Target.Arch.ArchType.String()
@@ -1655,7 +1663,7 @@ func (a *AndroidMkInfo) write(w io.Writer) {
 // calls from the module's dist and dists properties.
 // TODO(b/397766191): Change the signature to take ModuleProxy
 // Please only access the module's internal data through providers.
-func (a *AndroidMkInfo) GetDistForGoals(ctx fillInEntriesContext, mod Module, commonInfo *CommonModuleInfo) []string {
+func (a *AndroidMkInfo) GetDistForGoals(ctx fillInEntriesContext, mod ModuleOrProxy, commonInfo *CommonModuleInfo) []string {
 	distContributions := getDistContributions(ctx, mod)
 	if distContributions == nil {
 		return nil

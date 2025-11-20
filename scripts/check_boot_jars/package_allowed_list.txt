@@ -75,6 +75,7 @@ javax\.xml\.xpath
 jdk\.internal
 jdk\.internal\.access
 jdk\.internal\.event
+jdk\.internal\.invoke
 jdk\.internal\.math
 jdk\.internal\.misc
 jdk\.internal\.ref

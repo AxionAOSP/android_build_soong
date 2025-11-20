@@ -770,7 +770,7 @@ func TestSelects(t *testing.T) {
 				}),
 			}
 			`,
-			expectedError: `can't assign select statement to non-configurable property "my_nonconfigurable_bool"`,
+			expectedError: `can't assign select statement to non-configurable property "my_nonconfigurable_bool". This requires a small soong change to enable`,
 		},
 		{
 			name: "Assigning select to nonconfigurable string",
@@ -783,7 +783,7 @@ func TestSelects(t *testing.T) {
 				}),
 			}
 			`,
-			expectedError: `can't assign select statement to non-configurable property "my_nonconfigurable_string"`,
+			expectedError: `can't assign select statement to non-configurable property "my_nonconfigurable_string". This requires a small soong change to enable`,
 		},
 		{
 			name: "Assigning appended selects to nonconfigurable string",
@@ -799,7 +799,7 @@ func TestSelects(t *testing.T) {
 				}),
 			}
 			`,
-			expectedError: `can't assign select statement to non-configurable property "my_nonconfigurable_string"`,
+			expectedError: `can't assign select statement to non-configurable property "my_nonconfigurable_string". This requires a small soong change to enable`,
 		},
 		{
 			name: "Assigning select to nonconfigurable string list",
@@ -812,7 +812,20 @@ func TestSelects(t *testing.T) {
 				}),
 			}
 			`,
-			expectedError: `can't assign select statement to non-configurable property "my_nonconfigurable_string_list"`,
+			expectedError: `can't assign select statement to non-configurable property "my_nonconfigurable_string_list". This requires a small soong change to enable`,
+		},
+		{
+			name: "Assigning select to defaults property",
+			bp: `
+			my_module_type {
+				name: "foo",
+				defaults: select(soong_config_variable("foo", "bar"), {
+					"x": ["foo"],
+					default: [],
+				}),
+			}
+			`,
+			expectedError: `can't assign select statement to non-configurable property "defaults". We explicitly don't support selects on this property`,
 		},
 		{
 			name: "Select in variable",

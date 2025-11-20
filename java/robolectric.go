@@ -149,6 +149,7 @@ func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	if proptools.BoolDefault(r.robolectricProperties.Strict_mode, true) {
 		extraTestRunnerOptions = append(extraTestRunnerOptions, tradefed.Option{Name: "java-flags", Value: "-Drobolectric.strict.mode=true"})
 	}
+	extraTestRunnerOptions = append(extraTestRunnerOptions, r.testProperties.Test_options.Test_runner_options...)
 
 	var extraOptions []tradefed.Option
 	var javaHome = ctx.Config().Getenv("ANDROID_JAVA_HOME")
@@ -406,7 +407,7 @@ func (r *robolectricRuntimes) GenerateAndroidBuildActions(ctx android.ModuleCont
 
 	if !ctx.Config().AlwaysUsePrebuiltSdks() && r.props.Lib != nil {
 		runtimeFromSourceModule := ctx.GetDirectDepProxyWithTag(String(r.props.Lib), libTag)
-		if runtimeFromSourceModule == nil {
+		if runtimeFromSourceModule.IsNil() {
 			if ctx.Config().AllowMissingDependencies() {
 				ctx.AddMissingDependencies([]string{String(r.props.Lib)})
 			} else {

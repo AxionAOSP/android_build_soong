@@ -126,7 +126,27 @@ var (
 			Description: "concatenate files to $out",
 		})
 
-	// Used only when USE_GOMA=true is set, to restrict non-goma jobs to the local parallelism value
+	CatAndSort = pctx.AndroidStaticRule("CatAndSort",
+		blueprint.RuleParams{
+			Command:     "rm -f $out && cat $in > $out && sort -o $out $out",
+			Description: "concatenate sorted file contents to $out",
+		})
+
+	CatAndSortAndUnique = pctx.AndroidStaticRule("CatAndSortAndUnique",
+		blueprint.RuleParams{
+			Command:     "rm -f $out && cat $in > $out && sort -u -o $out $out",
+			Description: "concatenate sorted file contents to $out",
+		})
+
+	MergeZips = pctx.AndroidStaticRule("MergeZips",
+		blueprint.RuleParams{
+			Command: `${MergeZipsCmd} -s $out $in`,
+			CommandDeps: []string{
+				"${MergeZipsCmd}",
+			},
+		})
+
+	// Used only when USE_RBE=true is set, to restrict non-RBE jobs to the local parallelism value
 	localPool = blueprint.NewBuiltinPool("local_pool")
 
 	// Used only by RuleBuilder to identify remoteable rules. Does not actually get created in ninja.
@@ -142,6 +162,8 @@ func init() {
 	pctx.VariableFunc("RBEWrapper", func(ctx PackageVarContext) string {
 		return ctx.Config().RBEWrapper()
 	})
+
+	pctx.HostBinToolVariable("MergeZipsCmd", "merge_zips")
 }
 
 // CopyFileRule creates a ninja rule to copy path to outPath.

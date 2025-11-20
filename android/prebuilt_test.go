@@ -16,8 +16,6 @@ package android
 
 import (
 	"testing"
-
-	"github.com/google/blueprint"
 )
 
 func TestPrebuilts(t *testing.T) {
@@ -338,7 +336,7 @@ func TestPrebuilts(t *testing.T) {
 				foo := result.ModuleForTests(t, "foo", variant)
 				t.Run(foo.Module().Target().Os.String(), func(t *testing.T) {
 					var dependsOnSourceModule, dependsOnPrebuiltModule bool
-					result.VisitDirectDeps(foo.Module(), func(m blueprint.Module) {
+					result.VisitDirectDeps(foo.Module(), func(m Module) {
 						if _, ok := m.(*sourceModule); ok {
 							dependsOnSourceModule = true
 						}

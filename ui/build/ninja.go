@@ -256,6 +256,9 @@ func runNinja(ctx Context, config Config, ninjaArgs []string) {
 
 			// Directory for ExecutionMetrics
 			"SOONG_METRICS_AGGREGATION_DIR",
+
+			// CIPD proxy
+			"CIPD_PROXY_URL",
 		}, config.BuildBrokenNinjaUsesEnvVars()...)...)
 	}
 

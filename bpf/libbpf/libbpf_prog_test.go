@@ -16,6 +16,7 @@ package libbpf_prog
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"android/soong/android"
@@ -67,4 +68,28 @@ func TestLibbpfProgSourceName(t *testing.T) {
 	prepareForLibbpfProgTest.ExtendWithErrorHandler(android.FixtureExpectsOneErrorPattern(
 		`invalid character '_' in source name`)).
 		RunTestWithBp(t, bp)
+}
+
+func TestLibbpfProgVendor(t *testing.T) {
+	bp := `
+		libbpf_prog {
+			name: "bpf.bpf",
+			srcs: ["bpf.c"],
+			vendor: true,
+			relative_install_path: "prefix",
+		}
+	`
+
+	result := prepareForLibbpfProgTest.RunTestWithBp(t, bp)
+	module := result.ModuleForTests(t, "bpf.bpf", "android_vendor_arm64_armv8-a").Module().(*libbpfProg)
+	data := android.AndroidMkDataForTest(t, result.TestContext, module)
+	name := module.BaseModuleName()
+	var builder strings.Builder
+	data.Custom(&builder, name, "", "", data)
+	androidMk := android.StringRelativeToTop(result.Config, builder.String())
+
+	expected := "LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_ETC)/bpf/prefix"
+	if !strings.Contains(androidMk, expected) {
+		t.Errorf("%q is not found in %q", expected, androidMk)
+	}
 }

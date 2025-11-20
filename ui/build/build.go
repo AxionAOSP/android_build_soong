@@ -31,7 +31,7 @@ import (
 func SetupOutDir(ctx Context, config Config) {
 	ensureEmptyFileExists(ctx, filepath.Join(config.OutDir(), "Android.mk"))
 	ensureEmptyFileExists(ctx, filepath.Join(config.OutDir(), "CleanSpec.mk"))
-	ensureEmptyDirectoriesExist(ctx, config.TempDir())
+	ensureDirectoriesExist(ctx, config.SoongOutDir())
 
 	// The ninja_build file is used by our buildbots to understand that the output
 	// can be parsed as ninja output.
@@ -85,6 +85,11 @@ func SetupOutDir(ctx Context, config Config) {
 		}
 	}
 	writeValueIfChanged(ctx, config, config.SoongOutDir(), "build_hostname.txt", hostname)
+}
+
+// SetupTempDir makes sure config.TempDir() exists and is empty.
+func SetupTempDir(ctx Context, config Config) {
+	ensureEmptyDirectoriesExist(ctx, config.TempDir())
 }
 
 // SetupKatiEnabledMarker creates or delets a file that tells soong_build if we're running with
@@ -300,6 +305,7 @@ func Build(ctx Context, config Config) {
 	checkRAM(ctx, config)
 
 	SetupOutDir(ctx, config)
+	SetupTempDir(ctx, config)
 
 	// checkCaseSensitivity issues a warning if a case-insensitive file system is being used.
 	checkCaseSensitivity(ctx, config)
@@ -307,10 +313,6 @@ func Build(ctx Context, config Config) {
 	SetupPath(ctx, config)
 
 	what := evaluateWhatToRun(config, ctx.Verboseln)
-
-	if config.StartGoma() {
-		startGoma(ctx, config)
-	}
 
 	rbeCh := make(chan bool)
 	var rbePanic any
@@ -327,6 +329,11 @@ func Build(ctx Context, config Config) {
 		defer DumpRBEMetrics(ctx, config, filepath.Join(config.LogsDir(), "rbe_metrics.pb"))
 	} else {
 		close(rbeCh)
+	}
+
+	if config.RunCIPDProxyServer() && shouldRunCIPDProxy(config) {
+		cipdProxy := startCIPDProxyServer(ctx, config)
+		defer cipdProxy.Stop()
 	}
 
 	if what&RunProductConfig != 0 {
@@ -362,7 +369,7 @@ func Build(ctx Context, config Config) {
 	genKatiSuffix(ctx, config)
 
 	if what&RunSoong != 0 {
-		runSoong(ctx, config)
+		runSoong(ctx, config, what&RunBuildTests != 0)
 	}
 
 	if what&RunKati != 0 {

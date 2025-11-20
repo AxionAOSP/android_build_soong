@@ -190,8 +190,10 @@ func (a *androidTransitionMutatorAdapter) Split(ctx blueprint.BaseModuleContext)
 		panic("TransitionMutator not allowed in FinalDepsMutators")
 	}
 	m := ctx.Module().(Module)
-	moduleContext := m.base().baseModuleContextFactory(ctx)
-	return a.mutator.Split(&moduleContext)
+	moduleContext := baseModuleContextPool.Get()
+	defer baseModuleContextPool.Put(moduleContext)
+	*moduleContext = m.base().baseModuleContextFactory(ctx)
+	return a.mutator.Split(moduleContext)
 }
 
 func (a *androidTransitionMutatorAdapter) OutgoingTransition(bpctx blueprint.OutgoingTransitionContext,
@@ -227,6 +229,9 @@ func (a *androidTransitionMutatorAdapter) Mutate(ctx blueprint.BottomUpMutatorCo
 		base := am.base()
 		base.commonProperties.DebugMutators = append(base.commonProperties.DebugMutators, a.name)
 		base.commonProperties.DebugVariations = append(base.commonProperties.DebugVariations, variation)
+	}
+	if config := ctx.Config().(Config); config.captureBuild {
+		config.modulesForTests.Insert(ctx.ModuleName(), am)
 	}
 
 	mctx := bottomUpMutatorContextFactory(ctx, am, a.finalPhase)
@@ -407,4 +412,12 @@ func (c *outgoingTransitionContextImpl) DeviceConfig() DeviceConfig {
 
 func (c *outgoingTransitionContextImpl) provider(provider blueprint.AnyProviderKey) (any, bool) {
 	return c.bp.Provider(provider)
+}
+
+// UsesUnbundledVariantDepTag is an interface that dependency tags can implement to indicate they
+// want the variant of the module that would be used for unbundled builds. This is used by
+// unbundled_builder. Historically, make did not know/care about individual variants, so when
+// you listed apps in TARGET_BUILD_APPS, make would build whatever variant was available.
+type UsesUnbundledVariantDepTag interface {
+	UsesUnbundledVariant()
 }

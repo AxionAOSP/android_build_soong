@@ -15,7 +15,6 @@
 package android
 
 import (
-	"path/filepath"
 	"testing"
 )
 
@@ -53,30 +52,16 @@ func TestBuildTestList(t *testing.T) {
 	`)
 
 	config := ctx.SingletonForTests(t, "testsuites")
-	allOutputs := config.AllOutputs()
 
 	wantContents := map[string]string{
-		"robolectric-tests.zip":      "",
-		"robolectric-tests_list.zip": "",
-		"robolectric-tests_list": `host/testcases/Test2/Test21/Test21.config
+		"out/soong/packaging/robolectric-tests_list": `host/testcases/Test2/Test21/Test21.config
 `,
-		"ravenwood-tests.zip":      "",
-		"ravenwood-tests_list.zip": "",
-		"ravenwood-tests_list": `host/testcases/Test1/Test1.config
+		"out/soong/packaging/ravenwood-tests_list": `host/testcases/Test1/Test1.config
 host/testcases/Test2/Test21/Test21.config
 `,
 	}
-	for _, output := range allOutputs {
-		want, ok := wantContents[filepath.Base(output)]
-		if !ok {
-			t.Errorf("unexpected output: %q", output)
-			continue
-		}
-
-		got := ""
-		if want != "" {
-			got = ContentFromFileRuleForTests(t, ctx.TestContext, config.MaybeOutput(output))
-		}
+	for file, want := range wantContents {
+		got := ContentFromFileRuleForTests(t, ctx.TestContext, config.Output(file))
 
 		if want != got {
 			t.Errorf("want %q, got %q", want, got)

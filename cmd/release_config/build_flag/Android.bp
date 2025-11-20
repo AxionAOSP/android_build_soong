@@ -3,7 +3,7 @@ package {
 }
 
 blueprint_go_binary {
-    name: "build-flag",
+    name: "build-flag-internal",
     deps: [
         "golang-protobuf-encoding-prototext",
         "golang-protobuf-reflect-protoreflect",

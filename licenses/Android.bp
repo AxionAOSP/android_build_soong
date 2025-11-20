@@ -31,6 +31,11 @@ license {
     license_text: ["LICENSE"],
 }
 
+license {
+    name: "opensourcerequest",
+    license_text: ["opensourcerequest"],
+}
+
 license_kind {
     name: "BSD-Binary-Only",
     conditions: [
@@ -216,6 +221,12 @@ license_kind {
     name: "SPDX-license-identifier-Artistic-2.0",
     conditions: ["notice"],
     url: "https://spdx.org/licenses/Artistic-2.0.html",
+}
+
+license_kind {
+    name: "SPDX-license-identifier-blessing",
+    conditions: ["unencumbered"],
+    url: "https://spdx.org/licenses/blessing.html",
 }
 
 license_kind {
