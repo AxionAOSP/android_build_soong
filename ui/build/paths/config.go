@@ -80,38 +80,13 @@ func GetConfig(name string) PathConfig {
 	if config, ok := Configuration[name]; ok {
 		return config
 	}
-	return Missing
+	return Allowed
 }
 
 // This list specifies whether a particular binary from $PATH is allowed to be
 // run during the build. For more documentation, see path_interposer.go .
 var Configuration = map[string]PathConfig{
-	"bash":        Allowed,
-	"convert":     Allowed,
-	"diff":        Allowed,
-	"dlv":         Allowed,
-	"expr":        Allowed,
-	"fuser":       Allowed,
-	"gcert":       Allowed,
-	"gcertstatus": Allowed,
-	"gcloud":      Allowed,
-	"git":         Allowed,
-	"hexdump":     Allowed,
-	"jar":         Allowed,
-	"java":        Allowed,
-	"javap":       Allowed,
-	"lsof":        Allowed,
-	"numfmt":      Allowed,
-	"openssl":     Allowed,
-	"perl":        Log,
-	"pstree":      Allowed,
-	"rsync":       Allowed,
-	"sh":          Allowed,
-	"stubby":      Allowed,
-	"tr":          Allowed,
-	"unzip":       Allowed,
-	"zip":         Allowed,
-
+    "perl":        Log,
 	// Host toolchain is removed. In-tree toolchain should be used instead.
 	// GCC also can't find cc1 with this implementation.
 	"ar":         Forbidden,
