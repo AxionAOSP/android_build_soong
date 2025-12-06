@@ -80,7 +80,7 @@ func GetConfig(name string) PathConfig {
 	if config, ok := Configuration[name]; ok {
 		return config
 	}
-	return Missing
+	return Allowed
 }
 
 // This list specifies whether a particular binary from $PATH is allowed to be
