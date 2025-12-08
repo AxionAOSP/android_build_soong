@@ -238,12 +238,42 @@ func (p partialCompileFlags) updateEnableIncD8(value bool) partialCompileFlags {
 	return p
 }
 
+func (p partialCompileFlags) updateEnableIncKotlinJavaDep(value bool) partialCompileFlags {
+	p.Enable_inc_kotlin_java_dep = value
+	return p
+}
+
+func (p partialCompileFlags) updateEnableIncD8OutsidePlatform(value bool) partialCompileFlags {
+	p.Enable_inc_d8_outside_platform = value
+	return p
+}
+
+func isSubsetOf(subname, supername string, sub, super partialCompileFlags) bool {
+	superVal := reflect.ValueOf(super)
+	subVal := reflect.ValueOf(sub)
+	// If the are not structs of the same type, it is not a subset.
+	if subVal.Kind() != reflect.Struct || superVal.Kind() != reflect.Struct || subVal.Type() != superVal.Type() {
+		return false
+	}
+	// All True bool fields in sub must be True in super.
+	for i := 0; i < subVal.NumField(); i++ {
+		field := subVal.Field(i)
+		if field.Kind() == reflect.Bool && field.Bool() {
+			if !superVal.Field(i).Bool() {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func TestPartialCompile(t *testing.T) {
 	mockConfig := func(value string) *config {
 		c := &config{
 			env: map[string]string{
 				"SOONG_PARTIAL_COMPILE": value,
 			},
+			envDeps: &envDeps{},
 		}
 		return c
 	}
@@ -253,48 +283,64 @@ func TestPartialCompile(t *testing.T) {
 		expected   partialCompileFlags
 	}{
 		{"", true, defaultPartialCompileFlags},
-		{"false", true, partialCompileFlags{}},
-		{"true", true, enabledPartialCompileFlags},
+		{"false", true, falsePartialCompileFlags},
+		{"true", true, truePartialCompileFlags},
 		{"true", false, partialCompileFlags{}},
-		{"all", true, partialCompileFlags{}.updateUseD8(true).updateDisableStubValidation(true).updateEnableIncJavac(true).updateEnableIncKotlin(false).updateEnableIncD8(true)},
+		{"all", true, allPartialCompileFlags},
 
 		// This verifies both use_d8 and the processing order.
-		{"true,use_d8", true, enabledPartialCompileFlags.updateUseD8(true)},
-		{"true,-use_d8", true, enabledPartialCompileFlags.updateUseD8(false)},
-		{"use_d8,false", true, partialCompileFlags{}},
-		{"false,+use_d8", true, partialCompileFlags{}.updateUseD8(true)},
+		{"true,use_d8", true, truePartialCompileFlags.updateUseD8(true)},
+		{"true,-use_d8", true, truePartialCompileFlags.updateUseD8(false)},
+		{"use_d8,false", true, falsePartialCompileFlags},
+		{"false,+use_d8", true, falsePartialCompileFlags.updateUseD8(true)},
 
 		// disable_stub_validation can be specified with any of 3 options.
-		{"false,-stub_validation", true, partialCompileFlags{}.updateDisableStubValidation(true)},
-		{"false,-enable_stub_validation", true, partialCompileFlags{}.updateDisableStubValidation(true)},
-		{"false,+disable_stub_validation", true, partialCompileFlags{}.updateDisableStubValidation(true)},
-		{"false,+stub_validation", true, partialCompileFlags{}.updateDisableStubValidation(false)},
-		{"false,+enable_stub_validation", true, partialCompileFlags{}.updateDisableStubValidation(false)},
-		{"false,-disable_stub_validation", true, partialCompileFlags{}.updateDisableStubValidation(false)},
+		{"false,-stub_validation", true, falsePartialCompileFlags.updateDisableStubValidation(true)},
+		{"false,-enable_stub_validation", true, falsePartialCompileFlags.updateDisableStubValidation(true)},
+		{"false,+disable_stub_validation", true, falsePartialCompileFlags.updateDisableStubValidation(true)},
+		{"false,+stub_validation", true, falsePartialCompileFlags.updateDisableStubValidation(false)},
+		{"false,+enable_stub_validation", true, falsePartialCompileFlags.updateDisableStubValidation(false)},
+		{"false,-disable_stub_validation", true, falsePartialCompileFlags.updateDisableStubValidation(false)},
 
 		// enable_inc_javac can be specified with any of 3 options.
-		{"false,-inc_javac", true, partialCompileFlags{}.updateEnableIncJavac(false)},
-		{"false,-enable_inc_javac", true, partialCompileFlags{}.updateEnableIncJavac(false)},
-		{"false,+disable_inc_javac", true, partialCompileFlags{}.updateEnableIncJavac(false)},
-		{"false,+inc_javac", true, partialCompileFlags{}.updateEnableIncJavac(true)},
-		{"false,+enable_inc_javac", true, partialCompileFlags{}.updateEnableIncJavac(true)},
-		{"false,-disable_inc_javac", true, partialCompileFlags{}.updateEnableIncJavac(true)},
+		{"false,-inc_javac", true, falsePartialCompileFlags.updateEnableIncJavac(false)},
+		{"false,-enable_inc_javac", true, falsePartialCompileFlags.updateEnableIncJavac(false)},
+		{"false,+disable_inc_javac", true, falsePartialCompileFlags.updateEnableIncJavac(false)},
+		{"false,+inc_javac", true, falsePartialCompileFlags.updateEnableIncJavac(true)},
+		{"false,+enable_inc_javac", true, falsePartialCompileFlags.updateEnableIncJavac(true)},
+		{"false,-disable_inc_javac", true, falsePartialCompileFlags.updateEnableIncJavac(true)},
 
 		// enable_inc_kotlin can be specified with any of 3 options.
-		{"false,-inc_kotlin", true, partialCompileFlags{}.updateEnableIncKotlin(false)},
-		{"false,-enable_inc_kotlin", true, partialCompileFlags{}.updateEnableIncKotlin(false)},
-		{"false,+disable_inc_kotlin", true, partialCompileFlags{}.updateEnableIncKotlin(false)},
-		{"false,+inc_kotlin", true, partialCompileFlags{}.updateEnableIncKotlin(true)},
-		{"false,+enable_inc_kotlin", true, partialCompileFlags{}.updateEnableIncKotlin(true)},
-		{"false,-disable_inc_kotlin", true, partialCompileFlags{}.updateEnableIncKotlin(true)},
+		{"false,-inc_kotlin", true, falsePartialCompileFlags.updateEnableIncKotlin(false)},
+		{"false,-enable_inc_kotlin", true, falsePartialCompileFlags.updateEnableIncKotlin(false)},
+		{"false,+disable_inc_kotlin", true, falsePartialCompileFlags.updateEnableIncKotlin(false)},
+		{"false,+inc_kotlin", true, falsePartialCompileFlags.updateEnableIncKotlin(true)},
+		{"false,+enable_inc_kotlin", true, falsePartialCompileFlags.updateEnableIncKotlin(true)},
+		{"false,-disable_inc_kotlin", true, falsePartialCompileFlags.updateEnableIncKotlin(true)},
 
 		// enable_inc_d8 can be specified with any of 3 options.
-		{"false,-inc_d8", true, partialCompileFlags{}.updateEnableIncD8(false)},
-		{"false,-enable_inc_d8", true, partialCompileFlags{}.updateEnableIncD8(false)},
-		{"false,+disable_inc_d8", true, partialCompileFlags{}.updateEnableIncD8(false)},
-		{"false,+inc_d8", true, partialCompileFlags{}.updateEnableIncD8(true)},
-		{"false,+enable_inc_d8", true, partialCompileFlags{}.updateEnableIncD8(true)},
-		{"false,-disable_inc_d8", true, partialCompileFlags{}.updateEnableIncD8(true)},
+		{"false,-inc_d8", true, falsePartialCompileFlags.updateEnableIncD8(false)},
+		{"false,-enable_inc_d8", true, falsePartialCompileFlags.updateEnableIncD8(false)},
+		{"false,+disable_inc_d8", true, falsePartialCompileFlags.updateEnableIncD8(false)},
+		{"false,+inc_d8", true, falsePartialCompileFlags.updateEnableIncD8(true)},
+		{"false,+enable_inc_d8", true, falsePartialCompileFlags.updateEnableIncD8(true)},
+		{"false,-disable_inc_d8", true, falsePartialCompileFlags.updateEnableIncD8(true)},
+
+		// enable_inc_kotlin_java_dep can be specified with any of 3 options.
+		{"false,-inc_kotlin_java_dep", true, falsePartialCompileFlags.updateEnableIncKotlinJavaDep(false)},
+		{"false,-enable_inc_kotlin_java_dep", true, falsePartialCompileFlags.updateEnableIncKotlinJavaDep(false)},
+		{"false,+disable_inc_kotlin_java_dep", true, falsePartialCompileFlags.updateEnableIncKotlinJavaDep(false)},
+		{"false,+inc_kotlin_java_dep", true, falsePartialCompileFlags.updateEnableIncKotlinJavaDep(true)},
+		{"false,+enable_inc_kotlin_java_dep", true, falsePartialCompileFlags.updateEnableIncKotlinJavaDep(true)},
+		{"false,-disable_inc_kotlin_java_dep", true, falsePartialCompileFlags.updateEnableIncKotlinJavaDep(true)},
+
+		// enable_inc_d8_outside_platform can be specified with any of 3 options.
+		{"false,-inc_d8_outside_platform", true, falsePartialCompileFlags.updateEnableIncD8OutsidePlatform(false)},
+		{"false,-enable_inc_d8_outside_platform", true, falsePartialCompileFlags.updateEnableIncD8OutsidePlatform(false)},
+		{"false,+disable_inc_d8_outside_platform", true, falsePartialCompileFlags.updateEnableIncD8OutsidePlatform(false)},
+		{"false,+inc_d8_outside_platform", true, falsePartialCompileFlags.updateEnableIncD8OutsidePlatform(true)},
+		{"false,+enable_inc_d8_outside_platform", true, falsePartialCompileFlags.updateEnableIncD8OutsidePlatform(true)},
+		{"false,-disable_inc_d8_outside_platform", true, falsePartialCompileFlags.updateEnableIncD8OutsidePlatform(true)},
 	}
 
 	for _, test := range tests {
@@ -303,6 +349,29 @@ func TestPartialCompile(t *testing.T) {
 			flags, _ := config.parsePartialCompileFlags(test.isEngBuild)
 			if flags != test.expected {
 				t.Errorf("expected %v found %v", test.expected, flags)
+			}
+		})
+	}
+
+	subset_tests := []struct {
+		subname   string
+		supername string
+		sub       partialCompileFlags
+		super     partialCompileFlags
+		expected  bool
+	}{
+		{"true", "all", truePartialCompileFlags, allPartialCompileFlags, true},
+		{"false", "true", falsePartialCompileFlags, truePartialCompileFlags, true},
+		{"default", "true", defaultPartialCompileFlags, truePartialCompileFlags, true},
+		{"true", "false", truePartialCompileFlags, falsePartialCompileFlags, false},
+		{"false", "empty", falsePartialCompileFlags, partialCompileFlags{}, true},
+	}
+
+	for _, test := range subset_tests {
+		t.Run(fmt.Sprintf("%s-is-subset-of-%s", test.subname, test.supername), func(t *testing.T) {
+			actual := isSubsetOf(test.subname, test.supername, test.sub, test.super)
+			if actual != test.expected {
+				t.Errorf("%s is a subset of %s? expected %v found %v", test.subname, test.supername, test.expected, actual)
 			}
 		})
 	}

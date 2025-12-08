@@ -27,12 +27,7 @@ import (
 
 func TestTestOnlyProvider(t *testing.T) {
 	t.Parallel()
-	ctx := android.GroupFixturePreparers(
-		prepareForCcTest,
-		android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
-			ctx.RegisterModuleType("cc_test_host", TestHostFactory)
-		}),
-	).RunTestWithBp(t, `
+	ctx := prepareForCcTest.RunTestWithBp(t, `
                 // These should be test-only
                 cc_fuzz { name: "cc-fuzz" }
                 cc_test { name: "cc-test", gtest:false }
@@ -85,8 +80,6 @@ func TestTestOnlyInTeamsProto(t *testing.T) {
 		prepareForCcTest,
 		android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
 			ctx.RegisterParallelSingletonType("all_teams", android.AllTeamsFactory)
-			ctx.RegisterModuleType("cc_test_host", TestHostFactory)
-
 		}),
 	).RunTestWithBp(t, `
                 package { default_team: "someteam"}
@@ -149,11 +142,7 @@ func TestInvalidTestOnlyTargets(t *testing.T) {
 	}
 
 	for i, bp := range testCases {
-		ctx := android.GroupFixturePreparers(
-			prepareForCcTest,
-			android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
-				ctx.RegisterModuleType("cc_test_host", TestHostFactory)
-			})).
+		ctx := prepareForCcTest.
 			ExtendWithErrorHandler(android.FixtureIgnoreErrors).
 			RunTestWithBp(t, bp)
 		if len(ctx.Errs) == 0 {

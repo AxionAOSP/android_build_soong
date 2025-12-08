@@ -204,7 +204,8 @@ func TestAndroidMkCcLibrary(t *testing.T) {
 	`
 	result := android.GroupFixturePreparers(
 		PrepareForTestWithAconfigBuildComponents,
-		cc.PrepareForTestWithCcDefaultModules).
+		cc.PrepareForTestWithCcDefaultModules,
+		android.PrepareForTestWithAndroidMk).
 		ExtendWithErrorHandler(android.FixtureExpectsNoErrors).RunTestWithBp(t, bp)
 
 	module := result.ModuleForTests(t, "my_cc_library", "android_vendor_arm64_armv8-a_shared").Module()

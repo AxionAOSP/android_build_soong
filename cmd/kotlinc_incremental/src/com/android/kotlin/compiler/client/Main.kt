@@ -16,6 +16,8 @@
 
 package com.android.kotlin.compiler.client
 
+import com.android.kotlin.compiler.cli.CacheMarker
+import com.android.kotlin.compiler.cli.CacheMarkerError
 import com.android.kotlin.compiler.cli.HelpArgument
 import com.android.kotlin.compiler.cli.parseArgs
 import com.android.kotlin.compiler.snapshotter.fileToSnapshotFile
@@ -51,24 +53,40 @@ private val ARGUMENT_PARSERS =
         SourcesArgument(), // must come last
     )
 
+val USAGE_TEXT =
+    """
+        Usage: kotlin-incremental-client -root-dir=<dir> [options] [kotlinc options] [-- <source files>]
+    """
+        .trimIndent()
+
 val ADDITIONAL_HELP =
     """
-    EXAMPLES
-    ========
-    
-    kotlin-incremental-client -root-dir=/tmp/helloworld -- HelloWorld.kt
-    
-    kotlin-incremental-client -root-dir=/tmp/helloworld -build-file=HelloWorldBuild.xml
-    
-    kotlin-incremental-client -root-dir=/tmp/helloworld -output-dir=out -- HelloWorld.kt
-"""
+        EXAMPLES
+        ========
+        
+        kotlin-incremental-client -root-dir=/tmp/helloworld -- HelloWorld.kt
+        
+        kotlin-incremental-client -root-dir=/tmp/helloworld -build-file=HelloWorldBuild.xml
+        
+        kotlin-incremental-client -root-dir=/tmp/helloworld -output-dir=out -- HelloWorld.kt
+    """
         .trimIndent()
 
 fun main(args: Array<String>) {
     val opts = ClientOptions()
     ARGUMENT_PARSERS.forEach { it.setupDefault(opts) }
 
-    if (!parseArgs(args, opts, ARGUMENT_PARSERS, System.out, System.err, ADDITIONAL_HELP)) {
+    if (
+        !parseArgs(
+            args,
+            opts,
+            ARGUMENT_PARSERS,
+            System.out,
+            System.err,
+            USAGE_TEXT,
+            ADDITIONAL_HELP,
+        )
+    ) {
         exitProcess(-1)
     }
 
@@ -77,11 +95,19 @@ fun main(args: Array<String>) {
         exitProcess(0)
     }
 
-    val result = BTACompilation(opts)
+    val cacheMarker = CacheMarker(opts.workingDir)
+
+    val result = btaCompilation(opts, cacheMarker)
     when (result) {
-        CompilationResult.COMPILATION_SUCCESS -> {}
-        CompilationResult.COMPILATION_ERROR -> exitProcess(-1)
+        CompilationResult.COMPILATION_SUCCESS -> {
+            writeCacheMarker(cacheMarker)
+        }
+        CompilationResult.COMPILATION_ERROR -> {
+            writeCacheMarker(cacheMarker)
+            exitProcess(-1)
+        }
         CompilationResult.COMPILATION_OOM_ERROR -> {
+            // Assume the cache is invalid and don't write the marker.
             println("Out of Memory")
             exitProcess(-2)
         }
@@ -93,18 +119,37 @@ fun main(args: Array<String>) {
     }
 }
 
-fun BTACompilation(opts: ClientOptions): CompilationResult {
+fun writeCacheMarker(marker: CacheMarker) {
+    if (!marker.write()) {
+        println("Failed to write cache marker. Your next build will not be incremental.")
+    }
+}
+
+fun btaCompilation(opts: ClientOptions, cacheMarker: CacheMarker): CompilationResult {
     val kotlincArgs = mutableListOf<String>()
     if (opts.buildFile != null) {
         if (opts.buildFileModuleName != null) {
             kotlincArgs.add("-module-name")
             kotlincArgs.add(opts.buildFileModuleName!!)
         }
+        if (!opts.buildFileFriendDirs.isEmpty()) {
+            kotlincArgs.add("-Xfriend-paths=" + opts.buildFileFriendDirs.joinToString(","))
+        }
     }
     kotlincArgs.add("-d=${opts.outputDir.absolutePath}")
     kotlincArgs.addAll(opts.passThroughArgs)
     kotlincArgs.addAll(opts.sources)
     kotlincArgs.addAll(opts.buildFileJavaSources)
+
+    if (!cacheMarker.isValid()) {
+        println("Invalid or missing cache. Triggering full compile.")
+        opts.workingDir.delete()
+        opts.outputDir.delete()
+    } else {
+        if (!cacheMarker.remove()) {
+            throw CacheMarkerError("Failed to remove cache marker. Aborting the build.")
+        }
+    }
     return doBtaCompilation(
         opts.sources + opts.buildFileSources,
         opts.classPath + opts.buildFileClassPaths,
@@ -160,7 +205,9 @@ fun doBtaCompilation(
     val incJvmCompilationConfig =
         compilationConfig.makeClasspathSnapshotBasedIncrementalCompilationConfiguration()
     var sourceChanges: SourcesChanges = SourcesChanges.Unknown
-    if (sourceDeltaFile != null) {
+    if (!outputDirectory.exists()) {
+        incJvmCompilationConfig.forceNonIncrementalMode(true)
+    } else if (sourceDeltaFile != null) {
         sourceChanges = parseSourceChanges(sourceDeltaFile)
     }
     compilationConfig.useIncrementalCompilation(

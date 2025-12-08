@@ -110,10 +110,6 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	})
 	ctx.Strict("VENDOR_PUBLIC_LIBRARIES", makeVarsString(exportedVendorPublicLibraries))
 
-	lsdumpPaths := *lsdumpPaths(ctx.Config())
-	sort.Strings(lsdumpPaths)
-	ctx.Strict("LSDUMP_PATHS", strings.Join(lsdumpPaths, " "))
-
 	ctx.Strict("ANDROID_WARNING_ALLOWED_PROJECTS", makeStringOfWarningAllowedProjects())
 
 	ctx.Strict("CLANG_COVERAGE_CONFIG_CFLAGS", strings.Join(clangCoverageCFlags, " "))

@@ -53,13 +53,24 @@ var PrepareForTestWithJavaBuildComponents = android.GroupFixturePreparers(
 		// Needed for linter used by java_library.
 		"build/soong/java/lint_defaults.txt": nil,
 		// Needed for java components that invoke Metalava.
-		"build/soong/java/metalava/Android.bp": []byte(`filegroup {name: "metalava-config-files"}`),
+		"build/soong/java/metalava/default-unsafe-ignore-missing-latest-api.txt": nil,
+		"build/soong/java/metalava/Android.bp": []byte(`
+				filegroup {name: "metalava-config-files"}
+				filegroup {
+            name: "default-unsafe-ignore-missing-latest-api",
+            srcs: ["default-unsafe-ignore-missing-latest-api.txt"],
+        }
+			`),
 		// Needed for apps that do not provide their own.
 		"build/make/target/product/security": nil,
 		// Required to generate Java used-by API coverage
 		"build/soong/scripts/gen_java_usedby_apex.sh": nil,
-		// Needed for the global lint checks provided from frameworks/base
-		"prebuilts/cmdline-tools/AndroidGlobalLintChecker.jar": nil,
+		// Needed for the global lint checks provided from tools/lint_checks
+		"tools/lint_checks/global/Android.bp": []byte(`
+			java_library_host {
+				name: "AndroidGlobalLintChecker",
+			}
+			`),
 	}.AddToFixture(),
 	android.PrepareForTestWithBuildFlag("RELEASE_DEFAULT_UPDATABLE_MODULE_VERSION", testDefaultUpdatableModuleVersion),
 )
@@ -619,7 +630,7 @@ func CheckModuleHasDependency(t *testing.T, ctx *android.TestContext, name, vari
 func CheckModuleHasDependencyWithTag(t *testing.T, ctx *android.TestContext, name, variant string, desiredTag blueprint.DependencyTag, expected string) bool {
 	module := ctx.ModuleForTests(t, name, variant).Module()
 	found := false
-	ctx.VisitDirectDepsWithTags(module, func(m blueprint.Module, tag blueprint.DependencyTag) {
+	ctx.VisitDirectDepsProxiesWithTags(module, func(m blueprint.ModuleProxy, tag blueprint.DependencyTag) {
 		if tag == desiredTag && m.Name() == expected {
 			found = true
 		}

@@ -240,15 +240,15 @@ func overrideModuleDepsMutator(ctx BottomUpMutatorContext) {
 			overridingProperties: overridingProps,
 		}
 
-		prebuiltDeps := ctx.GetDirectDepsWithTag(PrebuiltDepTag)
+		prebuiltDeps := ctx.GetDirectDepsProxyWithTag(PrebuiltDepTag)
 		for _, prebuiltDep := range prebuiltDeps {
-			prebuilt := GetEmbeddedPrebuilt(prebuiltDep)
-			if prebuilt == nil {
+			depInfo, ok := OtherModuleProvider(ctx, prebuiltDep, PrebuiltInfoProvider)
+			if !ok {
 				panic("PrebuiltDepTag leads to a non-prebuilt module " + prebuiltDep.Name())
 			}
-			info.overrideModuleUsePrebuilt = info.overrideModuleUsePrebuilt || prebuilt.UsePrebuilt()
+			info.overrideModuleUsePrebuilt = info.overrideModuleUsePrebuilt || depInfo.UsePrebuilt
 			info.overrideModulePrebuiltPartitions = append(info.overrideModulePrebuiltPartitions,
-				prebuiltDep.PartitionTag(ctx.DeviceConfig()))
+				depInfo.PartitionTag)
 			info.overrideModulePrebuiltNames = append(info.overrideModulePrebuiltNames,
 				ctx.OtherModuleName(prebuiltDep))
 		}

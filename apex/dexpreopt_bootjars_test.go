@@ -180,6 +180,7 @@ func TestDexpreoptBootJarsWithSourceArtApex(t *testing.T) {
 		"out/soong/.intermediates/default/java/dex_bootjars/android_common/boot/boot.prof",
 		"out/soong/dexpreopt/uffd_gc_flag.txt",
 		"out/soong/dexpreopt/assume_value_flags.txt",
+		"out/soong/dexpreopt/allow_profile_code_flag.txt",
 	}
 
 	expectedOutputs := []string{
@@ -220,6 +221,7 @@ func TestDexpreoptBootJarsWithPrebuiltArtApex(t *testing.T) {
 		"out/soong/.intermediates/default/java/dex_bootjars/android_common/boot/boot.prof",
 		"out/soong/dexpreopt/uffd_gc_flag.txt",
 		"out/soong/dexpreopt/assume_value_flags.txt",
+		"out/soong/dexpreopt/allow_profile_code_flag.txt",
 	}
 
 	expectedOutputs := []string{

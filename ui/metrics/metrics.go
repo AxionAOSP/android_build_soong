@@ -35,6 +35,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"android/soong/shared"
@@ -79,16 +80,15 @@ type Metrics struct {
 	// Protobuf containing metrics pertaining to number of makefiles in a build.
 	mkMetrics mk_metrics_proto.MkMetrics
 
-	// A list of pending build events.
-	EventTracer *EventTracer
+	// Mutex protects fields that may be set by multiple goroutines.
+	sync.Mutex
 }
 
 // New returns a pointer of Metrics to store a set of metrics.
 func New() (metrics *Metrics) {
 	m := &Metrics{
-		metrics:     soong_metrics_proto.MetricsBase{},
-		mkMetrics:   mk_metrics_proto.MkMetrics{},
-		EventTracer: &EventTracer{},
+		metrics:   soong_metrics_proto.MetricsBase{},
+		mkMetrics: mk_metrics_proto.MkMetrics{},
 	}
 	return m
 }
@@ -112,6 +112,8 @@ func (m *Metrics) DumpMkMetrics(outPath string) {
 // SetTimeMetrics stores performance information from an executed block of
 // code.
 func (m *Metrics) SetTimeMetrics(perf *soong_metrics_proto.PerfInfo) {
+	m.Lock()
+	defer m.Unlock()
 	switch perf.GetName() {
 	case RunKati:
 		m.metrics.KatiRuns = append(m.metrics.KatiRuns, perf)
@@ -136,12 +138,9 @@ func (m *Metrics) SetFatalOrPanicMessage(errMsg string) {
 	if m == nil {
 		return
 	}
-	if event := m.EventTracer.peek(); event != nil {
-		event.nonZeroExitCode = true
-		event.errorMsg = &errMsg
-	} else {
-		m.metrics.ErrorMessage = proto.String(errMsg)
-	}
+	m.Lock()
+	defer m.Unlock()
+	m.metrics.ErrorMessage = proto.String(errMsg)
 	m.metrics.NonZeroExit = proto.Bool(true)
 }
 
@@ -254,4 +253,10 @@ func (m *Metrics) Dump(out string) error {
 	m.metrics.HostOs = proto.String(runtime.GOOS)
 
 	return shared.Save(&m.metrics, out)
+}
+
+// Begin starts tracing the event.  Call End on the returned Event
+// to end the event.
+func (m *Metrics) Begin(name, desc string) *Event {
+	return newEvent(m, name, desc)
 }

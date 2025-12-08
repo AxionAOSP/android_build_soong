@@ -24,15 +24,6 @@ import (
 	"android/soong/java"
 )
 
-func (a *apexBundle) AndroidMk() android.AndroidMkData {
-	if a.properties.HideFromMake {
-		return android.AndroidMkData{
-			Disabled: true,
-		}
-	}
-	return a.androidMkForType()
-}
-
 // nameInMake converts apexFileClass into the corresponding class name in Make.
 func (class apexFileClass) nameInMake() string {
 	switch class {
@@ -207,6 +198,9 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 			}
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_cc_rust_prebuilt.mk")
 		default:
+			if fi.class == shBinary {
+				fmt.Fprintln(w, "LOCAL_CHECK_ELF_FILES := false")
+			}
 			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.stem())
 			fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 		}
@@ -232,7 +226,7 @@ func (a *apexBundle) writeRequiredModules(w io.Writer, moduleNames []string) {
 	android.AndroidMkEmitAssignList(w, "LOCAL_HOST_REQUIRED_MODULES", hostRequired)
 }
 
-func (a *apexBundle) androidMkForType() android.AndroidMkData {
+func (a *apexBundle) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		// While we do not provide a value for `Extra`, AconfigUpdateAndroidMkData may add some, which we must honor.
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
@@ -267,7 +261,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 			commonProperties := []string{
 				"LOCAL_FULL_INIT_RC", "LOCAL_FULL_VINTF_FRAGMENTS",
 				"LOCAL_PROPRIETARY_MODULE", "LOCAL_VENDOR_MODULE", "LOCAL_ODM_MODULE", "LOCAL_PRODUCT_MODULE", "LOCAL_SYSTEM_EXT_MODULE",
-				"LOCAL_MODULE_OWNER",
+				"LOCAL_MODULE_OWNER", "LOCAL_ADDITIONAL_CHECKED_MODULE",
 			}
 			for _, name := range commonProperties {
 				if value, ok := data.Entries.EntryMap[name]; ok {

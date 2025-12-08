@@ -453,6 +453,33 @@ func commonDefaultModules() string {
 			system_shared_libs: [],
 			stl: "none",
 		}
+
+		cc_library_static {
+			name: "libgtest",
+			target: {
+				linux_bionic: {
+					enabled: true,
+				},
+			},
+			host_supported: true,
+			vendor_available: true,
+			product_available: true,
+			cmake_snapshot_supported: true,
+			rtti: true,
+		}
+
+		cc_library_static {
+			name: "libgtest_main",
+			target: {
+				linux_bionic: {
+					enabled: true,
+				},
+			},
+			host_supported: true,
+			vendor_available: true,
+			product_available: true,
+			cmake_snapshot_supported: true,
+		}
 	`
 }
 
@@ -555,6 +582,7 @@ var PrepareForTestWithCcBuildComponents = android.GroupFixturePreparers(
 	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("cc_fuzz", LibFuzzFactory)
 		ctx.RegisterModuleType("cc_test", TestFactory)
+		ctx.RegisterModuleType("cc_test_host", TestHostFactory)
 		ctx.RegisterModuleType("cc_test_library", TestLibraryFactory)
 		ctx.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
 

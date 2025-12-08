@@ -553,11 +553,11 @@ func (r *RuleBuilder) build(name string, desc string) {
 
 	if len(r.missingDeps) > 0 {
 		r.ctx.Build(r.pctx, BuildParams{
-			Rule:        ErrorRule,
+			Rule:        errorRule,
 			Outputs:     r.Outputs(),
 			Description: desc,
 			Args: map[string]string{
-				"error": "missing dependencies: " + strings.Join(r.missingDeps, ", "),
+				"error": proptools.NinjaAndShellEscape("missing dependencies: " + strings.Join(r.missingDeps, ", ")),
 			},
 		})
 		return
@@ -866,7 +866,7 @@ func (r *RuleBuilder) build(name string, desc string) {
 		tools = append(tools, sboxCmd.tools...)
 		inputs = append(inputs, sboxCmd.inputs...)
 
-		if r.rbeParams != nil {
+		if r.rbeParams != nil && r.ctx.Config().UseREWrapper() {
 			// RBE needs a list of input files to copy to the remote builder.  For inputs already
 			// listed in an rsp file, pass the rsp file directly to rewrapper.  For the rest,
 			// create a new rsp file to pass to rewrapper.
@@ -924,8 +924,9 @@ func (r *RuleBuilder) build(name string, desc string) {
 	}
 
 	var pool blueprint.Pool
-	if r.ctx.Config().UseRBE() && r.remoteable.RBE {
-		// When USE_RBE=true is set and the rule is supported by RBE, use the remotePool.
+	if r.ctx.Config().UseREWrapper() && r.remoteable.RBE {
+		// When USE_REWRAPPER=true is set and the rule is supported by RBE, use the
+		// remotePool.
 		pool = remotePool
 	} else if r.highmem {
 		pool = highmemPool
@@ -939,7 +940,7 @@ func (r *RuleBuilder) build(name string, desc string) {
 		hasher := sha256.New()
 		hasher.Write([]byte(output.String()))
 		script := PathForOutput(r.ctx, "rule_builder_scripts", fmt.Sprintf("%x.sh", hasher.Sum(nil)))
-		commandString = "set -eu\n\n" + commandString + "\n"
+		commandString = "#!/usr/bin/env sh\nset -eu\n\n" + commandString + "\n"
 		WriteExecutableFileRuleVerbatim(r.ctx, script, commandString)
 		inputs = append(inputs, script)
 		commandString = script.String()

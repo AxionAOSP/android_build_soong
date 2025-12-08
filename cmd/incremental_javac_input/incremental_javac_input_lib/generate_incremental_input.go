@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	fid_lib "android/soong/cmd/find_input_delta/find_input_delta_lib"
@@ -39,29 +40,34 @@ type UsageMap struct {
 	IsDependencyToAll bool
 
 	GeneratedClasses []string
+
+	CrossModuleClassDependencies []string
 }
 
-func GenerateIncrementalInput(classDir, srcs, deps, javacTarget, srcDeps, localHeaderJars string) (err error) {
+func GenerateIncrementalInput(classDir, srcs, deps, javacTarget, srcDeps, localHeaderJars, crossModuleJarRsp string) (err error) {
 	incInputPath := javacTarget + ".inc.rsp"
 	removedClassesPath := javacTarget + ".rem.rsp"
 	inputPcState := javacTarget + ".input.pc_state"
 	depsPcState := javacTarget + ".deps.pc_state"
 	headersPcState := javacTarget + ".headers.pc_state"
+	crossModuleDepsPcState := javacTarget + ".crossModuleDeps.pc_state"
 
 	var classesForRemoval []string
 	var incAllSources bool
 
+	version := ""
+	tools := []string{}
 	// Read the srcRspFile contents
 	srcList := readRspFile(srcs)
 	// run find_input_delta, save [add + ch] as a []string,  and [del] as another []string
-	addF, delF, chF := findInputDelta(srcList, inputPcState, javacTarget)
+	addF, delF, chF := findInputDelta(version, tools, srcList, inputPcState, javacTarget)
 	var incInputList []string
 	incInputList = append(incInputList, addF...)
 	incInputList = append(incInputList, chF...)
 
 	// check if deps have changed
 	depsList := readRspFile(deps)
-	if addD, delD, chD := findInputDelta(depsList, depsPcState, javacTarget); len(addD)+len(delD)+len(chD) > 0 {
+	if addD, delD, chD := findInputDelta(version, tools, depsList, depsPcState, javacTarget); len(addD)+len(delD)+len(chD) > 0 {
 		incAllSources = true
 	}
 
@@ -76,23 +82,23 @@ func GenerateIncrementalInput(classDir, srcs, deps, javacTarget, srcDeps, localH
 	}
 
 	// if the output directory of javac which will contain .class files is not present, include all sources
-	if !dirExists(classDir) {
+	if !incAllSources && !dirExists(classDir) {
 		incAllSources = true
 	}
 
 	// if javacTarget does not exist, we can include all sources
-	if incAllSources || !fileExists(javacTarget) {
+	if !incAllSources && !fileExists(javacTarget) {
 		incAllSources = true
 	}
 
 	// if incInputList has the same size as srcList (all files touched), we can
 	// just include all sources
-	if incAllSources || len(incInputList) == len(srcList) {
+	if !incAllSources && len(incInputList) == len(srcList) {
 		incAllSources = true
 	}
 
 	// if dependencyMap does not exist, we can include all sources
-	if incAllSources || !fileExists(srcDeps) {
+	if !incAllSources && !fileExists(srcDeps) {
 		incAllSources = true
 	}
 
@@ -100,8 +106,17 @@ func GenerateIncrementalInput(classDir, srcs, deps, javacTarget, srcDeps, localH
 	// if headers do not change, we can just keep the incInputList as is.
 	// Read the srcRspFile contents
 	headersList := readRspFile(localHeaderJars)
-	if addH, delH, chH := findInputDelta(headersList, headersPcState, javacTarget); len(addH)+len(delH)+len(chH) > 0 {
+	if addH, delH, chH := findInputDelta(version, tools, headersList, headersPcState, javacTarget); len(addH)+len(delH)+len(chH) > 0 {
 		headersChanged = true
+	}
+
+	var addCM, delCM, chCM []string
+	if fileExists(crossModuleJarRsp) {
+		crossModuleDepsList := readRspFile(crossModuleJarRsp)
+		addCM, delCM, chCM = findInputContentsDelta(version, tools, crossModuleDepsList, crossModuleDepsPcState, javacTarget)
+		addCM = filterClassFiles(addCM)
+		delCM = filterClassFiles(delCM)
+		chCM = filterClassFiles(chCM)
 	}
 
 	// use revDepsMap to find all usages, add them to output, alongside [add + ch] files
@@ -109,7 +124,7 @@ func GenerateIncrementalInput(classDir, srcs, deps, javacTarget, srcDeps, localH
 		usageMap, _ := generateUsageMap(srcDeps)
 		// if including all sources, no need to check the usageMap
 		if headersChanged && !incAllSources {
-			incInputList, incAllSources = getUsages(usageMap, incInputList, delF, headersChanged)
+			incInputList, incAllSources = getUsages(usageMap, incInputList, delF, slices.Concat(addCM, chCM), delCM)
 		}
 		// use usageMap to add all classes that were generated from removed files.
 		classesForRemoval = generateRemovalList(usageMap, delF, classDir)
@@ -123,6 +138,18 @@ func GenerateIncrementalInput(classDir, srcs, deps, javacTarget, srcDeps, localH
 	return writeOutput(incInputPath, removedClassesPath, incInputList, classesForRemoval)
 }
 
+// Returns strings ending in .class
+func filterClassFiles(filenames []string) []string {
+	var classFiles []string
+	for _, filename := range filenames {
+		// Convert the filename to lowercase for case-insensitive comparison
+		if strings.HasSuffix(filename, ".class") {
+			classFiles = append(classFiles, filename)
+		}
+	}
+	return classFiles
+}
+
 // Checks if Full Compile is enabled or not
 func usePartialCompile() bool {
 	usePartialCompileVar := os.Getenv("SOONG_USE_PARTIAL_COMPILE")
@@ -132,9 +159,9 @@ func usePartialCompile() bool {
 	return false
 }
 
-// Returns the list of files that use added, modified or deleted files.
+// Returns the list of files that use added, modified, or deleted files.
 // Returns whether to include all src Files in incremental src set
-func getUsages(usageMap map[string]UsageMap, modifiedFiles, deletedFiles []string, headersChanged bool) ([]string, bool) {
+func getUsages(usageMap map[string]UsageMap, modifiedFiles, deletedFiles, modifiedClasses, deletedClasses []string) ([]string, bool) {
 	usagesSet := make(map[string]bool)
 
 	// First add all the modified files in the output
@@ -142,15 +169,13 @@ func getUsages(usageMap map[string]UsageMap, modifiedFiles, deletedFiles []strin
 		usagesSet[incInput] = true
 	}
 	// Add all the usages of modified + deleted files
-	for _, modFile := range append(modifiedFiles, deletedFiles...) {
+	for _, modFile := range slices.Concat(modifiedFiles, deletedFiles, modifiedClasses, deletedClasses) {
 		if um, exists := usageMap[modFile]; exists {
 			if um.IsDependencyToAll {
 				return nil, true
 			}
-			if headersChanged {
-				for _, usage := range um.Usages {
-					usagesSet[usage] = true
-				}
+			for _, usage := range um.Usages {
+				usagesSet[usage] = true
 			}
 		}
 	}
@@ -200,9 +225,17 @@ func generateUsageMap(srcDeps string) (map[string]UsageMap, error) {
 			updatedUsageMap.Usages = append(updatedUsageMap.Usages, *dep.FilePath)
 			usageMapSet[depV] = updatedUsageMap
 		}
+		// Mixing files and classes in usageMapSet. Is this ok?
+		for _, depV := range dep.CrossModuleClassDeps {
+			addUsageMapIfNotPresent(usageMapSet, depV)
+			updatedUsageMap := usageMapSet[depV]
+			updatedUsageMap.Usages = append(updatedUsageMap.Usages, *dep.FilePath)
+			usageMapSet[depV] = updatedUsageMap
+		}
 		updatedUsageMap := usageMapSet[*dep.FilePath]
 		updatedUsageMap.IsDependencyToAll = *dep.IsDependencyToAll
 		updatedUsageMap.GeneratedClasses = dep.GeneratedClasses
+		updatedUsageMap.CrossModuleClassDependencies = dep.CrossModuleClassDeps
 		usageMapSet[*dep.FilePath] = updatedUsageMap
 	}
 	return usageMapSet, nil
@@ -211,10 +244,11 @@ func generateUsageMap(srcDeps string) (map[string]UsageMap, error) {
 func addUsageMapIfNotPresent(usageMapSet map[string]UsageMap, key string) {
 	if _, exists := usageMapSet[key]; !exists {
 		usageMap := UsageMap{
-			FilePath:          key,
-			Usages:            []string{},
-			IsDependencyToAll: false,
-			GeneratedClasses:  []string{},
+			FilePath:                     key,
+			Usages:                       []string{},
+			IsDependencyToAll:            false,
+			GeneratedClasses:             []string{},
+			CrossModuleClassDependencies: []string{},
 		}
 		usageMapSet[key] = usageMap
 	}
@@ -259,9 +293,21 @@ func writeOutput(incInputPath, removedClassesPath string, incInputList, classesF
 
 // Computes the diff of the inputs provided, saving the temp state in the
 // priorStateFile.
-func findInputDelta(inputs []string, priorStateFile, target string) ([]string, []string, []string) {
+func findInputDelta(version string, tools, inputs []string, priorStateFile, target string) ([]string, []string, []string) {
+	return findInputDeltaInternal(version, tools, inputs, priorStateFile, target, false)
+}
+
+// Computes the diff of the contents of the inputs provided, saving the temp state in the
+// priorStateFile.
+func findInputContentsDelta(version string, tools, inputs []string, priorStateFile, target string) ([]string, []string, []string) {
+	return findInputDeltaInternal(version, tools, inputs, priorStateFile, target, true)
+}
+
+// Computes the diff of the inputs provided, saving the temp state in the
+// priorStateFile.
+func findInputDeltaInternal(version string, tools, inputs []string, priorStateFile, target string, inspect bool) ([]string, []string, []string) {
 	newStateFile := priorStateFile + ".new"
-	fileList, err := fid_lib.GenerateFileList(target, priorStateFile, newStateFile, inputs, false, fid_lib.OsFs)
+	fileList, err := fid_lib.GenerateFileList(target, priorStateFile, newStateFile, version, tools, inputs, inspect, fid_lib.OsFs)
 	if err != nil {
 		panic(err)
 	}
@@ -284,6 +330,10 @@ func flattenChanges(root *fid_lib.FileList) ([]string, []string, []string) {
 
 	for _, ch := range root.Changes {
 		allChangedFiles = append(allChangedFiles, ch.Name)
+		recAdd, recDel, recCh := flattenChanges(&ch)
+		allAdditions = append(allAdditions, recAdd...)
+		allDeletions = append(allDeletions, recDel...)
+		allChangedFiles = append(allChangedFiles, recCh...)
 	}
 
 	return allAdditions, allDeletions, allChangedFiles

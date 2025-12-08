@@ -83,7 +83,7 @@ type DexProperties struct {
 
 		// If true, optimize for size by removing unused code.  Defaults to true for apps,
 		// false for libraries and tests.
-		Shrink *bool
+		Shrink proptools.Configurable[bool] `android:"replace_instead_of_append"`
 
 		// If true, optimize bytecode.  Defaults to false.
 		Optimize proptools.Configurable[bool] `android:"replace_instead_of_append"`
@@ -127,6 +127,17 @@ type DexProperties struct {
 		//
 		// By default all classes are compiled using R8 when Optimize.Enabled is set.
 		Exclude *string `android:"path"`
+
+		// Path to a file containing a list of class names that should be compiled using R8.
+		// A class is only compiled through R8 if and only if it's part of the includes and not
+		// part of the excludes. Otherwise D8 will be used.
+		//
+		// If this attribute is not specified then '**' is used instead, which includes every single
+		// class that is not excluded.
+		//
+		// The file is expected to contain fully-qualified classes name and package names ending
+		// in `.*` or `.**`, separated by newline.
+		Include *string `android:"path"`
 
 		// Optional list of downstream (Java) libraries from which to trace and preserve references
 		// when optimizing. Note that this requires that the source reference does *not* have
@@ -529,6 +540,15 @@ func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
 		}
 	}
 
+	if ctx.Config().UseR8MinimizedSyntheticNames() {
+		flags = append([]string{"-JDcom.android.tools.r8.desugar.minimizeSyntheticNames=1"}, flags...)
+	}
+
+	// Enable a safe form of list iteration rewriting for D8/R8, though note that D8 impact is
+	// conditional on the use of release mode. We *prepend* this flag to ensure application
+	// to the JVM environment, before other args that are passed along to D8/R8.
+	flags = append([]string{"-JDcom.android.tools.r8.enableListIterationRewriting=1"}, flags...)
+
 	// If the specified SDK level is 10000, then configure the compiler to use the
 	// current platform SDK level and to compile the build as a platform build.
 	var minApiFlagValue = effectiveVersion.FinalOrFutureInt()
@@ -538,11 +558,12 @@ func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
 	}
 	flags = append(flags, "--min-api "+strconv.Itoa(minApiFlagValue))
 
-	incD8Compatible = false
-	// Incremental d8 does not have libraries passed to it for speed, so any
-	// desugaring with library classes is not possible.
-	// To cater for this we only enable incD8 when platform build flag is passed
-	// as it automatically disables desugaring.
+	if ctx.Config().PartialCompileFlags().Enable_inc_d8_outside_platform {
+		incD8Compatible = true
+	} else {
+		incD8Compatible = false
+	}
+
 	if addAndroidPlatformBuildFlag {
 		flags = append(flags, "--android-platform-build")
 		incD8Compatible = true
@@ -669,7 +690,7 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams, 
 		r8Flags = append(r8Flags, "--ignore-library-extends-program")
 	}
 
-	if BoolDefault(opt.Keep_runtime_invisible_annotations, false) {
+	if !ctx.Config().UseR8OnlyRuntimeVisibleAnnotations() && BoolDefault(opt.Keep_runtime_invisible_annotations, false) {
 		r8Flags = append(r8Flags, "--keep-runtime-invisible-annotations")
 	}
 
@@ -693,7 +714,7 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams, 
 	}
 
 	// TODO(ccross): Don't shrink app instrumentation tests by default.
-	if !Bool(opt.Shrink) {
+	if !opt.Shrink.GetOrDefault(ctx, false) {
 		r8Flags = append(r8Flags, "-dontshrink")
 	}
 
@@ -741,8 +762,15 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams, 
 	}
 
 	if opt.Exclude != nil {
-		r8Flags = append(r8Flags, "--exclude", *opt.Exclude)
-		r8Deps = append(r8Deps, android.PathForModuleSrc(ctx, *opt.Exclude))
+		excludeFile := android.PathForModuleSrc(ctx, *opt.Exclude)
+		r8Flags = append(r8Flags, "--exclude", excludeFile.String())
+		r8Deps = append(r8Deps, excludeFile)
+	}
+
+	if opt.Include != nil {
+		includeFile := android.PathForModuleSrc(ctx, *opt.Include)
+		r8Flags = append(r8Flags, "--include", includeFile.String())
+		r8Deps = append(r8Deps, includeFile)
 	}
 
 	return r8Flags, r8Deps, artProfileOutput
@@ -801,8 +829,8 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 	useD8 := !useR8 || ctx.Config().PartialCompileFlags().Use_d8
 	// d8Inc is applicable only when d8 is allowed.
 	useD8Inc := useD8 && ctx.Config().PartialCompileFlags().Enable_inc_d8 && incD8Compatible
-	rbeR8 := ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_R8")
-	rbeD8 := ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_D8")
+	rbeR8 := ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_R8")
+	rbeD8 := ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_D8")
 	var rule blueprint.Rule
 	var description string
 	var artProfileOutputPath *android.OutputPath
@@ -986,7 +1014,7 @@ type ProguardZips struct {
 	UsageZip    android.Path
 }
 
-func BuildProguardZips(ctx android.ModuleContext, modules []android.ModuleOrProxy) ProguardZips {
+func BuildProguardZips(ctx android.ModuleContext, modules []android.ModuleProxy) ProguardZips {
 	dictZip := android.PathForModuleOut(ctx, "proguard-dict.zip")
 	dictZipBuilder := android.NewRuleBuilder(pctx, ctx)
 	dictZipCmd := dictZipBuilder.Command().BuiltTool("soong_zip").Flag("-d").FlagWithOutput("-o ", dictZip)

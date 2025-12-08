@@ -111,11 +111,16 @@ func (gc *generatedContents) UnindentedPrintf(format string, args ...interface{}
 
 // Collect all the members.
 //
-// Updates the sdk module with a list of sdkMemberVariantDep instances and details as to which
-// multilibs (32/64/both) are used by this sdk variant.
-func (s *sdk) collectMembers(ctx android.ModuleContext) {
-	s.multilibUsages = multilibNone
+// Returns a list of sdkMemberVariantDep instances for the given OSType-specific variant of the SDK.
+func (s *sdk) collectMembers(ctx android.ModuleContext, osSpecificSdk android.ModuleProxy) []sdkMemberVariantDep {
+	var memberVariantDeps []sdkMemberVariantDep
 	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
+		if parent == ctx.ModuleProxy() {
+			// Only recurse into the requested os-specific variant of this common OS sdk module.
+			return child == osSpecificSdk
+		}
+
+		// This is a subdependency of the requested OSType-specific variant
 		tag := ctx.OtherModuleDependencyTag(child)
 		if memberTag, ok := tag.(android.SdkMemberDependencyTag); ok {
 			memberType := memberTag.SdkMemberType(ctx, child)
@@ -132,7 +137,6 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 
 			// Keep track of which multilib variants are used by the sdk.
 			commonInfo := android.OtherModulePointerProviderOrDefault(ctx, child, android.CommonModuleInfoProvider)
-			s.multilibUsages = s.multilibUsages.addArchType(commonInfo.Target.Arch.ArchType)
 
 			exportedComponentsInfo, _ := android.OtherModuleProvider(ctx, child, android.ExportedComponentsInfoProvider)
 
@@ -146,11 +150,11 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 				export:                 export,
 				exportedComponentsInfo: exportedComponentsInfo,
 			}
-			if !android.EqualModules(parent, ctx.Module()) {
+			if !android.EqualModules(parent, osSpecificSdk) {
 				container := parent
 				vd.container = &container
 			}
-			s.memberVariantDeps = append(s.memberVariantDeps, vd)
+			memberVariantDeps = append(memberVariantDeps, vd)
 
 			// Recurse down into the member's dependencies as it may have dependencies that need to be
 			// automatically added to the sdk.
@@ -159,6 +163,8 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 
 		return false
 	})
+
+	return memberVariantDeps
 }
 
 // A denylist of modules whose host variants will be removed from the generated snapshots above the ApiLevel
@@ -299,7 +305,7 @@ func (s sdk) targetBuildRelease(ctx android.ModuleContext) *buildRelease {
 
 // buildSnapshot is the main function in this source file. It creates rules to copy
 // the contents (header files, stub libraries, etc) into the zip file.
-func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) {
+func (s *sdk) buildSnapshot(ctx android.ModuleContext, memberVariantDeps []sdkMemberVariantDep) {
 
 	targetBuildRelease := s.targetBuildRelease(ctx)
 	targetApiLevel, err := android.ApiLevelFromUser(ctx, targetBuildRelease.name)
@@ -309,10 +315,6 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) {
 
 	// Aggregate all the sdkMemberVariantDep instances from all the sdk variants.
 	hasLicenses := false
-	var memberVariantDeps []sdkMemberVariantDep
-	for _, sdkVariant := range sdkVariants {
-		memberVariantDeps = append(memberVariantDeps, sdkVariant.memberVariantDeps...)
-	}
 
 	// Filter out any sdkMemberVariantDep that is a component of another.
 	memberVariantDeps = filterOutComponents(ctx, memberVariantDeps)

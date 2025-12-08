@@ -86,15 +86,16 @@ func platformBootclasspathFactory() android.Module {
 	return m
 }
 
-func (b *platformBootclasspathModule) AndroidMkEntries() (entries []android.AndroidMkEntries) {
-	entries = append(entries, android.AndroidMkEntries{
+func (b *platformBootclasspathModule) PrepareAndroidMKProviderInfo(config android.Config) *android.AndroidMkProviderInfo {
+	info := &android.AndroidMkProviderInfo{}
+	info.PrimaryInfo = android.AndroidMkInfo{
 		Class: "FAKE",
 		// Need at least one output file in order for this to take effect.
 		OutputFile: android.OptionalPathForPath(b.hiddenAPIFlagsCSV),
 		Include:    "$(BUILD_PHONY_PACKAGE)",
-	})
-	entries = append(entries, b.classpathFragmentBase().androidMkEntries()...)
-	return
+	}
+	info.ExtraInfo = append(info.ExtraInfo, b.classpathFragmentBase().androidMkInfo())
+	return info
 }
 
 func (b *platformBootclasspathModule) DepsMutator(ctx android.BottomUpMutatorContext) {

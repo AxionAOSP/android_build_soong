@@ -12,24 +12,30 @@ func init() {
 	BaseJarJarProviderDataGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(BaseJarJarProviderData) })
 }
 
-func (r JarJarProviderData) Encode(buf *bytes.Buffer) error {
+func (r JarJarProviderData) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Rename))); err != nil {
-		return err
-	}
-	for k, v := range r.Rename {
-		if err = gobtools.EncodeString(buf, k); err != nil {
+	if r.Rename == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
 		}
-		if err = gobtools.EncodeString(buf, v); err != nil {
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Rename))); err != nil {
 			return err
+		}
+		for k, v := range r.Rename {
+			if err = gobtools.EncodeString(buf, k); err != nil {
+				return err
+			}
+			if err = gobtools.EncodeString(buf, v); err != nil {
+				return err
+			}
 		}
 	}
 	return err
 }
 
-func (r *JarJarProviderData) Decode(buf *bytes.Reader) error {
+func (r *JarJarProviderData) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val1 int32
@@ -37,7 +43,7 @@ func (r *JarJarProviderData) Decode(buf *bytes.Reader) error {
 	if err != nil {
 		return err
 	}
-	if val1 > 0 {
+	if val1 != -1 {
 		r.Rename = make(map[string]string, val1)
 		for val2 := 0; val2 < int(val1); val2++ {
 			var k string
@@ -63,19 +69,19 @@ func (r JarJarProviderData) GetTypeId() int16 {
 	return JarJarProviderDataGobRegId
 }
 
-func (r BaseJarJarProviderData) Encode(buf *bytes.Buffer) error {
+func (r BaseJarJarProviderData) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.JarJarProviderData.Encode(buf); err != nil {
+	if err = r.JarJarProviderData.Encode(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *BaseJarJarProviderData) Decode(buf *bytes.Reader) error {
+func (r *BaseJarJarProviderData) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.JarJarProviderData.Decode(buf); err != nil {
+	if err = r.JarJarProviderData.Decode(ctx, buf); err != nil {
 		return err
 	}
 

@@ -13,7 +13,7 @@ func init() {
 	FuzzPackagedModuleInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(FuzzPackagedModuleInfo) })
 }
 
-func (r FuzzConfigInfo) Encode(buf *bytes.Buffer) error {
+func (r FuzzConfigInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeString(buf, string(r.Vector)); err != nil {
@@ -54,7 +54,7 @@ func (r FuzzConfigInfo) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *FuzzConfigInfo) Decode(buf *bytes.Reader) error {
+func (r *FuzzConfigInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val2 string
@@ -123,7 +123,7 @@ func (r FuzzConfigInfo) GetTypeId() int16 {
 	return FuzzConfigInfoGobRegId
 }
 
-func (r FuzzPackagedModuleInfo) Encode(buf *bytes.Buffer) error {
+func (r FuzzPackagedModuleInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	val1 := r.FuzzConfig == nil
@@ -131,40 +131,52 @@ func (r FuzzPackagedModuleInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	if !val1 {
-		if err = (*r.FuzzConfig).Encode(buf); err != nil {
+		if err = (*r.FuzzConfig).Encode(ctx, buf); err != nil {
 			return err
 		}
 	}
 
-	if err = gobtools.EncodeInterface(buf, r.Dictionary); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.Dictionary); err != nil {
 		return err
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Corpus))); err != nil {
-		return err
-	}
-	for val2 := 0; val2 < len(r.Corpus); val2++ {
-		if err = gobtools.EncodeInterface(buf, r.Corpus[val2]); err != nil {
+	if r.Corpus == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Corpus))); err != nil {
+			return err
+		}
+		for val2 := 0; val2 < len(r.Corpus); val2++ {
+			if err = gobtools.EncodeInterface(ctx, buf, r.Corpus[val2]); err != nil {
+				return err
+			}
 		}
 	}
 
-	if err = gobtools.EncodeInterface(buf, r.Config); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.Config); err != nil {
 		return err
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Data))); err != nil {
-		return err
-	}
-	for val3 := 0; val3 < len(r.Data); val3++ {
-		if err = gobtools.EncodeInterface(buf, r.Data[val3]); err != nil {
+	if r.Data == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Data))); err != nil {
+			return err
+		}
+		for val3 := 0; val3 < len(r.Data); val3++ {
+			if err = gobtools.EncodeInterface(ctx, buf, r.Data[val3]); err != nil {
+				return err
+			}
 		}
 	}
 	return err
 }
 
-func (r *FuzzPackagedModuleInfo) Decode(buf *bytes.Reader) error {
+func (r *FuzzPackagedModuleInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val2 bool
@@ -173,13 +185,13 @@ func (r *FuzzPackagedModuleInfo) Decode(buf *bytes.Reader) error {
 	}
 	if !val2 {
 		var val1 FuzzConfigInfo
-		if err = val1.Decode(buf); err != nil {
+		if err = val1.Decode(ctx, buf); err != nil {
 			return err
 		}
 		r.FuzzConfig = &val1
 	}
 
-	if val5, err := gobtools.DecodeInterface(buf); err != nil {
+	if val5, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val5 == nil {
 		r.Dictionary = nil
@@ -192,10 +204,10 @@ func (r *FuzzPackagedModuleInfo) Decode(buf *bytes.Reader) error {
 	if err != nil {
 		return err
 	}
-	if val8 > 0 {
+	if val8 != -1 {
 		r.Corpus = make([]android.Path, val8)
 		for val9 := 0; val9 < int(val8); val9++ {
-			if val11, err := gobtools.DecodeInterface(buf); err != nil {
+			if val11, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 				return err
 			} else if val11 == nil {
 				r.Corpus[val9] = nil
@@ -205,7 +217,7 @@ func (r *FuzzPackagedModuleInfo) Decode(buf *bytes.Reader) error {
 		}
 	}
 
-	if val13, err := gobtools.DecodeInterface(buf); err != nil {
+	if val13, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val13 == nil {
 		r.Config = nil
@@ -218,10 +230,10 @@ func (r *FuzzPackagedModuleInfo) Decode(buf *bytes.Reader) error {
 	if err != nil {
 		return err
 	}
-	if val16 > 0 {
+	if val16 != -1 {
 		r.Data = make([]android.Path, val16)
 		for val17 := 0; val17 < int(val16); val17++ {
-			if val19, err := gobtools.DecodeInterface(buf); err != nil {
+			if val19, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 				return err
 			} else if val19 == nil {
 				r.Data[val17] = nil

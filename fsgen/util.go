@@ -19,9 +19,10 @@ import (
 	"android/soong/etc"
 	"android/soong/filesystem"
 	"fmt"
-	"github.com/google/blueprint/proptools"
 	"strconv"
 	"strings"
+
+	"github.com/google/blueprint/proptools"
 )
 
 // Returns the appropriate dpi for recovery common resources selection. Replicates the logic in
@@ -129,4 +130,70 @@ func createTargetRecoveryWipeModuleName(ctx android.LoadHookContext) string {
 		},
 	)
 	return name
+}
+
+func getRecoveryFsTabSrc(config android.Config) (recoveryFstabSrc string) {
+	partitionVars := config.ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
+	if len(partitionVars.TargetRecoveryFstab) > 0 {
+		recoveryFstabSrc = partitionVars.TargetRecoveryFstab
+	} else if len(partitionVars.TargetRecoveryFstabGenrule) > 0 {
+		recoveryFstabSrc = ":" + partitionVars.TargetRecoveryFstabGenrule
+
+	} else {
+		recoveryFstabSrc = partitionVars.TargetRecoveryFstabDefault
+	}
+	return
+}
+
+// Creates a prebuilt_etc module for recovery partition based on the values of
+// TARGET_RECOVERY_FSTAB, TARGET_RECOVERY_FSTAB_GENRULE and TARGET_DEVICE_DIR.
+// https://cs.android.com/android/platform/superproject/main/+/main:build/make/core/Makefile;l=2616-2622;drc=a951ebf0198006f7fd38073a05c442d0eb92f97b
+func handleRecoveryFstab(ctx android.LoadHookContext) (moduleName string) {
+	if recoveryFstabSrc := getRecoveryFsTabSrc(ctx.Config()); len(recoveryFstabSrc) > 0 {
+		moduleName = generatedModuleName(ctx.Config(), "recovery_fstab")
+		ctx.CreateModuleInDirectory(
+			etc.PrebuiltEtcFactory,
+			".",
+			&struct {
+				Name     *string
+				Dsts     []string
+				Recovery *bool
+			}{
+				Name:     proptools.StringPtr(moduleName),
+				Dsts:     []string{"recovery.fstab"},
+				Recovery: proptools.BoolPtr(true),
+			},
+		)
+	}
+	return
+}
+
+func setRecoveryFstabSrcs(ctx android.BottomUpMutatorContext) {
+	if !shouldEnableFilesystemCreator(ctx) {
+		return
+	}
+	recoveryFstabModuleName := ctx.Config().Get(fsGenStateOnceKey).(*FsGenState).recoveryFstabModuleName
+	if len(recoveryFstabModuleName) > 0 && ctx.ModuleName() == recoveryFstabModuleName {
+		recoveryFstabSrc := getRecoveryFsTabSrc(ctx.Config())
+		resolvedRecoveryFstabSrcName := recoveryFstabSrc
+		// If the recovery fstab src start with ":", it's depending on a genrule
+		// module. However the genrule may be under a soong namespace, thus this
+		// needs to be resolved to a fully qualified module name.
+		if strings.HasPrefix(recoveryFstabSrc, ":") {
+			for _, namespace := range ctx.Config().ProductVariables().NamespacesToExport {
+				if moduleName := fmt.Sprintf("//%s:%s", namespace, recoveryFstabSrc[1:]); ctx.OtherModuleExists(moduleName) {
+					resolvedRecoveryFstabSrcName = moduleName
+				}
+			}
+		}
+		proptools.AppendMatchingProperties(
+			ctx.Module().GetProperties(),
+			&struct {
+				Srcs []string
+			}{
+				Srcs: []string{resolvedRecoveryFstabSrcName},
+			},
+			nil,
+		)
+	}
 }

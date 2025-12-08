@@ -556,13 +556,11 @@ var commonOsToOsSpecificVariantTag = archDepTag{name: "common os to os specific"
 // module referenced in the supplied context. An empty list is returned if there
 // are no enabled variants or the supplied context is not for an CommonOS
 // variant.
-func GetOsSpecificVariantsOfCommonOSVariant(mctx BaseModuleContext) []Module {
-	var variants []Module
-	mctx.VisitDirectDeps(func(m Module) {
+func GetOsSpecificVariantsOfCommonOSVariant(mctx BaseModuleContext) []ModuleProxy {
+	var variants []ModuleProxy
+	mctx.VisitDirectDepsProxy(func(m ModuleProxy) {
 		if mctx.OtherModuleDependencyTag(m) == commonOsToOsSpecificVariantTag {
-			if m.Enabled(mctx) {
-				variants = append(variants, m)
-			}
+			variants = append(variants, m)
 		}
 	})
 	return variants

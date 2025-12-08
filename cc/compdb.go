@@ -203,7 +203,7 @@ func generateCompdbProject(ctx android.SingletonContext, module android.ModulePr
 func evalAndSplitVariable(ctx android.SingletonContext, str string) ([]string, error) {
 	evaluated, err := ctx.Eval(pctx, str)
 	if err == nil {
-		return strings.Fields(evaluated), nil
+		return strings.Fields(strings.Trim(evaluated, "'")), nil
 	}
 	return []string{""}, err
 }

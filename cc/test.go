@@ -315,8 +315,11 @@ func (test *testBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 }
 
 func (test *testBinary) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON) {
-	if ctx.Host() && Bool(test.Properties.Test_options.Unit_test) {
-		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "host-unit-tests")
+	if Bool(test.Properties.Test_options.Unit_test) {
+		moduleInfoJSON.IsUnitTest = "true"
+		if ctx.Host() {
+			moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "host-unit-tests")
+		}
 	}
 	moduleInfoJSON.TestOptionsTags = append(moduleInfoJSON.TestOptionsTags, test.Properties.Test_options.Tags...)
 	moduleInfoJSON.TestMainlineModules = append(moduleInfoJSON.TestMainlineModules, test.Properties.Test_mainline_modules...)
@@ -428,6 +431,7 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 		Data:                 test.data,
 		NeedsArchFolder:      true,
 		PerTestcaseDirectory: Bool(test.Properties.Per_testcase_directory),
+		IsUnitTest:           Bool(test.Properties.Test_options.Unit_test),
 	})
 
 	test.binaryDecorator.baseInstaller.installTestData(ctx, test.data)

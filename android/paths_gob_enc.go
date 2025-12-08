@@ -24,10 +24,10 @@ func init() {
 	DataPathGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(DataPath) })
 }
 
-func (r OptionalPath) Encode(buf *bytes.Buffer) error {
+func (r OptionalPath) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeInterface(buf, r.path); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.path); err != nil {
 		return err
 	}
 
@@ -37,10 +37,10 @@ func (r OptionalPath) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *OptionalPath) Decode(buf *bytes.Reader) error {
+func (r *OptionalPath) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if val2, err := gobtools.DecodeInterface(buf); err != nil {
+	if val2, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val2 == nil {
 		r.path = nil
@@ -62,21 +62,27 @@ func (r OptionalPath) GetTypeId() int16 {
 	return OptionalPathGobRegId
 }
 
-func (r Paths) Encode(buf *bytes.Buffer) error {
+func (r Paths) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r))); err != nil {
-		return err
-	}
-	for val1 := 0; val1 < len(r); val1++ {
-		if err = gobtools.EncodeInterface(buf, r[val1]); err != nil {
+	if r == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r))); err != nil {
+			return err
+		}
+		for val1 := 0; val1 < len(r); val1++ {
+			if err = gobtools.EncodeInterface(ctx, buf, r[val1]); err != nil {
+				return err
+			}
 		}
 	}
 	return err
 }
 
-func (r *Paths) Decode(buf *bytes.Reader) error {
+func (r *Paths) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val2 int32
@@ -84,10 +90,10 @@ func (r *Paths) Decode(buf *bytes.Reader) error {
 	if err != nil {
 		return err
 	}
-	if val2 > 0 {
+	if val2 != -1 {
 		(*r) = make([]Path, val2)
 		for val3 := 0; val3 < int(val2); val3++ {
-			if val5, err := gobtools.DecodeInterface(buf); err != nil {
+			if val5, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 				return err
 			} else if val5 == nil {
 				(*r)[val3] = nil
@@ -106,7 +112,7 @@ func (r Paths) GetTypeId() int16 {
 	return PathsGobRegId
 }
 
-func (r basePath) Encode(buf *bytes.Buffer) error {
+func (r basePath) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeString(buf, r.path); err != nil {
@@ -119,7 +125,7 @@ func (r basePath) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *basePath) Decode(buf *bytes.Reader) error {
+func (r *basePath) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeString(buf, &r.path)
@@ -141,19 +147,19 @@ func (r basePath) GetTypeId() int16 {
 	return basePathGobRegId
 }
 
-func (r SourcePath) Encode(buf *bytes.Buffer) error {
+func (r SourcePath) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.basePath.Encode(buf); err != nil {
+	if err = r.basePath.Encode(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *SourcePath) Decode(buf *bytes.Reader) error {
+func (r *SourcePath) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.basePath.Decode(buf); err != nil {
+	if err = r.basePath.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -166,10 +172,10 @@ func (r SourcePath) GetTypeId() int16 {
 	return SourcePathGobRegId
 }
 
-func (r OutputPath) Encode(buf *bytes.Buffer) error {
+func (r OutputPath) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.basePath.Encode(buf); err != nil {
+	if err = r.basePath.Encode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -183,10 +189,10 @@ func (r OutputPath) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *OutputPath) Decode(buf *bytes.Reader) error {
+func (r *OutputPath) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.basePath.Decode(buf); err != nil {
+	if err = r.basePath.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -209,19 +215,19 @@ func (r OutputPath) GetTypeId() int16 {
 	return OutputPathGobRegId
 }
 
-func (r toolDepPath) Encode(buf *bytes.Buffer) error {
+func (r toolDepPath) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.basePath.Encode(buf); err != nil {
+	if err = r.basePath.Encode(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *toolDepPath) Decode(buf *bytes.Reader) error {
+func (r *toolDepPath) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.basePath.Decode(buf); err != nil {
+	if err = r.basePath.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -234,19 +240,19 @@ func (r toolDepPath) GetTypeId() int16 {
 	return toolDepPathGobRegId
 }
 
-func (r ModuleOutPath) Encode(buf *bytes.Buffer) error {
+func (r ModuleOutPath) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.OutputPath.Encode(buf); err != nil {
+	if err = r.OutputPath.Encode(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *ModuleOutPath) Decode(buf *bytes.Reader) error {
+func (r *ModuleOutPath) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.OutputPath.Decode(buf); err != nil {
+	if err = r.OutputPath.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -259,19 +265,19 @@ func (r ModuleOutPath) GetTypeId() int16 {
 	return ModuleOutPathGobRegId
 }
 
-func (r ModuleGenPath) Encode(buf *bytes.Buffer) error {
+func (r ModuleGenPath) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.ModuleOutPath.Encode(buf); err != nil {
+	if err = r.ModuleOutPath.Encode(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *ModuleGenPath) Decode(buf *bytes.Reader) error {
+func (r *ModuleGenPath) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.ModuleOutPath.Decode(buf); err != nil {
+	if err = r.ModuleOutPath.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -284,19 +290,19 @@ func (r ModuleGenPath) GetTypeId() int16 {
 	return ModuleGenPathGobRegId
 }
 
-func (r ModuleObjPath) Encode(buf *bytes.Buffer) error {
+func (r ModuleObjPath) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.ModuleOutPath.Encode(buf); err != nil {
+	if err = r.ModuleOutPath.Encode(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *ModuleObjPath) Decode(buf *bytes.Reader) error {
+func (r *ModuleObjPath) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.ModuleOutPath.Decode(buf); err != nil {
+	if err = r.ModuleOutPath.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -309,19 +315,19 @@ func (r ModuleObjPath) GetTypeId() int16 {
 	return ModuleObjPathGobRegId
 }
 
-func (r ModuleResPath) Encode(buf *bytes.Buffer) error {
+func (r ModuleResPath) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.ModuleOutPath.Encode(buf); err != nil {
+	if err = r.ModuleOutPath.Encode(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *ModuleResPath) Decode(buf *bytes.Reader) error {
+func (r *ModuleResPath) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.ModuleOutPath.Decode(buf); err != nil {
+	if err = r.ModuleOutPath.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -334,10 +340,10 @@ func (r ModuleResPath) GetTypeId() int16 {
 	return ModuleResPathGobRegId
 }
 
-func (r InstallPath) Encode(buf *bytes.Buffer) error {
+func (r InstallPath) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.basePath.Encode(buf); err != nil {
+	if err = r.basePath.Encode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -363,10 +369,10 @@ func (r InstallPath) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *InstallPath) Decode(buf *bytes.Reader) error {
+func (r *InstallPath) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.basePath.Decode(buf); err != nil {
+	if err = r.basePath.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -404,19 +410,19 @@ func (r InstallPath) GetTypeId() int16 {
 	return InstallPathGobRegId
 }
 
-func (r PhonyPath) Encode(buf *bytes.Buffer) error {
+func (r PhonyPath) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.basePath.Encode(buf); err != nil {
+	if err = r.basePath.Encode(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *PhonyPath) Decode(buf *bytes.Reader) error {
+func (r *PhonyPath) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.basePath.Decode(buf); err != nil {
+	if err = r.basePath.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -429,19 +435,19 @@ func (r PhonyPath) GetTypeId() int16 {
 	return PhonyPathGobRegId
 }
 
-func (r testPath) Encode(buf *bytes.Buffer) error {
+func (r testPath) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.basePath.Encode(buf); err != nil {
+	if err = r.basePath.Encode(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *testPath) Decode(buf *bytes.Reader) error {
+func (r *testPath) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.basePath.Decode(buf); err != nil {
+	if err = r.basePath.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -454,10 +460,10 @@ func (r testPath) GetTypeId() int16 {
 	return testPathGobRegId
 }
 
-func (r DataPath) Encode(buf *bytes.Buffer) error {
+func (r DataPath) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeInterface(buf, r.SrcPath); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.SrcPath); err != nil {
 		return err
 	}
 
@@ -471,10 +477,10 @@ func (r DataPath) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *DataPath) Decode(buf *bytes.Reader) error {
+func (r *DataPath) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if val2, err := gobtools.DecodeInterface(buf); err != nil {
+	if val2, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val2 == nil {
 		r.SrcPath = nil

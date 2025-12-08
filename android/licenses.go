@@ -117,11 +117,6 @@ func RegisterLicensesPropertyGatherer(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("licensesPropertyGatherer", licensesPropertyGatherer)
 }
 
-// Registers the function that verifies the licenses and license_kinds dependency types for each module.
-func RegisterLicensesDependencyChecker(ctx RegisterMutatorsContext) {
-	ctx.BottomUp("licensesPropertyChecker", licensesDependencyChecker)
-}
-
 // Maps each package to its default applicable licenses.
 func licensesPackageMapper(ctx BottomUpMutatorContext) {
 	p, ok := ctx.Module().(*packageModule)
@@ -146,10 +141,7 @@ func makeLicensesContainer(propVals []string) licensesContainer {
 
 // Gathers the applicable licenses into dependency references after defaults expansion.
 func licensesPropertyGatherer(ctx BottomUpMutatorContext) {
-	m, ok := ctx.Module().(Module)
-	if !ok {
-		return
-	}
+	m := ctx.Module()
 
 	if exemptFromRequiredApplicableLicensesProperty(m) {
 		return
@@ -177,49 +169,12 @@ func licensesPropertyGatherer(ctx BottomUpMutatorContext) {
 	ctx.AddVariationDependencies(nil, licensesTag, fullyQualifiedLicenseNames...)
 }
 
-// Verifies the license and license_kind dependencies are each the correct kind of module.
-func licensesDependencyChecker(ctx BottomUpMutatorContext) {
-	m, ok := ctx.Module().(Module)
-	if !ok {
-		return
-	}
-
-	// license modules have no licenses, but license_kinds must refer to license_kind modules
-	if _, ok := m.(*licenseModule); ok {
-		for _, module := range ctx.GetDirectDepsWithTag(licenseKindTag) {
-			if _, ok := module.(*licenseKindModule); !ok {
-				ctx.ModuleErrorf("license_kinds property %q is not a license_kind module", ctx.OtherModuleName(module))
-			}
-		}
-		return
-	}
-
-	if exemptFromRequiredApplicableLicensesProperty(m) {
-		return
-	}
-
-	for _, module := range ctx.GetDirectDepsWithTag(licensesTag) {
-		if _, ok := module.(*licenseModule); !ok {
-			propertyName := "licenses"
-			primaryProperty := m.base().primaryLicensesProperty
-			if primaryProperty != nil {
-				propertyName = primaryProperty.getName()
-			}
-			ctx.ModuleErrorf("%s property %q is not a license module", propertyName, ctx.OtherModuleName(module))
-		}
-	}
-}
-
 // Flattens license and license_kind dependencies into calculated properties.
 //
-// Re-validates applicable licenses properties refer only to license modules and license_kinds properties refer
+// Validates applicable licenses properties refer only to license modules and license_kinds properties refer
 // only to license_kind modules.
 func licensesPropertyFlattener(ctx ModuleContext) {
-	m, ok := ctx.Module().(Module)
-	if !ok {
-		return
-	}
-
+	m := ctx.Module()
 	if exemptFromRequiredApplicableLicensesProperty(m) {
 		return
 	}

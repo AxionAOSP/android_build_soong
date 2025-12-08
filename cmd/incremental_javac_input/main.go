@@ -22,7 +22,7 @@ import (
 )
 
 func main() {
-	var classDir, srcs, deps, javacTarget, srcDepsProto, localHeaderJars string
+	var classDir, srcs, deps, javacTarget, srcDepsProto, localHeaderJars, crossModuleJarRsp string
 
 	flag.StringVar(&classDir, "classDir", "", "dir which will contain compiled java classes")
 	flag.StringVar(&srcs, "srcs", "", "rsp file containing java source paths")
@@ -30,6 +30,7 @@ func main() {
 	flag.StringVar(&javacTarget, "javacTarget", "", "javac output")
 	flag.StringVar(&srcDepsProto, "srcDepsProto", "", "dependency map between src files in a proto")
 	flag.StringVar(&localHeaderJars, "localHeaderJars", "", "rsp file enlisting all local header jars")
+	flag.StringVar(&crossModuleJarRsp, "crossModuleJarList", "", "rsp file listing all kotlin jars used for compilation")
 
 	flag.Parse()
 
@@ -58,7 +59,7 @@ func main() {
 	}
 
 	if srcs != "" {
-		err := iji_lib.GenerateIncrementalInput(classDir, srcs, deps, javacTarget, srcDepsProto, localHeaderJars)
+		err := iji_lib.GenerateIncrementalInput(classDir, srcs, deps, javacTarget, srcDepsProto, localHeaderJars, crossModuleJarRsp)
 		if err != nil {
 			panic("errored")
 		}

@@ -36,7 +36,12 @@ func TestLibraryHeaders(t *testing.T) {
 
 	for _, headerModule := range []string{"cc_library_headers", "cc_prebuilt_library_headers"} {
 		t.Run(headerModule, func(t *testing.T) {
-			ctx := testCc(t, fmt.Sprintf(bp, headerModule))
+			ctx := android.GroupFixturePreparers(
+				prepareForCcTest,
+				android.PrepareForTestWithAndroidMk,
+			).
+				RunTestWithBp(t, fmt.Sprintf(bp, headerModule)).
+				TestContext
 
 			// test if header search paths are correctly added
 			cc := ctx.ModuleForTests(t, "lib", "android_arm64_armv8-a_static").Rule("cc")
@@ -48,7 +53,6 @@ func TestLibraryHeaders(t *testing.T) {
 
 			// This duplicates the tests done in AndroidMkEntries.write. It would be
 			// better to test its output, but there are no test functions that capture that.
-			android.AssertBoolEquals(t, "AndroidMkEntries.Disabled", false, e.Disabled)
 			android.AssertBoolEquals(t, "AndroidMkEntries.OutputFile.Valid()", true, e.OutputFile.Valid())
 
 			android.AssertStringListContains(t, "LOCAL_EXPORT_CFLAGS for headers module", e.EntryMap["LOCAL_EXPORT_CFLAGS"], "-Imy_include")

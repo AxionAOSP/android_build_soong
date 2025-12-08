@@ -23,6 +23,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/java"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -73,14 +74,6 @@ var testPackageZipDepTag testPackageZipDepTagType
 
 var (
 	pctx = android.NewPackageContext("android/soong/ci_tests")
-	// test_package module type should only be used for the following modules.
-	moduleNamesAllowed = []string{
-		"continuous_instrumentation_tests",
-		"continuous_instrumentation_metric_tests",
-		"continuous_native_tests",
-		"continuous_native_metric_tests",
-		"platform_tests",
-	}
 )
 
 func (p *testPackageZip) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -175,17 +168,13 @@ func (p *testPackageZip) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	// Never install this test package, it's for disting only
 	p.SkipInstall()
 
-	if !android.InList(ctx.ModuleName(), moduleNamesAllowed) {
-		ctx.ModuleErrorf("%s is not allowed to use module type test_package", ctx.ModuleName())
-	}
-
 	p.output = createOutput(ctx, pctx)
 
 	ctx.SetOutputFiles(android.Paths{p.output}, "")
 }
 
-func getAllTestModules(ctx android.ModuleContext) []android.ModuleOrProxy {
-	var ret []android.ModuleOrProxy
+func getAllTestModules(ctx android.ModuleContext) []android.ModuleProxy {
+	var ret []android.ModuleProxy
 	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
 		if info, ok := android.OtherModuleProvider(ctx, child, android.CommonModuleInfoProvider); !ok || !info.Enabled {
 			return false
@@ -203,7 +192,7 @@ func getAllTestModules(ctx android.ModuleContext) []android.ModuleOrProxy {
 		}
 	})
 	ret = android.FirstUniqueInPlace(ret)
-	slices.SortFunc(ret, func(a, b android.ModuleOrProxy) int {
+	slices.SortFunc(ret, func(a, b android.ModuleProxy) int {
 		return cmp.Compare(a.String(), b.String())
 	})
 	return ret
@@ -227,6 +216,7 @@ func createOutput(ctx android.ModuleContext, pctx android.PackageContext) androi
 	}
 
 	createSymbolsZip(ctx, allTestModules)
+	createJacocoJar(ctx, allTestModules)
 
 	output := android.PathForModuleOut(ctx, ctx.ModuleName()+".zip")
 	builder.Command().
@@ -239,16 +229,24 @@ func createOutput(ctx android.ModuleContext, pctx android.PackageContext) androi
 	return output
 }
 
-func createSymbolsZip(ctx android.ModuleContext, allModules []android.ModuleOrProxy) {
+func createSymbolsZip(ctx android.ModuleContext, allModules []android.ModuleProxy) {
 	symbolsZipFile := android.PathForModuleOut(ctx, "symbols.zip")
 	symbolsMappingFile := android.PathForModuleOut(ctx, "symbols-mapping.textproto")
-	android.BuildSymbolsZip(ctx, allModules, symbolsZipFile, symbolsMappingFile)
+	android.BuildSymbolsZip(ctx, allModules, nil, symbolsZipFile, symbolsMappingFile)
 
 	ctx.SetOutputFiles(android.Paths{symbolsZipFile}, ".symbols")
 	ctx.SetOutputFiles(android.Paths{symbolsMappingFile}, ".elf_mapping")
 }
 
-func extendBuilderCommand(ctx android.ModuleContext, m android.ModuleOrProxy, builder *android.RuleBuilder, stagingDir android.ModuleOutPath, productOut, arch, secondArch string) {
+func createJacocoJar(ctx android.ModuleContext, allModules []android.ModuleProxy) {
+	if ctx.Config().JavaCoverageEnabled() {
+		jacocoJar := android.PathForModuleOut(ctx, ctx.ModuleName()+"_jacoco_report_classes.jar")
+		java.BuildJacocoZip(ctx, allModules, jacocoJar)
+		ctx.SetOutputFiles(android.Paths{jacocoJar}, ".jacoco")
+	}
+}
+
+func extendBuilderCommand(ctx android.ModuleContext, m android.ModuleProxy, builder *android.RuleBuilder, stagingDir android.ModuleOutPath, productOut, arch, secondArch string) {
 	info, ok := android.OtherModuleProvider(ctx, m, android.ModuleInfoJSONProvider)
 	if !ok {
 		ctx.OtherModuleErrorf(m, "doesn't set ModuleInfoJSON provider")

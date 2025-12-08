@@ -128,7 +128,7 @@ func rustSetToolchainSource(ctx android.LoadHookContext) {
 
 // GetRustPrebuiltVersion returns the RUST_PREBUILTS_VERSION env var, or the default version if it is not defined.
 func GetRustPrebuiltVersion(ctx android.LoadHookContext) string {
-	return ctx.AConfig().GetenvWithDefault("RUST_PREBUILTS_VERSION", config.RustDefaultVersion)
+	return ctx.Config().GetenvWithDefault("RUST_PREBUILTS_VERSION", config.RustDefaultVersion)
 }
 
 type toolchainRustcPrebuiltProperties struct {

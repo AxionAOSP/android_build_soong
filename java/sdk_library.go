@@ -415,7 +415,6 @@ var (
 		sdkVersion:    "system_server_current",
 		annotation:    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.SYSTEM_SERVER)",
 		extraArgs: []string{
-			"--hide-annotation", "android.annotation.Hide",
 			// com.android.* classes are okay in this interface"
 			"--hide", "InternalClasses",
 		},
@@ -680,11 +679,26 @@ type scopePaths struct {
 	// Includes unflagged apis and flagged apis enabled by release configurations.
 	exportableStubsDexJarPath OptionalDexJarPath
 
-	// The API specification file, e.g. system_current.txt.
+	// The API specification file, e.g. system-current.txt.
+	// This file is generated from Metalava by parsing all source Java files.
 	currentApiFilePath android.OptionalPath
 
 	// The specification of API elements removed since the last release.
 	removedApiFilePath android.OptionalPath
+
+	// The API specification file, e.g. system-current.txt file that is checked in to the tree.
+	// This file is already checked in to the tree, which is an output of the most recent
+	// update-api command. Thus, it may not correctly reflect all local API changes and may be
+	// out of date. This path can be nil if checkapi is disabled for this API scope, in which
+	// case the api file will not be generated.
+	checkedInCurrentApiFilePath android.OptionalPath
+
+	// The specification of API elements removed since the last release.
+	// This file is already checked in to the tree, which is an output of the most recent
+	// update-api command. Thus, it may not correctly reflect all local API changes and may be
+	// out of date. This path can be nil if checkapi is disabled for this API scope, in which
+	// case the api file will not be generated.
+	checkedInRemovedApiFilePath android.OptionalPath
 
 	// The stubs source jar.
 	stubsSrcJar android.OptionalPath
@@ -787,6 +801,8 @@ func (paths *scopePaths) extractApiInfoFromApiStubsProvider(provider *DroidStubs
 		paths.annotationsZip = android.OptionalPathForPath(info.AnnotationsZip)
 		paths.currentApiFilePath = android.OptionalPathForPath(info.ApiFile)
 		paths.removedApiFilePath = android.OptionalPathForPath(info.RemovedApiFile)
+		paths.checkedInCurrentApiFilePath = android.OptionalPathForPath(provider.CheckedInApiFile)
+		paths.checkedInRemovedApiFilePath = android.OptionalPathForPath(provider.CheckedInRemovedApiFile)
 	}
 	return combinedError
 }
@@ -1041,7 +1057,11 @@ const (
 
 	apiTxtComponentName = "api.txt"
 
+	checkedInApiTxtComponentName = "checked-in-api.txt"
+
 	removedApiTxtComponentName = "removed-api.txt"
+
+	checkedInRemovedApiFilePath = "checked-in-removed-api.txt"
 
 	annotationsComponentName = "annotations.zip"
 )
@@ -1056,10 +1076,12 @@ func (module *commonToSdkLibraryAndImport) setOutputFiles(ctx android.ModuleCont
 			continue
 		}
 		componentToOutput := map[string]android.OptionalPath{
-			stubsSourceComponentName:   paths.stubsSrcJar,
-			apiTxtComponentName:        paths.currentApiFilePath,
-			removedApiTxtComponentName: paths.removedApiFilePath,
-			annotationsComponentName:   paths.annotationsZip,
+			stubsSourceComponentName:     paths.stubsSrcJar,
+			apiTxtComponentName:          paths.currentApiFilePath,
+			removedApiTxtComponentName:   paths.removedApiFilePath,
+			checkedInApiTxtComponentName: paths.checkedInCurrentApiFilePath,
+			checkedInRemovedApiFilePath:  paths.checkedInRemovedApiFilePath,
+			annotationsComponentName:     paths.annotationsZip,
 		}
 		for _, component := range android.SortedKeys(componentToOutput) {
 			if componentToOutput[component].Valid() {
@@ -1405,15 +1427,13 @@ func (module *SdkLibrary) ComponentDepsMutator(ctx android.BottomUpMutatorContex
 		// Add a dependency on the stubs source in order to access both stubs source and api information.
 		ctx.AddVariationDependencies(nil, apiScope.stubsSourceAndApiTag, module.droidstubsModuleName(apiScope))
 
-		if module.compareAgainstLatestApi(apiScope) {
-			// Add dependencies on the latest finalized version of the API .txt file.
-			latestApiModuleName := module.latestApiModuleName(apiScope)
-			ctx.AddDependency(module, apiScope.latestApiModuleTag, latestApiModuleName)
+		// Add dependencies on the latest finalized version of the API .txt file.
+		latestApiModuleName := module.latestApiModuleName(apiScope)
+		ctx.AddDependency(module, apiScope.latestApiModuleTag, latestApiModuleName)
 
-			// Add dependencies on the latest finalized version of the remove API .txt file.
-			latestRemovedApiModuleName := module.latestRemovedApiModuleName(apiScope)
-			ctx.AddDependency(module, apiScope.latestRemovedApiModuleTag, latestRemovedApiModuleName)
-		}
+		// Add dependencies on the latest finalized version of the remove API .txt file.
+		latestRemovedApiModuleName := module.latestRemovedApiModuleName(apiScope)
+		ctx.AddDependency(module, apiScope.latestRemovedApiModuleTag, latestRemovedApiModuleName)
 	}
 
 	if module.requiresRuntimeImplementationLibrary() {
@@ -1438,9 +1458,6 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 	var missingApiModules []string
 	for _, apiScope := range module.getGeneratedApiScopes(ctx) {
-		if apiScope.unstable {
-			continue
-		}
 		if m := module.latestApiModuleName(apiScope); !ctx.OtherModuleExists(m) {
 			missingApiModules = append(missingApiModules, m)
 		}
@@ -1521,7 +1538,7 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	sdkLibInfo := module.generateCommonBuildActions(ctx)
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
-		module.hideApexVariantFromMake = true
+		module.HideFromMake()
 	}
 
 	if module.implLibraryInfo != nil {
@@ -1542,7 +1559,7 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		module.dexpreopter.configPath = module.implLibraryInfo.ConfigPath
 		module.dexpreopter.outputProfilePathOnHost = module.implLibraryInfo.DexpreopterInfo.OutputProfilePathOnHost
 
-		// Properties required for Library.AndroidMkEntries
+		// Properties required for Library.PrepareAndroidMKProviderInfo
 		module.logtagsSrcs = module.implLibraryInfo.LogtagsSrcs
 		module.dexpreopter.builtInstalled = module.implLibraryInfo.BuiltInstalled
 		module.jacocoInfo = module.implLibraryInfo.JacocoInfo
@@ -1604,6 +1621,8 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	if module.requiresRuntimeImplementationLibrary() && module.implLibraryInfo != nil {
 		generatingLibs = append(generatingLibs, module.implLibraryModuleName())
 		setOutputFilesFromJavaInfo(ctx, module.implLibraryInfo)
+	} else {
+		module.HideFromMake()
 	}
 
 	javaInfo := &JavaInfo{
@@ -1669,17 +1688,19 @@ func (module *SdkLibrary) ApexSystemServerDexJars() android.Paths {
 	return module.apexSystemServerDexJars
 }
 
-func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
-	if !module.requiresRuntimeImplementationLibrary() {
-		return nil
+func (module *SdkLibrary) PrepareAndroidMKProviderInfo(config android.Config) *android.AndroidMkProviderInfo {
+	info := module.Library.prepareAndroidMKProviderInfo(config)
+
+	if info.PrimaryInfo.OutputFile.Valid() {
+		info.PrimaryInfo.Required = append(info.PrimaryInfo.Required, module.implLibraryModuleName())
+		if module.sharedLibrary() {
+			info.PrimaryInfo.Required = append(info.PrimaryInfo.Required, module.xmlPermissionsModuleName())
+		}
 	}
-	entriesList := module.Library.AndroidMkEntries()
-	entries := &entriesList[0]
-	entries.Required = append(entries.Required, module.implLibraryModuleName())
-	if module.sharedLibrary() {
-		entries.Required = append(entries.Required, module.xmlPermissionsModuleName())
-	}
-	return entriesList
+
+	module.addHostDexAndroidMkInfo(info)
+
+	return info
 }
 
 // The dist path of the stub artifacts
@@ -1731,7 +1752,14 @@ func (module *SdkLibrary) latestApiFilegroupName(apiScope *apiScope) string {
 }
 
 func (module *SdkLibrary) latestApiModuleName(apiScope *apiScope) string {
-	return latestPrebuiltApiCombinedModuleName(module.distStem(), apiScope)
+	// If there is no latest API to check against then use a default module as
+	// Metalava always requires a previously released API to be provided to
+	// support reverting flagged APIs.
+	if module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api {
+		return "default-unsafe-ignore-missing-latest-api"
+	} else {
+		return latestPrebuiltApiCombinedModuleName(module.distStem(), apiScope)
+	}
 }
 
 func (module *SdkLibrary) latestRemovedApiFilegroupName(apiScope *apiScope) string {
@@ -1739,7 +1767,14 @@ func (module *SdkLibrary) latestRemovedApiFilegroupName(apiScope *apiScope) stri
 }
 
 func (module *SdkLibrary) latestRemovedApiModuleName(apiScope *apiScope) string {
-	return latestPrebuiltApiCombinedModuleName(module.distStem()+"-removed", apiScope)
+	// If there is no latest API to check against then use a default module as
+	// Metalava always requires a previously released API to be provided to
+	// support reverting flagged APIs.
+	if module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api {
+		return "default-unsafe-ignore-missing-latest-api"
+	} else {
+		return latestPrebuiltApiCombinedModuleName(module.distStem()+"-removed", apiScope)
+	}
 }
 
 func (module *SdkLibrary) latestIncompatibilitiesFilegroupName(apiScope *apiScope) string {
@@ -1747,7 +1782,14 @@ func (module *SdkLibrary) latestIncompatibilitiesFilegroupName(apiScope *apiScop
 }
 
 func (module *SdkLibrary) latestIncompatibilitiesModuleName(apiScope *apiScope) string {
-	return latestPrebuiltApiModuleName(module.distStem()+"-incompatibilities", apiScope)
+	// If there is no latest API to check against then use a default module as
+	// Metalava always requires a previously released API to be provided to
+	// support reverting flagged APIs.
+	if module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api {
+		return "default-unsafe-ignore-missing-latest-api"
+	} else {
+		return latestPrebuiltApiModuleName(module.distStem()+"-incompatibilities", apiScope)
+	}
 }
 
 // The listed modules' stubs contents do not match the corresponding txt files,
@@ -1774,6 +1816,9 @@ func childModuleVisibility(childVisibility []string) []string {
 	return visibility
 }
 
+// compareAgainstLatestApi determines whether the current API should be checked
+// against the latest API surface (as provided by [latestApiModuleName]) or not
+// for the purposes of ensuring backwards compatibility and API linting.
 func (module *SdkLibrary) compareAgainstLatestApi(apiScope *apiScope) bool {
 	return !(apiScope.unstable || module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api)
 }
@@ -1822,7 +1867,7 @@ func (module *SdkLibrary) getApiDir() string {
 // runtime libs and xml file. If requested, the stubs and docs are created twice
 // once for public API level and once for system API level
 func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookContext) {
-	if len(module.properties.Srcs) == 0 {
+	if len(module.properties.Srcs.GetOrDefault(module.ConfigurableEvaluator(mctx), nil)) == 0 {
 		mctx.PropertyErrorf("srcs", "java_sdk_library must specify srcs")
 		return
 	}
@@ -2249,7 +2294,7 @@ func (module *SdkLibraryImport) UniqueApexVariations() bool {
 }
 
 // MinSdkVersion - Implements hiddenAPIModule
-func (module *SdkLibraryImport) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+func (module *SdkLibraryImport) MinSdkVersion(ctx android.MinSdkVersionFromValueContext) android.ApiLevel {
 	return android.NoneApiLevel
 }
 
@@ -2291,7 +2336,9 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 		paths := module.getScopePathsCreateIfNeeded(apiScope)
 		paths.annotationsZip = android.OptionalPathForModuleSrc(ctx, scopeProperties.Annotations)
 		paths.currentApiFilePath = android.OptionalPathForModuleSrc(ctx, scopeProperties.Current_api)
+		paths.checkedInCurrentApiFilePath = android.OptionalPathForModuleSrc(ctx, scopeProperties.Current_api)
 		paths.removedApiFilePath = android.OptionalPathForModuleSrc(ctx, scopeProperties.Removed_api)
+		paths.checkedInRemovedApiFilePath = android.OptionalPathForModuleSrc(ctx, scopeProperties.Removed_api)
 	}
 
 	if ctx.Device() {
@@ -2509,7 +2556,7 @@ type scopeProperties struct {
 }
 
 type SdkVersionContext interface {
-	SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec
+	SdkVersion(ctx android.ConfigContext) android.SdkSpec
 	SystemModules() string
 }
 
@@ -2517,7 +2564,7 @@ type SdkVersionContextProviderImpl struct {
 	javaInfo *JavaInfo
 }
 
-func (s *SdkVersionContextProviderImpl) SdkVersion(_ android.EarlyModuleContext) android.SdkSpec {
+func (s *SdkVersionContextProviderImpl) SdkVersion(_ android.ConfigContext) android.SdkSpec {
 	return s.javaInfo.SdkVersion
 }
 func (s *SdkVersionContextProviderImpl) SystemModules() string {

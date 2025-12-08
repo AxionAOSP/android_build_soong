@@ -21,8 +21,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
+	"sync"
 
 	rc_proto "android/soong/cmd/release_config/release_config_proto"
 
@@ -42,11 +44,17 @@ type ReleaseConfigMap struct {
 	ReleaseConfigContributions map[string]*ReleaseConfigContribution
 
 	// Flags declared this directory's flag_declarations/*.textproto
-	FlagDeclarations []rc_proto.FlagDeclaration
+	FlagArtifactsForDecls FlagArtifacts
+
+	// Containers used in FlagDeclarations.
+	BuildFlagContainersMap map[string]bool
 
 	// Potential aconfig and build flag contributions in this map directory.
 	// This is used to detect errors.
 	FlagValueDirs map[string][]string
+
+	// The index for this ReleaseConfigMap
+	DirIndex int
 }
 
 type ReleaseConfigDirMap map[string]int
@@ -62,8 +70,11 @@ type ReleaseConfigs struct {
 	// Dictionary of flag_name:FlagDeclaration, with no overrides applied.
 	FlagArtifacts FlagArtifacts
 
+	// Containers used by build flags.
+	BuildFlagContainers []string
+
 	// Generated release configs artifact
-	Artifact rc_proto.ReleaseConfigsArtifact
+	Artifact *rc_proto.ReleaseConfigsArtifact
 
 	// Dictionary of name:ReleaseConfig
 	// Use `GetReleaseConfigs(name)` to get a release config.
@@ -72,9 +83,6 @@ type ReleaseConfigs struct {
 	// Map of directory to *ReleaseConfigMap
 	releaseConfigMapsMap map[string]*ReleaseConfigMap
 
-	// The files used by all release configs
-	FilesUsedMap map[string]bool
-
 	// The list of config directories used.
 	configDirs []string
 
@@ -82,13 +90,22 @@ type ReleaseConfigs struct {
 	// directories.
 	configDirIndexes ReleaseConfigDirMap
 
+	// The TARGET_BUILD_VARIANT.
+	targetBuildVariant string
+
 	// True if we should allow a missing primary release config.  In this
 	// case, we will substitute `trunk_staging` values, but the release
 	// config will not be in ALL_RELEASE_CONFIGS_FOR_PRODUCT.
 	allowMissing bool
+
+	// Hash of all the paths used and their contents.
+	FilesUsedHash []byte
 }
 
 func (configs *ReleaseConfigs) WriteInheritanceGraph(outFile string) error {
+	if configs.Artifact == nil {
+		return fmt.Errorf("all_release_configs artifact has not been generated yet")
+	}
 	data := []string{}
 	usedAliases := make(map[string]bool)
 	priorStages := make(map[string][]string)
@@ -170,12 +187,19 @@ func (configs *ReleaseConfigs) WriteInheritanceGraph(outFile string) error {
 //
 //	error: Any error encountered.
 func (configs *ReleaseConfigs) WriteArtifact(outDir, product, format string) error {
+	if configs.Artifact == nil {
+		return fmt.Errorf("all_release_configs artifact has not been generated yet")
+	}
 	return WriteMessage(
-		filepath.Join(outDir, fmt.Sprintf("all_release_configs-%s.%s", product, format)),
-		&configs.Artifact)
+		configs.AllReleaseConfigsPath(outDir, product, format),
+		configs.Artifact)
 }
 
-func ReleaseConfigsFactory() (c *ReleaseConfigs) {
+func (configs *ReleaseConfigs) AllReleaseConfigsPath(outDir, product, format string) string {
+	return filepath.Join(outDir, fmt.Sprintf("all_release_configs-%s.%s", product, format))
+}
+
+func ReleaseConfigsFactory(allowMissing bool, targetBuildVariant string) (c *ReleaseConfigs) {
 	configs := ReleaseConfigs{
 		Aliases:              make(map[string]*string),
 		FlagArtifacts:        make(map[string]*FlagArtifact),
@@ -183,7 +207,8 @@ func ReleaseConfigsFactory() (c *ReleaseConfigs) {
 		releaseConfigMapsMap: make(map[string]*ReleaseConfigMap),
 		configDirs:           []string{},
 		configDirIndexes:     make(ReleaseConfigDirMap),
-		FilesUsedMap:         make(map[string]bool),
+		allowMissing:         allowMissing,
+		targetBuildVariant:   targetBuildVariant,
 	}
 	workflowManual := rc_proto.Workflow(rc_proto.Workflow_MANUAL)
 	releaseAconfigValueSets := FlagArtifact{
@@ -212,10 +237,13 @@ func (configs *ReleaseConfigs) GetSortedReleaseConfigs() (ret []*ReleaseConfig) 
 	return ret
 }
 
-func ReleaseConfigMapFactory(protoPath string) (m *ReleaseConfigMap, err error) {
+func ReleaseConfigMapFactory(protoPath string, idx int) (m *ReleaseConfigMap, err error) {
 	m = &ReleaseConfigMap{
 		path:                       protoPath,
 		ReleaseConfigContributions: make(map[string]*ReleaseConfigContribution),
+		DirIndex:                   idx,
+		FlagArtifactsForDecls:      make(FlagArtifacts),
+		BuildFlagContainersMap:     make(map[string]bool),
 	}
 	if protoPath == "" {
 		return m, nil
@@ -228,33 +256,9 @@ func ReleaseConfigMapFactory(protoPath string) (m *ReleaseConfigMap, err error) 
 		if !validContainer(container) {
 			return nil, fmt.Errorf("Release config map %s has invalid container %s", protoPath, container)
 		}
+		m.BuildFlagContainersMap[container] = true
 	}
 	return m, nil
-}
-
-func ReleaseConfigContributionFactory(protoPath string, dirIndex int) (rcc *ReleaseConfigContribution, err error) {
-	rcc = &ReleaseConfigContribution{path: protoPath, DeclarationIndex: dirIndex}
-	if protoPath == "" {
-		return rcc, nil
-	}
-	LoadMessage(protoPath, &rcc.proto)
-
-	switch {
-	case rcc.proto.Name == nil:
-		return nil, fmt.Errorf("%s does not specify name", protoPath)
-	case fmt.Sprintf("%s.textproto", *rcc.proto.Name) != filepath.Base(protoPath):
-		return nil, fmt.Errorf("%s incorrectly declares release config %s", protoPath, *rcc.proto.Name)
-	}
-
-	// Provide a default value for ReleaseConfigType if not specified.
-	if rcc.proto.ReleaseConfigType == nil {
-		if *rcc.proto.Name == "root" {
-			rcc.proto.ReleaseConfigType = rc_proto.ReleaseConfigType_EXPLICIT_INHERITANCE_CONFIG.Enum()
-		} else {
-			rcc.proto.ReleaseConfigType = rc_proto.ReleaseConfigType_RELEASE_CONFIG.Enum()
-		}
-	}
-	return rcc, nil
 }
 
 // Find the top of the release config contribution directory.
@@ -295,12 +299,195 @@ func EnumerateReleaseConfigs(dir string) ([]string, error) {
 	return ret, err
 }
 
-func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex int, declarationsOnly bool) error {
-	if _, err := os.Stat(path); err != nil {
-		return fmt.Errorf("%s does not exist\n", path)
+type declReq struct {
+	Map  *ReleaseConfigMap
+	Path *string
+}
+
+type declInfo struct {
+	Req      *declReq
+	Artifact *FlagArtifact
+}
+
+type contribReq struct {
+	Map  *ReleaseConfigMap
+	Path *string
+}
+
+type contribInfo struct {
+	Req     *contribReq
+	Contrib *ReleaseConfigContribution
+}
+
+type valueReq struct {
+	Map        *ReleaseConfigMap
+	ConfigName *string
+	Path       *string
+}
+
+type valueInfo struct {
+	Req   *valueReq
+	Value *FlagValue
+}
+
+type fileInfo struct {
+	decl    *declInfo
+	contrib *contribInfo
+	value   *valueInfo
+}
+
+type loadContext struct {
+	declarationsOnly bool
+	errorsChan       chan error
+	errorsWg         sync.WaitGroup
+
+	// WaitGroup for threads processing a directory.
+	dirReaderWg sync.WaitGroup
+
+	// Requests to read a flag_declarations/ file and send it to declHandlerChan.
+	declReaderChan chan *declReq
+	declReaderWg   sync.WaitGroup
+	//declHandlerChan chan *declInfo
+
+	// Requests to read a release_configs/ file and send it to contribHandlerChan
+	contribReaderChan chan *contribReq
+	contribReaderWg   sync.WaitGroup
+	//contribHandlerChan chan *contribInfo
+
+	// Requests to read flag_values/ file and send it to valueHandlerChan
+	valueReaderChan chan *valueReq
+	valueReaderWg   sync.WaitGroup
+	//valueHandlerChan chan *valueInfo
+
+	// Reads and processes data from declHandlerChan, contribHandlerChan, and
+	// valueHandlerChan.
+	infoHandlerWg   sync.WaitGroup
+	infoHandlerChan chan *fileInfo
+}
+
+func createLoadContext(configs *ReleaseConfigs, declarationsOnly bool) (ctx *loadContext) {
+	startFileRecord()
+	numCPU := runtime.NumCPU()
+	ctx = &loadContext{
+		declarationsOnly:  declarationsOnly,
+		errorsChan:        make(chan error, 40),
+		declReaderChan:    make(chan *declReq, 20),
+		contribReaderChan: make(chan *contribReq, 20),
+		valueReaderChan:   make(chan *valueReq, 20),
+		infoHandlerChan:   make(chan *fileInfo),
 	}
-	m, err := ReleaseConfigMapFactory(path)
-	configs.FilesUsedMap[path] = true
+	// dirReader funcs are added as we read directories.
+	// Create several threads to read flag_declarations, release_configs,
+	// and flag_values files.
+	for i := 0; i < numCPU; i++ {
+		ctx.declReaderWg.Add(1)
+		go ctx.declReader()
+		ctx.valueReaderWg.Add(1)
+		go ctx.valueReader()
+		ctx.contribReaderWg.Add(1)
+		go ctx.contribReader()
+	}
+	// Only one thread to process all of the info as it arrives.
+	ctx.infoHandlerWg.Add(1)
+	go ctx.infoHandler()
+	// After we finish collecting all of the textproto files, Finalize() will
+	// do validation and set final values based on all the textproto files that
+	// were read.
+	return ctx
+}
+
+func (ctx *loadContext) declReader() {
+	defer ctx.declReaderWg.Done()
+	for req := range ctx.declReaderChan {
+		fa, err := FlagArtifactFactory(*req.Path, req.Map.DirIndex)
+		if err != nil {
+			ctx.errorsChan <- err
+			continue
+		}
+		// If not given, set Containers to the default for this directory.
+		if fa.FlagDeclaration.Containers == nil {
+			fa.FlagDeclaration.Containers = req.Map.proto.DefaultContainers
+		}
+		name := *fa.FlagDeclaration.Name
+		if fa.Redacted {
+			ctx.errorsChan <- fmt.Errorf("%s may not be redacted by default.", name)
+			continue
+		}
+		ctx.infoHandlerChan <- &fileInfo{decl: &declInfo{Req: req, Artifact: fa}}
+	}
+}
+
+func (ctx *loadContext) infoHandler() {
+	defer ctx.infoHandlerWg.Done()
+	for info := range ctx.infoHandlerChan {
+		if info.decl != nil {
+			m := info.decl.Req.Map
+			m.FlagArtifactsForDecls[*info.decl.Artifact.FlagDeclaration.Name] = info.decl.Artifact
+			for _, container := range info.decl.Artifact.FlagDeclaration.GetContainers() {
+				m.BuildFlagContainersMap[container] = true
+			}
+		} else if info.contrib != nil {
+			// information from a release_configs/ file.
+			name := *info.contrib.Contrib.proto.Name
+			m := info.contrib.Req.Map
+			if def, ok := m.ReleaseConfigContributions[name]; ok {
+				// We have already processed flag_values for this release config contribution.
+				info.contrib.Contrib.FlagValues = def.FlagValues
+			}
+			m.ReleaseConfigContributions[name] = info.contrib.Contrib
+		} else if info.value != nil {
+			// information from a flag_values/ file.
+			m := info.value.Req.Map
+			// The flag_values/ info may arrive before the release_configs/ info.
+			var err error
+			rcc, ok := m.ReleaseConfigContributions[*info.value.Req.ConfigName]
+			if !ok {
+				rcc, err = ReleaseConfigContributionFactory("", m.DirIndex)
+				if err != nil {
+					ctx.errorsChan <- err
+					continue
+				}
+				m.ReleaseConfigContributions[*info.value.Req.ConfigName] = rcc
+			}
+			rcc.FlagValues[*info.value.Value.proto.Name] = info.value.Value
+		} else {
+			ctx.errorsChan <- fmt.Errorf("Unparsable read result: %v", *info)
+		}
+	}
+}
+
+func (ctx *loadContext) contribReader() {
+	defer ctx.contribReaderWg.Done()
+	for req := range ctx.contribReaderChan {
+		rcc, err := ReleaseConfigContributionFactory(*req.Path, req.Map.DirIndex)
+		if err != nil {
+			ctx.errorsChan <- err
+			continue
+		}
+		ctx.infoHandlerChan <- &fileInfo{contrib: &contribInfo{Req: req, Contrib: rcc}}
+	}
+}
+
+func (ctx *loadContext) valueReader() {
+	defer ctx.valueReaderWg.Done()
+	for req := range ctx.valueReaderChan {
+		value, err := FlagValueFactory(*req.Path)
+		if err != nil {
+			ctx.errorsChan <- err
+			continue
+		}
+		ctx.infoHandlerChan <- &fileInfo{value: &valueInfo{Req: req, Value: value}}
+	}
+}
+
+func (configs *ReleaseConfigs) LoadReleaseConfigMap(ctx *loadContext, path string, ConfigDirIndex int, declarationsOnly bool) (*ReleaseConfigMap, error) {
+	if _, err := os.Stat(path); err != nil {
+		return nil, fmt.Errorf("%s does not exist\n", path)
+	}
+	m, err := ReleaseConfigMapFactory(path, ConfigDirIndex)
+	if err != nil {
+		return nil, err
+	}
 	dir := filepath.Dir(path)
 	// Record any aliases, checking for duplicates.
 	for _, alias := range m.proto.Aliases {
@@ -308,17 +495,19 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 		oldTarget, ok := configs.Aliases[name]
 		if ok {
 			if *oldTarget != *alias.Target {
-				return fmt.Errorf("Conflicting alias declarations: %s vs %s",
+				ctx.errorsChan <- fmt.Errorf("Conflicting alias declarations: %s vs %s",
 					*oldTarget, *alias.Target)
+				continue
 			}
 		}
 		configs.Aliases[name] = alias.Target
 	}
+
 	// Temporarily allowlist duplicate flag declaration files to prevent
 	// more from entering the tree while we work to clean up the duplicates
 	// that already exist.
 	dupFlagFile := filepath.Join(dir, "duplicate_allowlist.txt")
-	data, err := os.ReadFile(dupFlagFile)
+	data, err := ReadTrackedFile(dupFlagFile)
 	if err == nil {
 		for _, flag := range strings.Split(string(data), "\n") {
 			flag = strings.TrimSpace(flag)
@@ -328,45 +517,31 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 			DuplicateDeclarationAllowlist[flag] = true
 		}
 	}
-	var declarationErrors []error
+
 	err = WalkTextprotoFiles(dir, "flag_declarations", func(path string, d fs.DirEntry, err error) error {
 		// Gather up all errors found in flag declarations and report them together, so that it is easier to
 		// find all of the duplicate declarations, for example.
-		flagDeclaration, err := FlagDeclarationFactory(path)
-		if err != nil {
-			declarationErrors = append(declarationErrors, err)
-			return nil
-		}
-		// If not given, set Containers to the default for this directory.
-		if flagDeclaration.Containers == nil {
-			flagDeclaration.Containers = m.proto.DefaultContainers
+		ctx.declReaderChan <- &declReq{
+			Map:  m,
+			Path: &path,
 		}
 
-		m.FlagDeclarations = append(m.FlagDeclarations, *flagDeclaration)
-		name := *flagDeclaration.Name
-		if def, ok := configs.FlagArtifacts[name]; !ok {
-			configs.FlagArtifacts[name] = &FlagArtifact{FlagDeclaration: flagDeclaration, DeclarationIndex: ConfigDirIndex}
-		} else if !proto.Equal(def.FlagDeclaration, flagDeclaration) || !DuplicateDeclarationAllowlist[name] {
-			declarationErrors = append(declarationErrors, fmt.Errorf("Duplicate definition of %s in %s", *flagDeclaration.Name, path))
-			return nil
-		}
 		// Set the initial value in the flag artifact.
-		configs.FilesUsedMap[path] = true
-		configs.FlagArtifacts[name].UpdateValue(
-			FlagValue{path: path, proto: rc_proto.FlagValue{
-				Name: proto.String(name), Value: flagDeclaration.Value}})
-		if configs.FlagArtifacts[name].Redacted {
-			declarationErrors = append(declarationErrors, fmt.Errorf("%s may not be redacted by default.", name))
-			return nil
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	err = WalkTextprotoFiles(dir, "release_configs", func(path string, d fs.DirEntry, err error) error {
+		ctx.contribReaderChan <- &contribReq{
+			Map:  m,
+			Path: &path,
 		}
 		return nil
 	})
 	if err != nil {
-		// While we no longer return an error, if we do later, we need to also report that error.
-		declarationErrors = append(declarationErrors, err)
-	}
-	if len(declarationErrors) > 0 {
-		return errors.Join(declarationErrors...)
+		return nil, err
 	}
 
 	subDirs := func(subdir string) (ret []string) {
@@ -384,80 +559,46 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 		"flag_values": subDirs("flag_values"),
 	}
 
-	err = WalkTextprotoFiles(dir, "release_configs", func(path string, d fs.DirEntry, err error) error {
-		rcc, err := ReleaseConfigContributionFactory(path, ConfigDirIndex)
-		if err != nil {
-			return err
-		}
-		name := *rcc.proto.Name
-		if _, ok := configs.ReleaseConfigs[name]; !ok {
-			configs.ReleaseConfigs[name] = ReleaseConfigFactory(name, ConfigDirIndex)
-			configs.ReleaseConfigs[name].ReleaseConfigType = *rcc.proto.ReleaseConfigType
-		}
-		config := configs.ReleaseConfigs[name]
-		if config.ReleaseConfigType != *rcc.proto.ReleaseConfigType {
-			return fmt.Errorf("%s mismatching ReleaseConfigType value %s", path, *rcc.proto.ReleaseConfigType)
-		}
-		config.FilesUsedMap[path] = true
-		config.DisallowLunchUse = config.DisallowLunchUse || rcc.proto.GetDisallowLunchUse()
-		inheritNames := make(map[string]bool)
-		for _, inh := range config.InheritNames {
-			inheritNames[inh] = true
-		}
-		// If this contribution says to inherit something we already inherited, we do not want the duplicate.
-		for _, cInh := range rcc.proto.Inherits {
-			if !inheritNames[cInh] {
-				config.InheritNames = append(config.InheritNames, cInh)
-				inheritNames[cInh] = true
-			}
-		}
-
-		if !declarationsOnly {
-			// Only walk flag_values/{RELEASE} for defined releases.
-			err2 := WalkTextprotoFiles(dir, filepath.Join("flag_values", name), func(path string, d fs.DirEntry, err error) error {
-				flagValue, err := FlagValueFactory(path)
-				if err != nil {
-					return err
+	if !declarationsOnly {
+		for _, rcName := range m.FlagValueDirs["flag_values"] {
+			err := WalkTextprotoFiles(dir, filepath.Join("flag_values", rcName), func(path string, d fs.DirEntry, err error) error {
+				ctx.valueReaderChan <- &valueReq{
+					Map:        m,
+					ConfigName: &rcName,
+					Path:       &path,
 				}
-				config.FilesUsedMap[path] = true
-				rcc.FlagValues = append(rcc.FlagValues, flagValue)
 				return nil
 			})
-			if err2 != nil {
-				return err2
+			if err != nil {
+				return nil, err
 			}
 		}
-		if rcc.proto.GetAconfigFlagsOnly() {
-			config.AconfigFlagsOnly = true
-		}
-		m.ReleaseConfigContributions[name] = rcc
-		config.Contributions = append(config.Contributions, rcc)
-		return nil
-	})
-	if err != nil {
-		return err
 	}
-	configs.ReleaseConfigMaps = append(configs.ReleaseConfigMaps, m)
+
 	configs.releaseConfigMapsMap[dir] = m
-	return nil
+	return m, nil
 }
 
 func (configs *ReleaseConfigs) GetReleaseConfig(name string) (*ReleaseConfig, error) {
-	return configs.getReleaseConfig(name, configs.allowMissing)
+	return configs.getReleaseConfig(name, configs.allowMissing, true)
 }
 
 func (configs *ReleaseConfigs) GetReleaseConfigStrict(name string) (*ReleaseConfig, error) {
-	return configs.getReleaseConfig(name, false)
+	return configs.getReleaseConfig(name, false, true)
 }
 
-func (configs *ReleaseConfigs) getReleaseConfig(name string, allow_missing bool) (*ReleaseConfig, error) {
+func (configs *ReleaseConfigs) getReleaseConfig(name string, allow_missing bool, generate bool) (*ReleaseConfig, error) {
 	trace := []string{name}
 	for target, ok := configs.Aliases[name]; ok; target, ok = configs.Aliases[name] {
 		name = *target
 		trace = append(trace, name)
 	}
 	if config, ok := configs.ReleaseConfigs[name]; ok {
-		return config, nil
+		var err error
+		if generate {
+			err = config.GenerateReleaseConfig(configs)
+		}
+		return config, err
 	}
 	if allow_missing {
 		if config, ok := configs.ReleaseConfigs["trunk_staging"]; ok {
@@ -479,64 +620,28 @@ func (configs *ReleaseConfigs) GetAllReleaseNames() []string {
 	return allReleaseNames
 }
 
-func (configs *ReleaseConfigs) GenerateReleaseConfigs(targetRelease string) error {
-	otherNames := make(map[string][]string)
-	for aliasName, aliasTarget := range configs.Aliases {
-		if _, ok := configs.ReleaseConfigs[aliasName]; ok {
-			return fmt.Errorf("Alias %s is a declared release config", aliasName)
-		}
-		if _, ok := configs.ReleaseConfigs[*aliasTarget]; !ok {
-			if _, ok2 := configs.Aliases[*aliasTarget]; !ok2 {
-				return fmt.Errorf("Alias %s points to non-existing config %s", aliasName, *aliasTarget)
-			}
-		}
-		otherNames[*aliasTarget] = append(otherNames[*aliasTarget], aliasName)
+func (configs *ReleaseConfigs) GenerateAllReleaseConfigs(targetRelease string) error {
+	if configs.Artifact != nil {
+		return nil
 	}
-	for name, aliases := range otherNames {
-		configs.ReleaseConfigs[name].OtherNames = aliases
+	releaseConfig, err := configs.getReleaseConfig(targetRelease, configs.allowMissing, false)
+	if err != nil {
+		return err
 	}
-
 	sortedReleaseConfigs := configs.GetSortedReleaseConfigs()
+	orc := []*rc_proto.ReleaseConfigArtifact{}
+
 	for _, c := range sortedReleaseConfigs {
 		err := c.GenerateReleaseConfig(configs)
 		if err != nil {
 			return err
 		}
-	}
-
-	// Look for ignored flagging values.  Gather the entire list to make it easier to fix them.
-	errors := []string{}
-	for _, contrib := range configs.ReleaseConfigMaps {
-		dirName := filepath.Dir(contrib.path)
-		for k, names := range contrib.FlagValueDirs {
-			for _, rcName := range names {
-				if config, err := configs.getReleaseConfig(rcName, false); err == nil {
-					rcPath := filepath.Join(dirName, "release_configs", fmt.Sprintf("%s.textproto", config.Name))
-					if _, err := os.Stat(rcPath); err != nil {
-						errors = append(errors, fmt.Sprintf("%s exists but %s does not contribute to %s",
-							filepath.Join(dirName, k, rcName), dirName, config.Name))
-					}
-				}
-
-			}
-		}
-	}
-	if len(errors) > 0 {
-		return fmt.Errorf("%s", strings.Join(errors, "\n"))
-	}
-
-	releaseConfig, err := configs.GetReleaseConfig(targetRelease)
-	if err != nil {
-		return err
-	}
-	orc := []*rc_proto.ReleaseConfigArtifact{}
-	for _, c := range sortedReleaseConfigs {
 		if c.Name != releaseConfig.Name {
 			orc = append(orc, c.ReleaseConfigArtifact)
 		}
 	}
 
-	configs.Artifact = rc_proto.ReleaseConfigsArtifact{
+	configs.Artifact = &rc_proto.ReleaseConfigsArtifact{
 		ReleaseConfig:       releaseConfig.ReleaseConfigArtifact,
 		OtherReleaseConfigs: orc,
 		ReleaseConfigMapsMap: func() map[string]*rc_proto.ReleaseConfigMap {
@@ -550,7 +655,12 @@ func (configs *ReleaseConfigs) GenerateReleaseConfigs(targetRelease string) erro
 	return nil
 }
 
-func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease string, useBuildVar, allowMissing, declarationsOnly bool) (*ReleaseConfigs, error) {
+func (configs *ReleaseConfigs) GenerateReleaseConfigs(targetRelease string) error {
+	_, err := configs.GetReleaseConfig(targetRelease)
+	return err
+}
+
+func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease, variant string, useBuildVar, allowMissing, declarationsOnly bool) (*ReleaseConfigs, error) {
 	var err error
 
 	if len(releaseConfigMapPaths) == 0 {
@@ -566,11 +676,20 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease strin
 		}
 	}
 
-	configs := ReleaseConfigsFactory()
-	configs.allowMissing = allowMissing
+	configs := ReleaseConfigsFactory(allowMissing, variant)
+	ctx := createLoadContext(configs, declarationsOnly)
+
+	var loadErrors []error
+	ctx.errorsWg.Add(1)
+	go func() {
+		defer ctx.errorsWg.Done()
+		for err := range ctx.errorsChan {
+			loadErrors = append(loadErrors, err)
+		}
+	}()
+
 	mapsRead := make(map[string]bool)
 	var idx int
-	var loadErrors []error
 	for _, releaseConfigMapPath := range releaseConfigMapPaths {
 		// Maintain an ordered list of release config directories.
 		configDir := filepath.Dir(releaseConfigMapPath)
@@ -582,17 +701,125 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease strin
 		configs.configDirs = append(configs.configDirs, configDir)
 		// Force the path to be the textproto path, so that both the scl and textproto formats can coexist.
 		releaseConfigMapPath = filepath.Join(configDir, "release_config_map.textproto")
-		err = configs.LoadReleaseConfigMap(releaseConfigMapPath, idx, declarationsOnly)
+		m, err := configs.LoadReleaseConfigMap(ctx, releaseConfigMapPath, idx, declarationsOnly)
 		if err != nil {
-			loadErrors = append(loadErrors, err)
+			ctx.errorsChan <- err
 		}
+		configs.ReleaseConfigMaps = append(configs.ReleaseConfigMaps, m)
+		configs.releaseConfigMapsMap[configDir] = m
 		idx += 1
 	}
+
+	// Finish starting all of the file reads
+	ctx.dirReaderWg.Wait()
+	close(ctx.declReaderChan)
+	close(ctx.contribReaderChan)
+	close(ctx.valueReaderChan)
+
+	// Wait for all file reads to complete
+	ctx.declReaderWg.Wait()
+	ctx.contribReaderWg.Wait()
+	ctx.valueReaderWg.Wait()
+	close(ctx.infoHandlerChan)
+	// Finish processing info from the reads.
+	ctx.infoHandlerWg.Wait()
+
+	configs.Finalize(ctx, targetRelease)
+	close(ctx.errorsChan)
+	ctx.errorsWg.Wait()
+	configs.FilesUsedHash = finishFileRecord()
 	if len(loadErrors) > 0 {
 		return nil, errors.Join(loadErrors...)
 	}
 
-	// Now that we have all of the release config maps, can meld them and generate the artifacts.
+	// Now that we have all of the release config maps, can meld them and generate the active config.
 	err = configs.GenerateReleaseConfigs(targetRelease)
 	return configs, err
+}
+
+func (configs *ReleaseConfigs) Finalize(ctx *loadContext, targetRelease string) error {
+	buildFlagContainersMap := make(map[string]bool)
+	for _, m := range configs.ReleaseConfigMaps {
+		dirName := filepath.Dir(m.path)
+		for _, fa := range m.FlagArtifactsForDecls {
+			name := *fa.FlagDeclaration.Name
+			path := *fa.DeclarationPath
+			if def, ok := configs.FlagArtifacts[name]; !ok {
+				configs.FlagArtifacts[name] = fa
+			} else if !proto.Equal(def.FlagDeclaration, fa.FlagDeclaration) || !DuplicateDeclarationAllowlist[name] {
+				ctx.errorsChan <- fmt.Errorf("Duplicate definition of %s in %s and %s", name, path,
+					*configs.FlagArtifacts[name].DeclarationPath)
+				continue
+			} else {
+				// Note the second definition in the trace.
+				configs.FlagArtifacts[name].Traces = append(configs.FlagArtifacts[name].Traces, fa.Traces...)
+			}
+			for container := range m.BuildFlagContainersMap {
+				buildFlagContainersMap[container] = true
+			}
+		}
+
+		for name, rcc := range m.ReleaseConfigContributions {
+			if _, ok := configs.ReleaseConfigs[name]; !ok {
+				configs.ReleaseConfigs[name] = ReleaseConfigFactory(name, m.DirIndex)
+				configs.ReleaseConfigs[name].ReleaseConfigType = rcc.proto.GetReleaseConfigType()
+			}
+			config := configs.ReleaseConfigs[name]
+			if config.ReleaseConfigType != *rcc.proto.ReleaseConfigType {
+				ctx.errorsChan <- fmt.Errorf("%s mismatching ReleaseConfigType value %s", rcc.path, *rcc.proto.ReleaseConfigType)
+				continue
+			}
+
+			for _, inh := range rcc.proto.Inherits {
+				if !config.inheritNamesMap[inh] {
+					config.InheritNames = append(config.InheritNames, inh)
+					config.inheritNamesMap[inh] = true
+				}
+			}
+			config.AconfigFlagsOnly = config.AconfigFlagsOnly || rcc.proto.GetAconfigFlagsOnly()
+			config.DisallowLunchUse = config.DisallowLunchUse || rcc.proto.GetDisallowLunchUse()
+			config.Contributions = append(config.Contributions, rcc)
+		}
+		// Look for flag values for release configs that are not declared in `release_configs/`.
+		for k, names := range m.FlagValueDirs {
+			for _, rcName := range names {
+				if strings.HasSuffix(rcName, "_ro_snapshot") {
+					continue
+				}
+				rcPath := filepath.Join(dirName, "release_configs", fmt.Sprintf("%s.textproto", rcName))
+				if _, err := os.Stat(rcPath); err != nil {
+					ctx.errorsChan <- fmt.Errorf("%s exists but %s does not contribute to %s",
+						filepath.Join(dirName, k, rcName), dirName, rcName)
+				}
+			}
+		}
+	}
+	for k := range buildFlagContainersMap {
+		configs.BuildFlagContainers = append(configs.BuildFlagContainers, k)
+	}
+	slices.Sort(configs.BuildFlagContainers)
+
+	// Link all of the aliases.
+	otherNames := make(map[string][]string)
+	for aliasName, aliasTarget := range configs.Aliases {
+		if _, ok := configs.ReleaseConfigs[aliasName]; ok {
+			ctx.errorsChan <- fmt.Errorf("Alias %s is a declared release config", aliasName)
+		}
+		if _, ok := configs.ReleaseConfigs[*aliasTarget]; !ok {
+			if _, ok2 := configs.Aliases[*aliasTarget]; !ok2 {
+				ctx.errorsChan <- fmt.Errorf("Alias %s points to non-existing config %s", aliasName, *aliasTarget)
+			}
+		}
+		otherNames[*aliasTarget] = append(otherNames[*aliasTarget], aliasName)
+	}
+	for name, aliases := range otherNames {
+		configs.ReleaseConfigs[name].OtherNames = aliases
+	}
+
+	return nil
+}
+
+// Write the depfile for this release config run.
+func (configs *ReleaseConfigs) WriteHashFile(hashFilePath string) error {
+	return os.WriteFile(hashFilePath, configs.FilesUsedHash, 0644)
 }

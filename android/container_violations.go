@@ -1400,7 +1400,7 @@ var ContainerDependencyViolationAllowlist = map[string][]string{
 		"framework", // cts -> unstable
 	},
 
-	"StableNetHttpCoverageTests": {
+	"stable_cronet_NetHttpCoverageTests": {
 		"framework", // cts -> unstable
 	},
 

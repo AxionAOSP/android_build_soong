@@ -36,8 +36,8 @@ import (
 // NewSourceFinder returns a new Finder configured to search for source files.
 // Callers of NewSourceFinder should call <f.Shutdown()> when done
 func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
-	ctx.BeginTrace(metrics.RunSetupTool, "find modules")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.RunSetupTool, "find modules")
+	defer e.End()
 
 	// Set up the working directory for the Finder.
 	dir, err := os.Getwd()

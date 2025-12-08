@@ -17,6 +17,7 @@ package java
 // This file contains the module implementations for android_app_import and android_test_import.
 
 import (
+	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -103,8 +104,6 @@ type AndroidAppImport struct {
 	usesLibrary usesLibrary
 
 	installPath android.InstallPath
-
-	hideApexVariantFromMake bool
 }
 
 type AndroidAppImportProperties struct {
@@ -153,6 +152,9 @@ type AndroidAppImportProperties struct {
 
 	// Optional. Install to a subdirectory of the default install path for the module
 	Relative_install_path *string
+
+	// Optional. Control the install path without module name subdirectory.
+	Install_path_skip_module_dir *bool
 
 	// Whether the prebuilt apk can be installed without additional processing. Default is false.
 	Preprocessed proptools.Configurable[bool] `android:"replace_instead_of_append"`
@@ -383,7 +385,9 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
-		a.hideApexVariantFromMake = true
+		// The non-platform variant is placed inside APEX. No reason to
+		// make it available to Make.
+		a.HideFromMake()
 	}
 
 	if a.properties.Preprocessed.GetOrDefault(ctx, false) {
@@ -431,13 +435,17 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 
 	var pathFragments []string
 	relInstallPath := String(a.properties.Relative_install_path)
+	if !proptools.Bool(a.properties.Install_path_skip_module_dir) {
+		// Default add module name folder into install path.
+		relInstallPath = filepath.Join(relInstallPath, a.BaseModuleName())
+	}
 
 	if Bool(a.properties.Privileged) {
-		pathFragments = []string{"priv-app", relInstallPath, a.BaseModuleName()}
+		pathFragments = append([]string{"priv-app"}, relInstallPath)
 	} else if ctx.InstallInTestcases() {
-		pathFragments = []string{relInstallPath, a.BaseModuleName(), ctx.DeviceConfig().DeviceArch()}
+		pathFragments = []string{relInstallPath, ctx.DeviceConfig().DeviceArch()}
 	} else {
-		pathFragments = []string{"app", relInstallPath, a.BaseModuleName()}
+		pathFragments = []string{"app", relInstallPath}
 	}
 
 	installDir := android.PathForModuleInstall(ctx, pathFragments...)
@@ -650,11 +658,11 @@ func (m AppImportDepInSameApexChecker) OutgoingDepIsInSameApex(tag blueprint.Dep
 	return false
 }
 
-func (a *AndroidAppImport) SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+func (a *AndroidAppImport) SdkVersion(ctx android.ConfigContext) android.SdkSpec {
 	return android.SdkSpecPrivate
 }
 
-func (a *AndroidAppImport) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+func (a *AndroidAppImport) MinSdkVersion(ctx android.MinSdkVersionFromValueContext) android.ApiLevel {
 	return android.SdkSpecPrivate.ApiLevel
 }
 

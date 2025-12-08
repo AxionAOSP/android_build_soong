@@ -91,7 +91,6 @@ func GlobFiles(ctx EarlyModulePathContext, globPattern string, excludes []string
 type ModuleWithDepsPathContext interface {
 	EarlyModulePathContext
 	OtherModuleProviderContext
-	VisitDirectDeps(visit func(Module))
 	VisitDirectDepsProxy(visit func(ModuleProxy))
 	VisitDirectDepsProxyWithTag(tag blueprint.DependencyTag, visit func(ModuleProxy))
 	OtherModuleDependencyTag(m ModuleOrProxy) blueprint.DependencyTag
@@ -114,7 +113,10 @@ type ModuleInstallPathContext interface {
 	InstallInSanitizerDir() bool
 	InstallInRamdisk() bool
 	InstallInVendorRamdisk() bool
+	InstallPathSkipFirstStageRamdisk() bool
+	InstallInVendorKernelRamdisk() bool
 	InstallInDebugRamdisk() bool
+	InstallInTestHarnessRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallInOdm() bool
@@ -152,8 +154,20 @@ func (ctx *baseModuleContextToModuleInstallPathContext) InstallInVendorRamdisk()
 	return ctx.Module().InstallInVendorRamdisk()
 }
 
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallPathSkipFirstStageRamdisk() bool {
+	return ctx.Module().InstallPathSkipFirstStageRamdisk()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInVendorKernelRamdisk() bool {
+	return ctx.Module().InstallInVendorKernelRamdisk()
+}
+
 func (ctx *baseModuleContextToModuleInstallPathContext) InstallInDebugRamdisk() bool {
 	return ctx.Module().InstallInDebugRamdisk()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInTestHarnessRamdisk() bool {
+	return ctx.Module().InstallInTestHarnessRamdisk()
 }
 
 func (ctx *baseModuleContextToModuleInstallPathContext) InstallInRecovery() bool {
@@ -307,7 +321,11 @@ type WritablePath interface {
 	// but it allows a struct to distinguish between whether or not it implements the WritablePath interface
 	writablePath()
 
+	// ReplaceExtension creates a new OutputPath with the extension replaced with ext.
 	ReplaceExtension(ctx PathContext, ext string) OutputPath
+
+	// AddExtension creates a new OutputPath with a "." and ext added to the file name.
+	AddExtension(ctx PathContext, ext string) OutputPath
 }
 
 type genPathProvider interface {
@@ -709,30 +727,6 @@ func GetModuleProxyFromPathDep(ctx ModuleWithDepsPathContext, moduleName, tag st
 	expectedTag := sourceOrOutputDepTag(moduleName, tag)
 	ctx.VisitDirectDepsProxyWithTag(expectedTag, func(module ModuleProxy) {
 		found = module
-	})
-	return found
-}
-
-// Deprecated: use GetModuleProxyFromPathDep
-func GetModuleFromPathDep(ctx ModuleWithDepsPathContext, moduleName, tag string) blueprint.Module {
-	var found blueprint.Module
-	// The sourceOrOutputDepTag uniquely identifies the module dependency as it contains both the
-	// module name and the tag. Dependencies added automatically for properties tagged with
-	// `android:"path"` are deduped so are guaranteed to be unique. It is possible for duplicate
-	// dependencies to be added manually using ExtractSourcesDeps or ExtractSourceDeps but even then
-	// it will always be the case that the dependencies will be identical, i.e. the same tag and same
-	// moduleName referring to the same dependency module.
-	//
-	// It does not matter whether the moduleName is a fully qualified name or if the module
-	// dependency is a prebuilt module. All that matters is the same information is supplied to
-	// create the tag here as was supplied to create the tag when the dependency was added so that
-	// this finds the matching dependency module.
-	expectedTag := sourceOrOutputDepTag(moduleName, tag)
-	ctx.VisitDirectDeps(func(module Module) {
-		depTag := ctx.OtherModuleDependencyTag(module)
-		if depTag == expectedTag {
-			found = module
-		}
 	})
 	return found
 }
@@ -1586,6 +1580,16 @@ func (p OutputPath) ReplaceExtension(ctx PathContext, ext string) OutputPath {
 	return ret
 }
 
+// AddExtension creates a new OutputPath with ext added to the extension.
+func (p OutputPath) AddExtension(ctx PathContext, ext string) OutputPath {
+	if strings.Contains(ext, "/") {
+		ReportPathErrorf(ctx, "extension %q cannot contain /", ext)
+	}
+	ret := PathForOutput(ctx, p.path+"."+ext)
+	ret.rel = p.rel + "." + ext
+	return ret
+}
+
 // InSameDir creates a new OutputPath from the directory of the current OutputPath joined with the elements in paths.
 func (p OutputPath) InSameDir(ctx PathContext, paths ...string) OutputPath {
 	path, err := validatePath(paths...)
@@ -1908,6 +1912,9 @@ func (p InstallPath) getSoongOutDir() string {
 func (p InstallPath) ReplaceExtension(ctx PathContext, ext string) OutputPath {
 	panic("Not implemented")
 }
+func (p InstallPath) AddExtension(ctx PathContext, ext string) OutputPath {
+	panic("Not implemented")
+}
 
 var _ Path = InstallPath{}
 var _ WritablePath = InstallPath{}
@@ -1967,13 +1974,25 @@ func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string
 // PathForHostDexInstall returns an InstallPath representing the install path for the
 // module appended with paths...
 func PathForHostDexInstall(ctx ModuleInstallPathContext, pathComponents ...string) InstallPath {
-	return pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "", pathComponents...)
+	return PathForHostInstall(ctx, pathComponents...)
 }
 
 // PathForModuleInPartitionInstall is similar to PathForModuleInstall but partition is provided by the caller
 func PathForModuleInPartitionInstall(ctx ModuleInstallPathContext, partition string, pathComponents ...string) InstallPath {
 	os, arch := osAndArch(ctx)
 	return pathForInstall(ctx, os, arch, partition, pathComponents...)
+}
+
+// PathForHostInstall returns an InstallPath representing the install path for a host file.
+// Equivalent to $(HOST_OUT) from make.
+func PathForHostInstall(ctx PathContext, pathComponents ...string) InstallPath {
+	return pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "", pathComponents...)
+}
+
+// PathForDeviceFirstInstall returns an InstallPath representing the install path for a device file
+// in the first arch folder. Equivalent to $(TARGET_OUT) from make.
+func PathForDeviceFirstInstall(ctx PathContext, pathComponents ...string) InstallPath {
+	return pathForInstall(ctx, ctx.Config().AndroidFirstDeviceTarget.Os, ctx.Config().AndroidFirstDeviceTarget.Arch.ArchType, "", pathComponents...)
 }
 
 func osAndArch(ctx ModuleInstallPathContext) (OsType, ArchType) {
@@ -2088,7 +2107,7 @@ func modulePartition(ctx ModuleInstallPathContext, device bool) string {
 			// /first_stage_ramdisk. To expose the module before switching root
 			// on a device without a dedicated recovery partition, install the
 			// recovery variant.
-			if ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot() {
+			if ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot() && !ctx.InstallPathSkipFirstStageRamdisk() {
 				partition = "vendor_ramdisk/first_stage_ramdisk"
 			} else {
 				partition = "vendor_ramdisk"
@@ -2121,6 +2140,10 @@ func modulePartition(ctx ModuleInstallPathContext, device bool) string {
 			partition = ctx.DeviceConfig().VendorDlkmPath()
 		} else if ctx.InstallInOdmDlkm() {
 			partition = ctx.DeviceConfig().OdmDlkmPath()
+		} else if ctx.InstallInVendorKernelRamdisk() {
+			partition = "vendor_kernel_ramdisk"
+		} else if ctx.InstallInTestHarnessRamdisk() {
+			partition = "test_harness_ramdisk"
 		} else {
 			partition = "system"
 		}
@@ -2238,6 +2261,9 @@ func (p PhonyPath) WithoutRel() Path {
 }
 
 func (p PhonyPath) ReplaceExtension(ctx PathContext, ext string) OutputPath {
+	panic("Not implemented")
+}
+func (p PhonyPath) AddExtension(ctx PathContext, ext string) OutputPath {
 	panic("Not implemented")
 }
 
@@ -2359,8 +2385,20 @@ func (m testModuleInstallPathContext) InstallInVendorRamdisk() bool {
 	return m.inVendorRamdisk
 }
 
+func (m testModuleInstallPathContext) InstallPathSkipFirstStageRamdisk() bool {
+	return false
+}
+
+func (m testModuleInstallPathContext) InstallInVendorKernelRamdisk() bool {
+	return false
+}
+
 func (m testModuleInstallPathContext) InstallInDebugRamdisk() bool {
 	return m.inDebugRamdisk
+}
+
+func (m testModuleInstallPathContext) InstallInTestHarnessRamdisk() bool {
+	return false
 }
 
 func (m testModuleInstallPathContext) InstallInRecovery() bool {

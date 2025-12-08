@@ -15,7 +15,7 @@
 package rust
 
 import (
-	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -32,17 +32,11 @@ var (
 
 	rustc, rustcRbe = pctx.RemoteStaticRules("rustc",
 		blueprint.RuleParams{
-			Command: "$relPwd $reTemplate/usr/bin/env $envVars ${rustcCmd} " +
+			Command: "$relPwd $reTemplate/usr/bin/env $envVars ${RustcWrapper} ${rustcCmd} " +
 				"-C linker=${RustcLinkerCmd} -C link-args=\"--android-clang-bin=${config.ClangCmd} ${linkerScriptFlags}\" " +
 				"-C link-args=@${out}.clang.rsp " +
-				"--emit ${emitType} -o $out --emit dep-info=$out.d.raw $in ${libFlags} $rustcFlags" +
-				// Rustc deps-info writes out make compatible dep files: https://github.com/rust-lang/rust/issues/7633
-				// Rustc emits unneeded dependency lines for the .d and input .rs files.
-				// Those extra lines cause ninja warning:
-				//     "warning: depfile has multiple output paths"
-				// For ninja, we keep/grep only the dependency rule for the rust $out file.
-				" && grep ^$out: $out.d.raw > $out.d",
-			CommandDeps:    []string{"$rustcCmd", "${RustcLinkerCmd}", "${config.ClangCmd}"},
+				"--emit ${emitType} -o $out --emit dep-info=$out.d.raw $in ${libFlags} $rustcFlags",
+			CommandDeps:    []string{"$rustcCmd", "${RustcLinkerCmd}", "${config.ClangCmd}", "${RustcWrapper}"},
 			Rspfile:        "${out}.clang.rsp",
 			RspfileContent: "${crtBegin} ${earlyLinkFlags} ${linkFlags} ${crtEnd}",
 			Deps:           blueprint.DepsGCC,
@@ -60,6 +54,7 @@ var (
 				"${RustcLinkerCmd}",
 				"${config.ClangCmd}",
 				"${config.LlvmDlltool}",
+				"${RustcWrapper}",
 			},
 			Platform: map[string]string{remoteexec.PoolKey: "${config.RERustPool}"},
 		},
@@ -69,26 +64,33 @@ var (
 	_       = pctx.SourcePathVariable("rustdocCmd", "${config.RustBin}/rustdoc")
 	rustdoc = pctx.AndroidStaticRule("rustdoc",
 		blueprint.RuleParams{
-			Command: "$envVars $rustdocCmd $rustdocFlags $in -o $outDir && " +
+			Command: "$envVars ${RustcWrapper} $rustdocCmd $rustdocFlags $in -o $outDir && " +
 				"touch $out",
-			CommandDeps: []string{"$rustdocCmd"},
+			CommandDeps: []string{"$rustdocCmd", "${RustcWrapper}"},
 		},
 		"rustdocFlags", "outDir", "envVars")
 
-	_            = pctx.SourcePathVariable("clippyCmd", "${config.RustBin}/clippy-driver")
-	clippyDriver = pctx.AndroidStaticRule("clippy",
-		blueprint.RuleParams{
-			Command: "$envVars $clippyCmd " +
-				// Because clippy-driver uses rustc as backend, we need to have some output even during the linting.
-				// Use the metadata output as it has the smallest footprint.
-				"--emit metadata -o $out --emit dep-info=$out.d.raw $in ${libFlags} " +
-				"$rustcFlags $clippyFlags" +
-				" && grep ^$out: $out.d.raw > $out.d",
-			CommandDeps: []string{"$clippyCmd"},
-			Deps:        blueprint.DepsGCC,
-			Depfile:     "$out.d",
-		},
-		"rustcFlags", "libFlags", "clippyFlags", "envVars")
+	_                  = pctx.SourcePathVariable("clippyCmd", "${config.RustBin}/clippy-driver")
+	generateClippyRule = func(ruleName string, extraFlags string) blueprint.Rule {
+		return pctx.AndroidStaticRule(ruleName,
+			blueprint.RuleParams{
+				Command: "$envVars ${RustcWrapper} $clippyCmd " +
+					// Because clippy-driver uses rustc as backend, we need to have some output even during the linting.
+					// Use the metadata output as it has the smallest footprint.
+					"--emit metadata -o $out --emit dep-info=$out.d.raw $in ${libFlags} " +
+					"$rustcFlags $clippyFlags " + extraFlags,
+				CommandDeps: []string{"$clippyCmd", "${RustcWrapper}"},
+				Deps:        blueprint.DepsGCC,
+				Depfile:     "$out.d",
+			},
+			"rustcFlags", "libFlags", "clippyFlags", "envVars")
+	}
+	clippyDriver = generateClippyRule("clippy", "")
+
+	// Same as clippyDriver, but outputting any errors or warnings in a JSON schema to a
+	// $out.error file. This file will then be parsed by rust_check.py to provide clippy-driver
+	// errors and warnings to rust-analyzer.
+	clippyJsonDriver = generateClippyRule("clippyJson", "--error-format=json 2> $out.error")
 
 	zip = pctx.AndroidStaticRule("zip",
 		blueprint.RuleParams{
@@ -115,6 +117,7 @@ type buildOutput struct {
 func init() {
 	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
 	pctx.HostBinToolVariable("RustcLinkerCmd", "rustc_linker")
+	pctx.HostBinToolVariable("RustcWrapper", "rustc_wrapper")
 	pctx.StaticVariable("relPwd", cc.PwdPrefix())
 
 	cc.TransformRlibstoStaticlib = TransformRlibstoStaticlib
@@ -305,20 +308,7 @@ func rustEnvVars(ctx android.ModuleContext, deps PathDeps, crateName string, car
 
 	if len(deps.SrcDeps) > 0 && cargoOutDir.Valid() {
 		moduleGenDir := cargoOutDir
-		// We must calculate an absolute path for OUT_DIR since Rust's include! macro (which normally consumes this)
-		// assumes that paths are relative to the source file.
-		var outDirPrefix string
-		if !filepath.IsAbs(moduleGenDir.String()) {
-			// If OUT_DIR is not absolute, we use $$PWD to generate an absolute path (os.Getwd() returns '/')
-			outDirPrefix = "$$PWD/"
-		} else {
-			// If OUT_DIR is absolute, then moduleGenDir will be an absolute path, so we don't need to set this to anything.
-			outDirPrefix = ""
-		}
-		envVars["OUT_DIR"] = filepath.Join(outDirPrefix, moduleGenDir.String())
-	} else {
-		// TODO(pcc): Change this to "OUT_DIR=" after fixing crates to not rely on this value.
-		envVars["OUT_DIR"] = "out"
+		envVars["SOONG_RUST_GEN_DIR"] = moduleGenDir.String()
 	}
 	envVars["ANDROID_RUST_VERSION"] = config.GetRustVersion(ctx)
 
@@ -343,6 +333,17 @@ func rustEnvVars(ctx android.ModuleContext, deps PathDeps, crateName string, car
 				envVars["CARGO_PKG_VERSION_MINOR"] = semver_parts[1]
 				envVars["CARGO_PKG_VERSION_PATCH"] = semver_parts[2]
 			}
+		}
+	}
+
+	if rustModule, ok := ctx.Module().(*Module); ok {
+		if _, ok := rustModule.compiler.(*toolchainLibraryDecorator); ok {
+			// some toolchain libraries rely on sources which are pregenerated
+			// during the toolchain build. This ensures that `include!` macros
+			// work.
+			// Note this may be overwritten by rustc_wrapper.sh if SOONG_RUST_GEN_DIR
+			// is set.
+			envVars["OUT_DIR"] = "out/"
 		}
 	}
 
@@ -399,7 +400,7 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 
 	// Disallow experimental features
 	modulePath := ctx.ModuleDir()
-	if !(android.IsThirdPartyPath(modulePath) || strings.HasPrefix(modulePath, "prebuilts")) {
+	if !android.IsThirdPartyPath(modulePath) && !strings.HasPrefix(modulePath, "prebuilts") {
 		rustcFlags = append(rustcFlags, "-Zallow-features=\"\"")
 	}
 
@@ -488,7 +489,24 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 	if !t.synthetic {
 		// Only worry about clippy for actual Rust modules.
 		// Libraries built from cc use generated source, and don't need to run clippy.
+		checkJsonFile := android.PathForModuleOut(ctx, outputFile.Base()+".checkJson")
+
+		args := map[string]string{
+			"rustcFlags":  strings.Join(rustcFlags, " "),
+			"libFlags":    strings.Join(libFlags, " "),
+			"clippyFlags": strings.Join(flags.ClippyFlags, " "),
+			"envVars":     rustStringifyEnvVars(envVars),
+		}
 		if flags.Clippy {
+			ctx.Build(pctx, android.BuildParams{
+				Rule:        clippyJsonDriver,
+				Description: "clippy check json " + main.Rel(),
+				Output:      checkJsonFile,
+				Inputs:      inputs,
+				Implicits:   implicits,
+				Args:        args,
+			})
+			ctx.Phony("rustClippyJson", checkJsonFile)
 			clippyFile := android.PathForModuleOut(ctx, outputFile.Base()+".clippy")
 			ctx.Build(pctx, android.BuildParams{
 				Rule:            clippyDriver,
@@ -498,12 +516,7 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 				Inputs:          inputs,
 				Implicits:       implicits,
 				OrderOnly:       orderOnly,
-				Args: map[string]string{
-					"rustcFlags":  strings.Join(rustcFlags, " "),
-					"libFlags":    strings.Join(libFlags, " "),
-					"clippyFlags": strings.Join(flags.ClippyFlags, " "),
-					"envVars":     rustStringifyEnvVars(envVars),
-				},
+				Args:            args,
 			})
 			// Declare the clippy build as an implicit dependency of the original crate.
 			implicits = append(implicits, clippyFile)
@@ -525,7 +538,7 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 
 	// If SrcFiles populating is ever tied to some other property being set
 	// (e.g. crate_root), a check against whether its populated should be added here.
-	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_RUST") {
+	if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_RUST") {
 		rule = rustcRbe
 		rbeInputs := android.Paths{}
 		rbeInputs = append(rbeInputs, implicits...)
@@ -562,7 +575,8 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 func Rustdoc(ctx ModuleContext, main android.Path, deps PathDeps,
 	flags Flags) android.ModuleOutPath {
 
-	rustdocFlags := append([]string{}, flags.RustdocFlags...)
+	rustdocFlags := slices.Clone(flags.RustdocFlags)
+	rustdocFlags = append(rustdocFlags, flags.GlobalRustFlags...)
 	rustdocFlags = append(rustdocFlags, "--sysroot=/dev/null")
 
 	// Build an index for all our crates. -Z unstable options is required to use

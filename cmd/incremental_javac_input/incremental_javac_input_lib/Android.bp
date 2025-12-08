@@ -21,8 +21,9 @@ bootstrap_go_package {
     pkgPath: "android/soong/cmd/incremental_javac_input/incremental_javac_input_lib",
     deps: [
         "blueprint-pathtools",
-        "soong-cmd-find_input_delta-lib",
         "golang-dependency-mapper-protoimpl",
+        "golang-protobuf-proto",
+        "soong-cmd-find_input_delta-lib",
     ],
     srcs: [
         "generate_incremental_input.go",

@@ -68,7 +68,7 @@ var (
 
 type cipdPackageProperties struct {
 	// The name of the cipd package, like "android/prebuilts/GmsCorePrebuilt/arm64"
-	Package string
+	Package proptools.Configurable[string]
 
 	// The version tag of the package.
 	Version proptools.Configurable[string]
@@ -101,7 +101,8 @@ func (p *cipdPackageModule) GenerateAndroidBuildActions(ctx android.ModuleContex
 
 	ensureContents := fmt.Sprintf("$ResolvedVersions %s\n", resolvedVersionsTxt)
 	version := p.properties.Version.Get(ctx)
-	ensureContents += fmt.Sprintf("%s %s\n", p.properties.Package, version.Get())
+	packageProp := p.properties.Package.Get(ctx)
+	ensureContents += fmt.Sprintf("%s %s\n", packageProp.Get(), version.Get())
 	android.WriteFileRule(ctx, ensureFile, ensureContents)
 
 	if len(p.properties.Files) > 0 {
@@ -135,7 +136,7 @@ func (p *cipdPackageModule) GenerateAndroidBuildActions(ctx android.ModuleContex
 			"tempZipDir": tempZipDir.String(),
 		},
 	})
-	ctx.SetOutputFiles(android.Paths{outputZipFile}, "zip")
+	ctx.SetOutputFiles(android.Paths{outputZipFile}, ".zip")
 }
 
 // cipd_package module installs the given CIPD package version.

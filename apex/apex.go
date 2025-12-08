@@ -172,12 +172,8 @@ type apexBundleProperties struct {
 	// overridden base module.
 	ApexVariationName string `blueprint:"mutated"`
 
-	IsCoverageVariant bool `blueprint:"mutated"`
-
 	// List of sanitizer names that this APEX is enabled for
 	SanitizerNames []string `blueprint:"mutated"`
-
-	PreventInstall bool `blueprint:"mutated"`
 
 	HideFromMake bool `blueprint:"mutated"`
 
@@ -408,7 +404,11 @@ type overridableProperties struct {
 
 	// The minimum SDK version that this APEX must support at minimum. This is usually set to
 	// the SDK version that the APEX was first introduced.
-	Min_sdk_version *string
+	Min_sdk_version proptools.Configurable[string] `android:"replace_instead_of_append"`
+
+	// Mainline beta namespace. Each mainline module would have a dedicated server side
+	// namespace to support flag based A/B feature testing on mainline beta population.
+	Beta_namespace *string
 }
 
 // installPair stores a path to a built object and its install location.  It is used for holding
@@ -1257,17 +1257,12 @@ func (a *apexBundle) TaggedOutputs() map[string]android.Paths {
 	return ret
 }
 
-var _ cc.Coverage = (*apexBundle)(nil)
-
-// Implements cc.Coverage
+// Implements cc.UseCoverage
 func (a *apexBundle) IsNativeCoverageNeeded(ctx cc.IsNativeCoverageNeededContext) bool {
 	return ctx.DeviceConfig().NativeCoverageEnabled()
 }
 
-// Implements cc.Coverage
-func (a *apexBundle) SetPreventInstall() {
-	a.properties.PreventInstall = true
-}
+var _ cc.UseCoverage = &apexBundle{}
 
 // Implements cc.Coverage
 func (a *apexBundle) HideFromMake() {
@@ -1276,14 +1271,6 @@ func (a *apexBundle) HideFromMake() {
 	// TODO(ccross): untangle these
 	a.ModuleBase.HideFromMake()
 }
-
-// Implements cc.Coverage
-func (a *apexBundle) MarkAsCoverageVariant(coverage bool) {
-	a.properties.IsCoverageVariant = coverage
-}
-
-// Implements cc.Coverage
-func (a *apexBundle) EnableCoverageIfNeeded() {}
 
 var _ android.ApexBundleDepsInfoIntf = (*apexBundle)(nil)
 
@@ -1336,7 +1323,7 @@ func (a *apexBundle) getCertString(ctx android.BaseModuleContext) string {
 
 // See the installable property
 func (a *apexBundle) installable() bool {
-	return !a.properties.PreventInstall && (a.properties.Installable == nil || proptools.Bool(a.properties.Installable))
+	return proptools.BoolDefault(a.properties.Installable, true)
 }
 
 // See the test_only_unsigned_payload property
@@ -1780,6 +1767,10 @@ func (vctx *visitorContext) normalizeFileInfo(mctx android.ModuleContext) {
 			vctx.unwantedTransitiveFilesInfo = append(vctx.unwantedTransitiveFilesInfo, f)
 			continue
 		}
+		if f.builtFile == nil {
+			mctx.ModuleErrorf("Dependency %q had nil builtFile. Make sure the module has an output file. (the installable and compile_dex properties can affect this)", f.androidMkModuleName)
+			continue
+		}
 		dest := filepath.Join(f.installDir, f.builtFile.Base())
 		if e, ok := encountered[dest]; !ok {
 			encountered[dest] = f
@@ -2159,14 +2150,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 }
 
 func (a *apexBundle) shouldCheckDuplicate(ctx android.ModuleContext) bool {
-	// TODO(b/263308293) remove this
-	if a.properties.IsCoverageVariant {
-		return false
-	}
-	if ctx.DeviceConfig().DeviceArch() == "" {
-		return false
-	}
-	return true
+	return ctx.DeviceConfig().DeviceArch() != ""
 }
 
 // Creates build rules for an APEX. It consists of the following major steps:
@@ -2200,13 +2184,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			// Create placeholder paths for later stages that expect to see those paths,
 			// though they won't be used.
 			var unusedPath = android.PathForModuleOut(ctx, "nonexistentprivatekey")
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   android.ErrorRule,
-				Output: unusedPath,
-				Args: map[string]string{
-					"error": "Private key not available",
-				},
-			})
+			android.ErrorRule(ctx, unusedPath, "Private key not available")
 			a.privateKeyFile = unusedPath
 		} else {
 			ctx.PropertyErrorf("key", "private_key for %q could not be found", String(a.overridableProperties.Key))
@@ -2221,13 +2199,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			// Create placeholder paths for later stages that expect to see those paths,
 			// though they won't be used.
 			var unusedPath = android.PathForModuleOut(ctx, "nonexistentpublickey")
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   android.ErrorRule,
-				Output: unusedPath,
-				Args: map[string]string{
-					"error": "Public key not available",
-				},
-			})
+			android.ErrorRule(ctx, unusedPath, "Public key not available")
 			a.publicKeyFile = unusedPath
 		} else {
 			ctx.PropertyErrorf("key", "public_key for %q could not be found", String(a.overridableProperties.Key))
@@ -2248,7 +2220,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// 3.a) some artifacts are generated from the collected files
-	a.filesInfo = append(a.filesInfo, a.buildAconfigFiles(ctx)...)
+	aconfigFiles := a.buildAconfigFiles(ctx)
+	a.filesInfo = append(a.filesInfo, aconfigFiles...)
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// 4) generate the build rules to create the APEX. This is done in builder.go.
@@ -2288,6 +2261,38 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		Pem: pem,
 		Key: key,
 	})
+
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"ETC"}
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
+	moduleInfoJSON.Disabled = false
+
+	// Build compliance metadata
+	if a.installable() && slices.Contains(ctx.Config().UnbundledBuildApps(), a.Name()) {
+		builtFiles := []string{}
+		for _, file := range aconfigFiles {
+			builtFiles = append(builtFiles, file.builtFile.String())
+		}
+
+		filesContained := []string{}
+		buildOutputPaths := []string{}
+		filesContained = append(filesContained, a.installedFile.String())
+		buildOutputPaths = append(buildOutputPaths, a.outputFile.String())
+		for _, f := range a.filesInfo {
+			filesContained = append(filesContained, f.path())
+			buildOutputPaths = append(buildOutputPaths, f.builtFile.String())
+			imageDir := android.PathForModuleOut(ctx, "image"+imageApexSuffix).String()
+			for _, symlinkPath := range f.symlinkPaths() {
+				filesContained = append(filesContained, symlinkPath)
+				buildOutputPaths = append(buildOutputPaths, filepath.Join(imageDir, symlinkPath))
+				builtFiles = append(builtFiles, filepath.Join(imageDir, symlinkPath))
+			}
+		}
+		complianceMetadataInfo := ctx.ComplianceMetadataInfo()
+		complianceMetadataInfo.SetFilesContained(filesContained)
+		complianceMetadataInfo.SetBuildOutputPathsOfFilesContained(buildOutputPaths)
+		complianceMetadataInfo.AddBuiltFiles(builtFiles...)
+	}
 }
 
 // Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file
@@ -2370,6 +2375,7 @@ func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module android.Mo
 				Input:  pathOnHost,
 				Output: tempPath,
 			})
+			ctx.ComplianceMetadataInfo().AddBuiltFiles(tempPath.String())
 		} else {
 			// At this point, the boot image profile cannot be generated. It is probably because the boot
 			// image profile source file does not exist on the branch, or it is not available for the
@@ -2378,13 +2384,7 @@ func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module android.Mo
 			// targets (such as module SDK) do not need it. It is only needed when the APEX is being
 			// built. Therefore, we create an error rule so that an error will occur at the ninja phase
 			// only if the APEX is being built.
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   android.ErrorRule,
-				Output: tempPath,
-				Args: map[string]string{
-					"error": "Boot image profile cannot be generated",
-				},
-			})
+			android.ErrorRule(ctx, tempPath, "Boot image profile cannot be generated")
 		}
 
 		androidMkModuleName := filepath.Base(pathInApex)
@@ -2536,7 +2536,7 @@ func (a *apexBundle) minSdkVersionValue(ctx android.MinSdkVersionFromValueContex
 	// Only override the minSdkVersion value on Apexes which already specify
 	// a min_sdk_version (it's optional for non-updatable apexes), and that its
 	// min_sdk_version value is lower than the one to override with.
-	minApiLevel := android.MinSdkVersionFromValue(ctx, proptools.String(a.overridableProperties.Min_sdk_version))
+	minApiLevel := android.MinSdkVersionFromValue(ctx, a.overridableProperties.Min_sdk_version.GetOrDefault(a.ConfigurableEvaluator(ctx), ""))
 	if minApiLevel.IsNone() {
 		return ""
 	}
@@ -2551,7 +2551,7 @@ func (a *apexBundle) minSdkVersionValue(ctx android.MinSdkVersionFromValueContex
 }
 
 // Returns apex's min_sdk_version SdkSpec, honoring overrides
-func (a *apexBundle) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+func (a *apexBundle) MinSdkVersion(ctx android.MinSdkVersionFromValueContext) android.ApiLevel {
 	return a.minSdkVersion(ctx)
 }
 
@@ -2846,10 +2846,6 @@ func rBcpPackages() map[string][]string {
 func (a *apexBundle) verifyNativeImplementationLibs(ctx android.ModuleContext) {
 	var directImplementationLibs android.Paths
 	var transitiveImplementationLibs []depset.DepSet[android.Path]
-
-	if a.properties.IsCoverageVariant {
-		return
-	}
 
 	if a.testApex {
 		return

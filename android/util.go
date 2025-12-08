@@ -564,7 +564,7 @@ func substPattern(pat, repl, str string) string {
 }
 
 // copied from build/kati/strutil.go
-func matchPattern(pat, str string) bool {
+func MatchPattern(pat, str string) bool {
 	i := strings.IndexByte(pat, '%')
 	if i < 0 {
 		return pat == str

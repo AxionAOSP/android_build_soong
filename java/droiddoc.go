@@ -16,6 +16,7 @@ package java
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -43,7 +44,7 @@ func RegisterDocsBuildComponents(ctx android.RegistrationContext) {
 type JavadocProperties struct {
 	// list of source files used to compile the Java module.  May be .java, .logtags, .proto,
 	// or .aidl files.
-	Srcs []string `android:"path,arch_variant"`
+	Srcs proptools.Configurable[[]string] `android:"path,arch_variant"`
 
 	// list of source files that should not be used to build the Java module.
 	// This is most useful in the arch/multilib variants to remove non-common files
@@ -102,6 +103,11 @@ type JavadocProperties struct {
 }
 
 type ApiToCheck struct {
+	// If set to `false` this will prevent `api_file` and `removed_api_file` from
+	// being used in compatibility checks, but they will continue to provide the
+	// previously released API to which flagged APIs can be reverted.
+	Enabled *bool
+
 	// path to the API txt file that the new API extracted from source code is checked
 	// against. The path can be local to the module or from other module (via :module syntax).
 	Api_file *string `android:"path"`
@@ -160,6 +166,9 @@ type DroiddocProperties struct {
 
 	// Compat config XML. Generates compat change documentation if set.
 	Compat_config *string `android:"path"`
+
+	// The directory name to publish the generated documentation under out/target/common/docs.
+	Publish_dir *string
 }
 
 // Common flags passed down to build rule
@@ -244,7 +253,7 @@ func JavadocHostFactory() android.Module {
 	return module
 }
 
-func (j *Javadoc) SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+func (j *Javadoc) SdkVersion(ctx android.ConfigContext) android.SdkSpec {
 	return android.SdkSpecFrom(ctx, String(j.properties.Sdk_version))
 }
 
@@ -252,7 +261,7 @@ func (j *Javadoc) SystemModules() string {
 	return proptools.String(j.properties.System_modules)
 }
 
-func (j *Javadoc) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+func (j *Javadoc) MinSdkVersion(ctx android.MinSdkVersionFromValueContext) android.ApiLevel {
 	return j.SdkVersion(ctx).ApiLevel
 }
 
@@ -421,12 +430,12 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	})
 	// do not pass exclude_srcs directly when expanding srcFiles since exclude_srcs
 	// may contain filegroup or genrule.
-	srcFiles := android.PathsForModuleSrcExcludes(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
+	srcFiles := android.PathsForModuleSrcExcludes(ctx, j.properties.Srcs.GetOrDefault(ctx, nil), j.properties.Exclude_srcs)
 	j.implicits = append(j.implicits, srcFiles...)
 
 	// Module can depend on a java_aconfig_library module using the ":module_name{.tag}" syntax.
 	// Find the corresponding aconfig_declarations module name for such case.
-	for _, src := range j.properties.Srcs {
+	for _, src := range j.properties.Srcs.GetOrDefault(ctx, nil) {
 		if moduleName, tag := android.SrcIsModuleWithTag(src); moduleName != "" {
 			otherModule := android.GetModuleProxyFromPathDep(ctx, moduleName, tag)
 			if !otherModule.IsNil() {
@@ -856,6 +865,12 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		FlagWithOutput("-o ", d.docZip).
 		FlagWithArg("-C ", outDir.String()).
 		FlagWithArg("-D ", outDir.String())
+
+	if String(d.properties.Publish_dir) != "" {
+		publishDir := path.Join("out/target/common/docs", String(d.properties.Publish_dir))
+		rule.Command().Text("mkdir -p").Text(publishDir)
+		rule.Command().Text("unzip -qo").Input(d.docZip).Text("-d").Text(publishDir)
+	}
 
 	rule.Restat()
 

@@ -11,24 +11,24 @@ func init() {
 	ProguardSpecInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ProguardSpecInfo) })
 }
 
-func (r ProguardSpecInfo) Encode(buf *bytes.Buffer) error {
+func (r ProguardSpecInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeSimple(buf, r.Export_proguard_flags_files); err != nil {
 		return err
 	}
 
-	if err = r.ProguardFlagsFiles.EncodeInterface(buf); err != nil {
+	if err = r.ProguardFlagsFiles.EncodeInterface(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.UnconditionallyExportedProguardFlags.EncodeInterface(buf); err != nil {
+	if err = r.UnconditionallyExportedProguardFlags.EncodeInterface(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *ProguardSpecInfo) Decode(buf *bytes.Reader) error {
+func (r *ProguardSpecInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeSimple[bool](buf, &r.Export_proguard_flags_files)
@@ -36,11 +36,11 @@ func (r *ProguardSpecInfo) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	if err = r.ProguardFlagsFiles.DecodeInterface(buf); err != nil {
+	if err = r.ProguardFlagsFiles.DecodeInterface(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.UnconditionallyExportedProguardFlags.DecodeInterface(buf); err != nil {
+	if err = r.UnconditionallyExportedProguardFlags.DecodeInterface(ctx, buf); err != nil {
 		return err
 	}
 

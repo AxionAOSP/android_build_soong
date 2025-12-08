@@ -11,7 +11,7 @@ func init() {
 	unstableInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(unstableInfo) })
 }
 
-func (r unstableInfo) Encode(buf *bytes.Buffer) error {
+func (r unstableInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeSimple(buf, r.ContainsPlatformPrivateApis); err != nil {
@@ -20,7 +20,7 @@ func (r unstableInfo) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *unstableInfo) Decode(buf *bytes.Reader) error {
+func (r *unstableInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeSimple[bool](buf, &r.ContainsPlatformPrivateApis)

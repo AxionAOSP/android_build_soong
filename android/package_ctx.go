@@ -125,7 +125,7 @@ func (p PackageContext) RuleFunc(name string,
 			return params, ctx.errors[0]
 		}
 		if ctx.Config().UseRemoteBuild() && params.Pool == nil {
-			// When USE_RBE=true is set and the rule is not supported by
+			// When USE_REWRAPPER=true is set and the rule is not supported by
 			// RBE, restrict jobs to the local parallelism value
 			params.Pool = localPool
 		}
@@ -259,9 +259,9 @@ func (p PackageContext) AndroidRemoteStaticRule(name string, supports RemoteRule
 
 	return p.PackageContext.RuleFunc(name, func(config interface{}) (blueprint.RuleParams, error) {
 		ctx := &configErrorWrapper{p, config.(Config), nil}
-		if ctx.Config().UseRBE() && !supports.RBE {
-			// When USE_RBE=true is set and the rule is not supported by RBE, restrict jobs to the
-			// local parallelism value
+		if ctx.Config().UseREWrapper() && !supports.RBE {
+			// When USE_REWRAPPER=true is set and the rule is not supported by RBE,
+			// restrict jobs to the local parallelism value
 			params.Pool = localPool
 		}
 

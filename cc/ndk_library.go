@@ -121,12 +121,11 @@ type stubDecorator struct {
 
 	properties libraryProperties
 
-	versionScriptPath     android.ModuleGenPath
-	parsedCoverageXmlPath android.ModuleOutPath
-	installPath           android.Path
-	abiDumpPath           android.OutputPath
-	hasAbiDump            bool
-	abiDiffPaths          android.Paths
+	versionScriptPath android.ModuleGenPath
+	installPath       android.Path
+	abiDumpPath       android.OutputPath
+	hasAbiDump        bool
+	abiDiffPaths      android.Paths
 
 	apiLevel         android.ApiLevel
 	firstVersion     android.ApiLevel
@@ -403,17 +402,11 @@ func (this *stubDecorator) diffAbi(ctx ModuleContext) {
 	missingPrebuiltErrorTemplate :=
 		"Did not find prebuilt ABI dump for %q (%q). Generate with " +
 			"//development/tools/ndk/update_ndk_abi.sh."
-	missingPrebuiltError := fmt.Sprintf(
-		missingPrebuiltErrorTemplate, this.libraryName(ctx),
-		prebuiltAbiDump.InvalidReason())
 	if !prebuiltAbiDump.Valid() {
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.ErrorRule,
-			Output: abiDiffPath,
-			Args: map[string]string{
-				"error": missingPrebuiltError,
-			},
-		})
+		missingPrebuiltError := fmt.Sprintf(
+			missingPrebuiltErrorTemplate, this.libraryName(ctx),
+			prebuiltAbiDump.InvalidReason())
+		android.ErrorRule(ctx, abiDiffPath, missingPrebuiltError)
 	} else {
 		ctx.Build(pctx, android.BuildParams{
 			Rule: stgdiff,
@@ -459,13 +452,7 @@ func (this *stubDecorator) diffAbi(ctx ModuleContext) {
 			missingNextPrebuiltError := fmt.Sprintf(
 				missingPrebuiltErrorTemplate, this.libraryName(ctx),
 				nextAbiDump.InvalidReason())
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   android.ErrorRule,
-				Output: nextAbiDiffPath,
-				Args: map[string]string{
-					"error": missingNextPrebuiltError,
-				},
-			})
+			android.ErrorRule(ctx, nextAbiDiffPath, missingNextPrebuiltError)
 		} else {
 			ctx.Build(pctx, android.BuildParams{
 				Rule: stgdiff,
@@ -510,7 +497,11 @@ func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) O
 		}
 	}
 	if c.apiLevel.IsCurrent() && ctx.PrimaryArch() {
-		c.parsedCoverageXmlPath = ParseSymbolFileForAPICoverage(ctx, symbolFile)
+		parsedCoverageXmlPath := ParseSymbolFileForAPICoverage(ctx, symbolFile)
+
+		if ctx.DeviceConfig().ClangCoverageEnabled() && !android.ShouldSkipAndroidMkProcessing(ctx, ctx.Module()) {
+			ctx.DistForGoalWithFilename("droidcore", parsedCoverageXmlPath, "ndk_apis/"+parsedCoverageXmlPath.Base())
+		}
 	}
 	return objs
 }
@@ -543,6 +534,7 @@ func (stub *stubDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps,
 
 	if !stub.BuildStubs() {
 		// NDK libraries have no implementation variant, nothing to do
+		ctx.Module().HideFromMake()
 		return nil
 	}
 

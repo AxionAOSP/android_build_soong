@@ -76,7 +76,7 @@ func initToolchainObject(module *Module, object *objectDecorator) android.Module
 	return module.Init()
 }
 
-func (t *toolchainObjectDecorator) compilerProps() []interface{} {
+func (t *toolchainObjectDecorator) compilerProps() []any {
 	return append(t.objectDecorator.compilerProps(), &t.Properties)
 }
 

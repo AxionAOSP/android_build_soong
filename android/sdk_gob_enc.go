@@ -8,34 +8,73 @@ import (
 )
 
 func init() {
+	SdkMemberTraitBaseGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(SdkMemberTraitBase) })
 	SdkMemberTypeBaseGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(SdkMemberTypeBase) })
 }
 
-func (r SdkMemberTypeBase) Encode(buf *bytes.Buffer) error {
+func (r SdkMemberTraitBase) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
+	var err error
+
+	if err = gobtools.EncodeString(buf, r.PropertyName); err != nil {
+		return err
+	}
+	return err
+}
+
+func (r *SdkMemberTraitBase) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
+	var err error
+
+	err = gobtools.DecodeString(buf, &r.PropertyName)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+var SdkMemberTraitBaseGobRegId int16
+
+func (r SdkMemberTraitBase) GetTypeId() int16 {
+	return SdkMemberTraitBaseGobRegId
+}
+
+func (r SdkMemberTypeBase) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeString(buf, r.PropertyName); err != nil {
 		return err
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.OverridesPropertyNames))); err != nil {
-		return err
-	}
-	for k, v := range r.OverridesPropertyNames {
-		if err = gobtools.EncodeString(buf, k); err != nil {
+	if r.OverridesPropertyNames == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
 		}
-		if err = gobtools.EncodeSimple(buf, v); err != nil {
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.OverridesPropertyNames))); err != nil {
 			return err
+		}
+		for k, v := range r.OverridesPropertyNames {
+			if err = gobtools.EncodeString(buf, k); err != nil {
+				return err
+			}
+			if err = gobtools.EncodeSimple(buf, v); err != nil {
+				return err
+			}
 		}
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.SupportedLinkageNames))); err != nil {
-		return err
-	}
-	for val1 := 0; val1 < len(r.SupportedLinkageNames); val1++ {
-		if err = gobtools.EncodeString(buf, r.SupportedLinkageNames[val1]); err != nil {
+	if r.SupportedLinkageNames == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.SupportedLinkageNames))); err != nil {
+			return err
+		}
+		for val1 := 0; val1 < len(r.SupportedLinkageNames); val1++ {
+			if err = gobtools.EncodeString(buf, r.SupportedLinkageNames[val1]); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -73,18 +112,24 @@ func (r SdkMemberTypeBase) Encode(buf *bytes.Buffer) error {
 		}
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Traits))); err != nil {
-		return err
-	}
-	for val3 := 0; val3 < len(r.Traits); val3++ {
-		if err = gobtools.EncodeInterface(buf, r.Traits[val3]); err != nil {
+	if r.Traits == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Traits))); err != nil {
+			return err
+		}
+		for val3 := 0; val3 < len(r.Traits); val3++ {
+			if err = gobtools.EncodeInterface(ctx, buf, r.Traits[val3]); err != nil {
+				return err
+			}
 		}
 	}
 	return err
 }
 
-func (r *SdkMemberTypeBase) Decode(buf *bytes.Reader) error {
+func (r *SdkMemberTypeBase) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeString(buf, &r.PropertyName)
@@ -97,7 +142,7 @@ func (r *SdkMemberTypeBase) Decode(buf *bytes.Reader) error {
 	if err != nil {
 		return err
 	}
-	if val2 > 0 {
+	if val2 != -1 {
 		r.OverridesPropertyNames = make(map[string]bool, val2)
 		for val3 := 0; val3 < int(val2); val3++ {
 			var k string
@@ -119,7 +164,7 @@ func (r *SdkMemberTypeBase) Decode(buf *bytes.Reader) error {
 	if err != nil {
 		return err
 	}
-	if val7 > 0 {
+	if val7 != -1 {
 		r.SupportedLinkageNames = make([]string, val7)
 		for val8 := 0; val8 < int(val7); val8++ {
 			err = gobtools.DecodeString(buf, &r.SupportedLinkageNames[val8])
@@ -177,10 +222,10 @@ func (r *SdkMemberTypeBase) Decode(buf *bytes.Reader) error {
 	if err != nil {
 		return err
 	}
-	if val20 > 0 {
+	if val20 != -1 {
 		r.Traits = make([]SdkMemberTrait, val20)
 		for val21 := 0; val21 < int(val20); val21++ {
-			if val23, err := gobtools.DecodeInterface(buf); err != nil {
+			if val23, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 				return err
 			} else if val23 == nil {
 				r.Traits[val21] = nil

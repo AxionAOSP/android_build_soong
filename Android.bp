@@ -236,6 +236,7 @@ build_prop {
     visibility: [
         "//build/make/target/product/gsi",
         "//build/soong/fsgen",
+        "//bootable/recovery/tests/ota",
     ],
 }
 
@@ -305,4 +306,16 @@ system_dev_certificate {
     visibility: [
         "//bootable/recovery:__subpackages__",
     ],
+}
+
+prebuilt_root {
+    name: "force_debuggable",
+    src: ":force_debuggable_empty_file",
+    debug_ramdisk: true,
+}
+
+genrule {
+    name: "force_debuggable_empty_file",
+    out: ["force_debuggable"],
+    cmd: "touch $(out)",
 }

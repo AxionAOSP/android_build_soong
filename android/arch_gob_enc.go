@@ -14,10 +14,10 @@ func init() {
 	TargetGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(Target) })
 }
 
-func (r Arch) Encode(buf *bytes.Buffer) error {
+func (r Arch) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.ArchType.Encode(buf); err != nil {
+	if err = r.ArchType.Encode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -29,30 +29,42 @@ func (r Arch) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Abi))); err != nil {
-		return err
-	}
-	for val1 := 0; val1 < len(r.Abi); val1++ {
-		if err = gobtools.EncodeString(buf, r.Abi[val1]); err != nil {
+	if r.Abi == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Abi))); err != nil {
+			return err
+		}
+		for val1 := 0; val1 < len(r.Abi); val1++ {
+			if err = gobtools.EncodeString(buf, r.Abi[val1]); err != nil {
+				return err
+			}
 		}
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.ArchFeatures))); err != nil {
-		return err
-	}
-	for val2 := 0; val2 < len(r.ArchFeatures); val2++ {
-		if err = gobtools.EncodeString(buf, r.ArchFeatures[val2]); err != nil {
+	if r.ArchFeatures == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.ArchFeatures))); err != nil {
+			return err
+		}
+		for val2 := 0; val2 < len(r.ArchFeatures); val2++ {
+			if err = gobtools.EncodeString(buf, r.ArchFeatures[val2]); err != nil {
+				return err
+			}
 		}
 	}
 	return err
 }
 
-func (r *Arch) Decode(buf *bytes.Reader) error {
+func (r *Arch) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.ArchType.Decode(buf); err != nil {
+	if err = r.ArchType.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -71,7 +83,7 @@ func (r *Arch) Decode(buf *bytes.Reader) error {
 	if err != nil {
 		return err
 	}
-	if val5 > 0 {
+	if val5 != -1 {
 		r.Abi = make([]string, val5)
 		for val6 := 0; val6 < int(val5); val6++ {
 			err = gobtools.DecodeString(buf, &r.Abi[val6])
@@ -86,7 +98,7 @@ func (r *Arch) Decode(buf *bytes.Reader) error {
 	if err != nil {
 		return err
 	}
-	if val9 > 0 {
+	if val9 != -1 {
 		r.ArchFeatures = make([]string, val9)
 		for val10 := 0; val10 < int(val9); val10++ {
 			err = gobtools.DecodeString(buf, &r.ArchFeatures[val10])
@@ -105,7 +117,7 @@ func (r Arch) GetTypeId() int16 {
 	return ArchGobRegId
 }
 
-func (r ArchType) Encode(buf *bytes.Buffer) error {
+func (r ArchType) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeString(buf, r.Name); err != nil {
@@ -122,7 +134,7 @@ func (r ArchType) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *ArchType) Decode(buf *bytes.Reader) error {
+func (r *ArchType) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeString(buf, &r.Name)
@@ -149,7 +161,7 @@ func (r ArchType) GetTypeId() int16 {
 	return ArchTypeGobRegId
 }
 
-func (r OsType) Encode(buf *bytes.Buffer) error {
+func (r OsType) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeString(buf, r.Name); err != nil {
@@ -170,7 +182,7 @@ func (r OsType) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *OsType) Decode(buf *bytes.Reader) error {
+func (r *OsType) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeString(buf, &r.Name)
@@ -206,14 +218,14 @@ func (r OsType) GetTypeId() int16 {
 	return OsTypeGobRegId
 }
 
-func (r Target) Encode(buf *bytes.Buffer) error {
+func (r Target) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.Os.Encode(buf); err != nil {
+	if err = r.Os.Encode(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.Arch.Encode(buf); err != nil {
+	if err = r.Arch.Encode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -235,14 +247,14 @@ func (r Target) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *Target) Decode(buf *bytes.Reader) error {
+func (r *Target) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.Os.Decode(buf); err != nil {
+	if err = r.Os.Decode(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.Arch.Decode(buf); err != nil {
+	if err = r.Arch.Decode(ctx, buf); err != nil {
 		return err
 	}
 

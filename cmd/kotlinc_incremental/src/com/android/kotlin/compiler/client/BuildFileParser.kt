@@ -23,8 +23,8 @@ class BuildFileParser : DefaultHandler() {
     val classpaths: List<String>
         get() = _classpaths
 
-    val sources: List<String>
-        get() = _sources
+    val friendDirs: List<String>
+        get() = _friendDirs
 
     val javaSources: List<String>
         get() = _javaSources
@@ -32,13 +32,17 @@ class BuildFileParser : DefaultHandler() {
     val moduleName: String?
         get() = _moduleName
 
+    val sources: List<String>
+        get() = _sources
+
     val outputDirName: String?
         get() = _outputDirName
 
     private val _classpaths = mutableListOf<String>()
-    private val _sources = mutableListOf<String>()
+    private val _friendDirs = mutableListOf<String>()
     private val _javaSources = mutableListOf<String>()
     private var _moduleName: String? = null
+    private val _sources = mutableListOf<String>()
     private var _outputDirName: String? = null
 
     override fun startElement(
@@ -48,10 +52,11 @@ class BuildFileParser : DefaultHandler() {
         attributes: Attributes?,
     ) {
         when (qName) {
-            "module" -> parseModule(attributes)
             "classpath" -> parseClassPath(attributes)
-            "sources" -> parseSources(attributes)
+            "friendDir" -> parseFriendDir(attributes)
             "javaSourceRoots" -> parseJavaSourceRoots(attributes)
+            "module" -> parseModule(attributes)
+            "sources" -> parseSources(attributes)
         }
     }
 
@@ -65,6 +70,18 @@ class BuildFileParser : DefaultHandler() {
             return
         }
         _classpaths.add(cp)
+    }
+
+    private fun parseFriendDir(attributes: Attributes?) {
+        if (attributes == null) {
+            return
+        }
+
+        val path = attributes.getValue("", "path")
+        if (path == null) {
+            return
+        }
+        _friendDirs.add(path)
     }
 
     private fun parseSources(attributes: Attributes?) {

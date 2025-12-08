@@ -586,9 +586,9 @@ func TestKotlinAssociates(t *testing.T) {
 			expectedFriendPath := "out/soong/.intermediates/Foo/android_common/kotlin_headers/Foo.jar"
 			expectedFlag := "-Xfriend-paths=" + expectedFriendPath
 
-			kotlincFlags := kotlincRule.Args["kotlincFlags"]
-			if !strings.Contains(kotlincFlags, expectedFlag) {
-				t.Errorf("kotlincFlags missing expected friend path:\n  Flags: %s\n  Expected: %s", kotlincFlags, expectedFlag)
+			friendPathsArg := kotlincRule.Args["friendPathsArg"]
+			if !strings.Contains(friendPathsArg, expectedFlag) {
+				t.Errorf("friendPathsArg missing expected friend path:\n  Flags: %s\n  Expected: %s", friendPathsArg, expectedFlag)
 			}
 
 			classpathRspFile := module.Output("kotlinc/classpath.rsp")

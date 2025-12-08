@@ -97,10 +97,6 @@ type prebuiltCommon struct {
 	apkCertsFile android.WritablePath
 }
 
-type sanitizedPrebuilt interface {
-	hasSanitizedSource(sanitizer string) bool
-}
-
 type PrebuiltCommonProperties struct {
 	SelectedApexProperties
 
@@ -174,11 +170,6 @@ func (p *prebuiltCommon) checkForceDisable(ctx android.ModuleContext) bool {
 	// Force disable the prebuilts when we are doing unbundled build. We do unbundled build
 	// to build the prebuilts themselves.
 	forceDisable = forceDisable || ctx.Config().UnbundledBuild()
-
-	// b/137216042 don't use prebuilts when address sanitizer is on, unless the prebuilt has a sanitized source
-	sanitized := ctx.Module().(sanitizedPrebuilt)
-	forceDisable = forceDisable || (android.InList("address", ctx.Config().SanitizeDevice()) && !sanitized.hasSanitizedSource("address"))
-	forceDisable = forceDisable || (android.InList("hwaddress", ctx.Config().SanitizeDevice()) && !sanitized.hasSanitizedSource("hwaddress"))
 
 	if forceDisable && p.prebuilt.SourceExists() {
 		p.prebuiltCommonProperties.ForceDisable = true
@@ -465,9 +456,11 @@ type PrebuiltProperties struct {
 	Apps []string
 }
 
-func (a *Prebuilt) hasSanitizedSource(sanitizer string) bool {
+func (a *Prebuilt) HasSanitizedSource(sanitizer string) bool {
 	return false
 }
+
+var _ android.SanitizedPrebuilt = (*Prebuilt)(nil)
 
 // prebuilt_apex imports an `.apex` file into the build graph as if it was built with apex.
 func PrebuiltFactory() android.Module {
@@ -864,7 +857,7 @@ type ApexSetProperties struct {
 	PrebuiltCommonProperties
 }
 
-func (a *ApexSet) hasSanitizedSource(sanitizer string) bool {
+func (a *ApexSet) HasSanitizedSource(sanitizer string) bool {
 	if sanitizer == "address" {
 		return a.properties.Sanitized.Address.Set != nil
 	}
@@ -874,6 +867,8 @@ func (a *ApexSet) hasSanitizedSource(sanitizer string) bool {
 
 	return false
 }
+
+var _ android.SanitizedPrebuilt = (*ApexSet)(nil)
 
 // prebuilt_apex imports an `.apex` file into the build graph as if it was built with apex.
 func apexSetFactory() android.Module {

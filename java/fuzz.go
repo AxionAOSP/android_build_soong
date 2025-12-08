@@ -158,6 +158,7 @@ func (j *JavaFuzzTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		NeedsArchFolder:           ctx.Device(),
 		CompatibilitySupportFiles: compatibilitySupportFiles,
 		PerTestcaseDirectory:      proptools.Bool(j.testProperties.Per_testcase_directory),
+		IsUnitTest:                proptools.Bool(j.testProperties.Test_options.Unit_test),
 	})
 
 	fuzzModuleValidator := fuzz.FuzzModule{

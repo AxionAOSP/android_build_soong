@@ -324,7 +324,11 @@ func TestPrebuilts(t *testing.T) {
 				// Add a Windows target to the configuration.
 				FixtureModifyConfig(func(config Config) {
 					config.Targets[Windows] = []Target{
-						{Windows, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", "", true},
+						{
+							Os:        Windows,
+							Arch:      Arch{ArchType: X86_64},
+							HostCross: true,
+						},
 					}
 				}),
 				fs.AddToFixture(),

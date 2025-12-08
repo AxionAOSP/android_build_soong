@@ -58,6 +58,8 @@ type ModeInfo struct {
 	Container string
 	Mode      string
 }
+
+// @auto-generate: gob
 type CodegenInfo struct {
 	// AconfigDeclarations is the name of the aconfig_declarations modules that
 	// the codegen module is associated with

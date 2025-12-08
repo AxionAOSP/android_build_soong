@@ -91,11 +91,11 @@ func TestCipdPackage(t *testing.T) {
 		t.Errorf("zipRule.Args[\"tempZipDir\"] = %q, want %q", zipRule.Args["tempZipDir"], wantTempZipDir)
 	}
 
-	zipTaggedOutputs := module.OutputFiles(result.TestContext, t, "zip")
+	zipTaggedOutputs := module.OutputFiles(result.TestContext, t, ".zip")
 	if len(zipTaggedOutputs) != 1 {
-		t.Errorf("len(module.OutputFiles(..., \"zip\")) = %d, want 1", len(zipTaggedOutputs))
+		t.Errorf("len(module.OutputFiles(..., \".zip\")) = %d, want 1", len(zipTaggedOutputs))
 	}
 	if val := zipTaggedOutputs[0].String(); val != wantZipFile {
-		t.Errorf("module.OutputFiles(..., \"zip\")[0] = %q, want %q", val, wantZipFile)
+		t.Errorf("module.OutputFiles(..., \".zip\")[0] = %q, want %q", val, wantZipFile)
 	}
 }

@@ -716,7 +716,7 @@ func TestGenruleAllowMissingDependencies(t *testing.T) {
 			})).RunTestWithBp(t, bp)
 
 	gen := result.ModuleForTests(t, "gen", "").Output("out")
-	if gen.Rule != android.ErrorRule {
+	if !android.IsErrorRule(gen.Rule) {
 		t.Errorf("Expected missing dependency error rule for gen, got %q", gen.Rule.String())
 	}
 }

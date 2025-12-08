@@ -199,7 +199,7 @@ func (module *SdkLibrary) createDroidstubs(mctx android.DefaultableHookContext, 
 		Name                             *string
 		Enabled                          proptools.Configurable[bool]
 		Visibility                       []string
-		Srcs                             []string
+		Srcs                             proptools.Configurable[[]string]
 		Installable                      *bool
 		Sdk_version                      *string
 		Api_surface                      *string
@@ -241,8 +241,8 @@ func (module *SdkLibrary) createDroidstubs(mctx android.DefaultableHookContext, 
 	props.Name = proptools.StringPtr(name)
 	props.Enabled = module.EnabledProperty()
 	props.Visibility = childModuleVisibility(module.sdkLibraryProperties.Stubs_source_visibility)
-	props.Srcs = append(props.Srcs, module.properties.Srcs...)
-	props.Srcs = append(props.Srcs, module.sdkLibraryProperties.Api_srcs...)
+	props.Srcs = module.properties.Srcs.Clone()
+	props.Srcs.AppendSimpleValue(module.sdkLibraryProperties.Api_srcs)
 	props.Sdk_version = module.deviceProperties.Sdk_version
 	props.Api_surface = module.getApiSurfaceForScope(apiScope)
 	props.System_modules = module.deviceProperties.System_modules
@@ -303,33 +303,42 @@ func (module *SdkLibrary) createDroidstubs(mctx android.DefaultableHookContext, 
 	props.Check_api.Current.Api_file = proptools.StringPtr(currentApiFileName)
 	props.Check_api.Current.Removed_api_file = proptools.StringPtr(removedApiFileName)
 
-	if module.compareAgainstLatestApi(apiScope) {
-		// check against the latest released API
-		latestApiFilegroupName := proptools.StringPtr(module.latestApiFilegroupName(apiScope))
-		props.Previous_api = latestApiFilegroupName
-		props.Check_api.Last_released.Api_file = latestApiFilegroupName
-		props.Check_api.Last_released.Removed_api_file = proptools.StringPtr(
-			module.latestRemovedApiFilegroupName(apiScope))
-		props.Check_api.Last_released.Baseline_file = proptools.StringPtr(
-			module.latestIncompatibilitiesFilegroupName(apiScope))
+	// Although a latest API is always provided it may not be a suitable one for
+	// comparing against, e.g. because the API surface does not require backwards
+	// compatibility or the latest API is a fake that is added simply to satisfy
+	// Metalava's requirement to provide one when working with flagged APIs.
+	compareAgainstLatestApi := module.compareAgainstLatestApi(apiScope)
 
-		if proptools.Bool(module.sdkLibraryProperties.Api_lint.Enabled) {
-			// Enable api lint.
-			props.Check_api.Api_lint.Enabled = proptools.BoolPtr(true)
-			props.Check_api.Api_lint.New_since = latestApiFilegroupName
+	// check against the latest released API
+	latestApiFilegroupName := proptools.StringPtr(module.latestApiFilegroupName(apiScope))
+	props.Previous_api = latestApiFilegroupName
 
-			// If it exists then pass a lint-baseline.txt through to droidstubs.
-			baselinePath := path.Join(apiDir, apiScope.apiFilePrefix+"lint-baseline.txt")
-			baselinePathRelativeToRoot := path.Join(mctx.ModuleDir(), baselinePath)
-			paths, err := mctx.GlobWithDeps(baselinePathRelativeToRoot, nil)
-			if err != nil {
-				mctx.ModuleErrorf("error checking for presence of %s: %s", baselinePathRelativeToRoot, err)
-			}
-			if len(paths) == 1 {
-				props.Check_api.Api_lint.Baseline_file = proptools.StringPtr(baselinePath)
-			} else if len(paths) != 0 {
-				mctx.ModuleErrorf("error checking for presence of %s: expected one path, found: %v", baselinePathRelativeToRoot, paths)
-			}
+	// Only perform compatibility checks if latest API is suitable.
+	props.Check_api.Last_released.Enabled = proptools.BoolPtr(compareAgainstLatestApi)
+
+	props.Check_api.Last_released.Api_file = latestApiFilegroupName
+	props.Check_api.Last_released.Removed_api_file = proptools.StringPtr(
+		module.latestRemovedApiFilegroupName(apiScope))
+	props.Check_api.Last_released.Baseline_file = proptools.StringPtr(
+		module.latestIncompatibilitiesFilegroupName(apiScope))
+
+	// Only perform the API lint check if the latest API is suitable.
+	if proptools.Bool(module.sdkLibraryProperties.Api_lint.Enabled) && compareAgainstLatestApi {
+		// Enable api lint.
+		props.Check_api.Api_lint.Enabled = proptools.BoolPtr(true)
+		props.Check_api.Api_lint.New_since = latestApiFilegroupName
+
+		// If it exists then pass a lint-baseline.txt through to droidstubs.
+		baselinePath := path.Join(apiDir, apiScope.apiFilePrefix+"lint-baseline.txt")
+		baselinePathRelativeToRoot := path.Join(mctx.ModuleDir(), baselinePath)
+		paths, err := mctx.GlobWithDeps(baselinePathRelativeToRoot, nil)
+		if err != nil {
+			mctx.ModuleErrorf("error checking for presence of %s: %s", baselinePathRelativeToRoot, err)
+		}
+		if len(paths) == 1 {
+			props.Check_api.Api_lint.Baseline_file = proptools.StringPtr(baselinePath)
+		} else if len(paths) != 0 {
+			mctx.ModuleErrorf("error checking for presence of %s: expected one path, found: %v", baselinePathRelativeToRoot, paths)
 		}
 	}
 
@@ -462,7 +471,7 @@ func (module *SdkLibrary) createApiLibrary(mctx android.DefaultableHookContext, 
 
 	// Api surfaces are not independent of each other, but have subset relationships,
 	// and so does the api files. To generate from-text stubs for api surfaces other than public,
-	// all subset api domains' api_contriubtions must be added as well.
+	// all subset api domains' api_contributions must be added as well.
 	scope := apiScope
 	for scope != nil {
 		apiContributions = append(apiContributions, module.droidstubsModuleName(scope)+".api.contribution")
@@ -494,11 +503,9 @@ func (module *SdkLibrary) createApiLibrary(mctx android.DefaultableHookContext, 
 		props.Sdk_version = module.deviceProperties.Sdk_version
 	}
 
-	if module.compareAgainstLatestApi(apiScope) {
-		// check against the latest released API
-		latestApiFilegroupName := proptools.StringPtr(module.latestApiFilegroupName(apiScope))
-		props.Previous_api = latestApiFilegroupName
-	}
+	// check against the latest released API
+	latestApiFilegroupName := proptools.StringPtr(module.latestApiFilegroupName(apiScope))
+	props.Previous_api = latestApiFilegroupName
 
 	mctx.CreateModule(ApiLibraryFactory, &props, module.sdkComponentPropertiesForChildLibrary())
 }
@@ -722,8 +729,6 @@ type sdkLibraryXml struct {
 	outputFilePath android.OutputPath
 	installDirPath android.InstallPath
 
-	hideApexVariantFromMake bool
-
 	usesLibrary
 }
 
@@ -941,7 +946,9 @@ func (module *sdkLibraryXml) permissionsContents(ctx android.ModuleContext) stri
 
 func (module *sdkLibraryXml) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
-	module.hideApexVariantFromMake = !apexInfo.IsForPlatform()
+	if !apexInfo.IsForPlatform() {
+		module.HideFromMake()
+	}
 
 	libName := proptools.String(module.properties.Lib_name)
 	module.selfValidate(ctx)
@@ -958,24 +965,17 @@ func (module *sdkLibraryXml) GenerateAndroidBuildActions(ctx android.ModuleConte
 	etc.SetCommonPrebuiltEtcInfo(ctx, module)
 }
 
-func (module *sdkLibraryXml) AndroidMkEntries() []android.AndroidMkEntries {
-	if module.hideApexVariantFromMake {
-		return []android.AndroidMkEntries{{
-			Disabled: true,
-		}}
-	}
-
-	return []android.AndroidMkEntries{{
+func (module *sdkLibraryXml) PrepareAndroidMKProviderInfo(config android.Config) *android.AndroidMkProviderInfo {
+	info := &android.AndroidMkProviderInfo{}
+	info.PrimaryInfo = android.AndroidMkInfo{
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(module.outputFilePath),
-		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
-			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-				entries.SetString("LOCAL_MODULE_TAGS", "optional")
-				entries.SetString("LOCAL_MODULE_PATH", module.installDirPath.String())
-				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", module.outputFilePath.Base())
-			},
-		},
-	}}
+	}
+	info.PrimaryInfo.SetString("LOCAL_MODULE_TAGS", "optional")
+	info.PrimaryInfo.SetString("LOCAL_MODULE_PATH", module.installDirPath.String())
+	info.PrimaryInfo.SetString("LOCAL_INSTALLED_MODULE_STEM", module.outputFilePath.Base())
+
+	return info
 }
 
 func (module *sdkLibraryXml) selfValidate(ctx android.ModuleContext) {

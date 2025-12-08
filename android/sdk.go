@@ -306,6 +306,7 @@ var _ sdkRegisterable = (SdkMemberTrait)(nil)
 
 // SdkMemberTraitBase is the base struct that must be embedded within any type that implements
 // SdkMemberTrait.
+// @auto-generate: gob
 type SdkMemberTraitBase struct {
 	// PropertyName is the name of the property
 	PropertyName string

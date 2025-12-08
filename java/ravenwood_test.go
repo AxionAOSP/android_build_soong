@@ -75,10 +75,6 @@ var prepareRavenwoodRuntime = android.GroupFixturePreparers(
 			name: "app2",
 			sdk_version: "current",
 		}
-		android_app {
-			name: "app3",
-			sdk_version: "current",
-		}
 		prebuilt_font {
 			name: "Font.ttf",
 			src: "Font.ttf",
@@ -201,12 +197,13 @@ func TestRavenwoodTest(t *testing.T) {
 				"data/file1.txt",
 				"data2/sub/file2",
 			],
-			resource_apk: "app2",
-			inst_resource_apk: "app3",
+			build_resources: true,
+			manifest: "AndroidManifest.xml",
+			target_resource_apk: "app2",
 			sdk_version: "test_current",
 			target_sdk_version: "34",
 			package_name: "a.b.c",
-			inst_package_name: "x.y.z",
+			target_package_name: "x.y.z",
 			instrumentation_class: "androidx.test.runner.AndroidJUnitRunner",
 		}
 		android_ravenwood_test {
@@ -238,7 +235,7 @@ func TestRavenwoodTest(t *testing.T) {
 	module.Output(installPathPrefix + "/ravenwood-test/lib64/libblue.so")
 	module.Output(installPathPrefix + "/ravenwood-test/lib64/libpink.so")
 	module.Output(installPathPrefix + "/ravenwood-test/ravenwood-res-apks/ravenwood-res.apk")
-	module.Output(installPathPrefix + "/ravenwood-test/ravenwood-res-apks/ravenwood-inst-res.apk")
+	module.Output(installPathPrefix + "/ravenwood-test/ravenwood-res-apks/ravenwood-target-res.apk")
 	module.Output(installPathPrefix + "/ravenwood-test/data/file1.txt")
 	module.Output(installPathPrefix + "/ravenwood-test/data2/sub/file2")
 

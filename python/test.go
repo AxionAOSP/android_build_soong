@@ -229,6 +229,7 @@ func (p *PythonTestModule) GenerateAndroidBuildActions(ctx android.ModuleContext
 		ConfigFileSuffix: configFileSuffix,
 		Data:             p.data,
 		NeedsArchFolder:  true,
+		IsUnitTest:       Bool(p.testProperties.Test_options.Unit_test),
 	})
 
 	moduleInfoJSON := ctx.ModuleInfoJSON()

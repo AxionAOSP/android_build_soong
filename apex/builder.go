@@ -82,7 +82,6 @@ func init() {
 	pctx.HostBinToolVariable("fsck_erofs", "fsck.erofs")
 	pctx.SourcePathVariable("genNdkUsedbyApexPath", "build/soong/scripts/gen_ndk_usedby_apex.sh")
 	pctx.HostBinToolVariable("conv_linker_config", "conv_linker_config")
-	pctx.HostBinToolVariable("assemble_vintf", "assemble_vintf")
 	pctx.HostBinToolVariable("apex_elf_checker", "apex_elf_checker")
 	pctx.HostBinToolVariable("aconfig", "aconfig")
 	pctx.HostBinToolVariable("host_apex_verifier", "host_apex_verifier")
@@ -232,17 +231,18 @@ var (
 		Description: "run host_apex_verifier",
 	}, "partition_tag")
 
-	assembleVintfRule = pctx.StaticRule("assembleVintfRule", blueprint.RuleParams{
-		Command:     `rm -f $out && VINTF_IGNORE_TARGET_FCM_VERSION=true ${assemble_vintf} -i $in -o $out`,
-		CommandDeps: []string{"${assemble_vintf}"},
-		Description: "run assemble_vintf",
-	})
-
 	apexElfCheckerUnwantedRule = pctx.StaticRule("apexElfCheckerUnwantedRule", blueprint.RuleParams{
 		Command:     `${apex_elf_checker} --tool_path ${tool_path} --unwanted ${unwanted} ${in} && touch ${out}`,
 		CommandDeps: []string{"${apex_elf_checker}", "${deapexer}", "${debugfs}", "${fsck_erofs}", "${config.ClangBin}/llvm-readelf"},
 		Description: "run apex_elf_checker --unwanted",
 	}, "tool_path", "unwanted")
+
+	apexAconfigFlagsPbRule = pctx.StaticRule("apexAconfigFlagsPbRule", blueprint.RuleParams{
+		Command: `${aconfig} dump-cache --dedup --format protobuf --out ${out} ` +
+			`--filter container:${container}+namespace:!${beta_namespace} ${cache_files}`,
+		CommandDeps: []string{"${aconfig}",},
+		Description: "create aconfig_flags.pb file",
+	}, "container", "beta_namespace", "cache_files")
 )
 
 func (a *apexBundle) buildAconfigFiles(ctx android.ModuleContext) []apexFile {
@@ -267,15 +267,33 @@ func (a *apexBundle) buildAconfigFiles(ctx android.ModuleContext) []apexFile {
 	var files []apexFile
 	if len(aconfigFiles) > 0 {
 		apexAconfigFile := android.PathForModuleOut(ctx, "aconfig_flags.pb")
-		ctx.Build(pctx, android.BuildParams{
-			Rule:        aconfig.AllDeclarationsRule,
-			Inputs:      aconfigFiles,
-			Output:      apexAconfigFile,
-			Description: "combine_aconfig_declarations",
-			Args: map[string]string{
-				"cache_files": android.JoinPathsWithPrefix(aconfigFiles, "--cache "),
-			},
-		})
+		if ctx.Config().ReleaseRemoveBetaFlagsFromAconfigFlagsPb() {
+			beta_namespace := "";
+			if a.overridableProperties.Beta_namespace  != nil {
+				beta_namespace = *(a.overridableProperties.Beta_namespace)
+			}
+			ctx.Build(pctx, android.BuildParams{
+				Rule:        apexAconfigFlagsPbRule,
+				Inputs:      aconfigFiles,
+				Output:      apexAconfigFile,
+				Description: "aggregate all dependent aconfig caches",
+				Args: map[string]string{
+					"container": ctx.ModuleName(),
+					"beta_namespace": beta_namespace,
+					"cache_files": android.JoinPathsWithPrefix(aconfigFiles, "--cache "),
+				},
+			})
+		} else {
+			ctx.Build(pctx, android.BuildParams{
+				Rule:        aconfig.AllDeclarationsRule,
+				Inputs:      aconfigFiles,
+				Output:      apexAconfigFile,
+				Description: "combine_aconfig_declarations",
+				Args: map[string]string{
+					"cache_files": android.JoinPathsWithPrefix(aconfigFiles, "--cache "),
+				},
+			})
+		}
 		files = append(files, newApexFile(ctx, apexAconfigFile, "aconfig_flags", "etc", etc, android.ModuleProxy{}))
 
 		storageFilesVersion := ctx.Config().ReleaseAconfigStorageVersion()
@@ -528,7 +546,7 @@ func shouldApplyAssembleVintf(fi apexFile) bool {
 func runAssembleVintf(ctx android.ModuleContext, vintfFragment android.Path) android.Path {
 	processed := android.PathForModuleOut(ctx, "vintf", vintfFragment.Base())
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        assembleVintfRule,
+		Rule:        android.AssembleVintfRule,
 		Input:       vintfFragment,
 		Output:      processed,
 		Description: "run assemble_vintf for VINTF in APEX",
@@ -815,10 +833,14 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 	htmlGzNotice := android.PathForModuleOut(ctx, "NOTICE.html.gz")
 	android.BuildNoticeHtmlOutputFromLicenseMetadata(
 		ctx, htmlGzNotice, "", "",
-		[]string{
-			android.PathForModuleInstall(ctx).String() + "/",
-			android.PathForModuleInPartitionInstall(ctx, "apex").String() + "/",
-		})
+		android.BuildNoticeFromLicenseDataArgs{
+			StripPrefix: []string{
+				android.PathForModuleInstall(ctx).String() + "/",
+				android.PathForModuleInPartitionInstall(ctx, "apex").String() + "/",
+			},
+		},
+		ctx.ModuleProxy(),
+	)
 	noticeAssetPath := android.PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
 	builder := android.NewRuleBuilder(pctx, ctx)
 	builder.Command().Text("cp").
@@ -971,7 +993,7 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 		"flags":        "-a 4096 --align-file-size", //alignment
 	}
 	implicits := android.Paths{pem, key}
-	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_SIGNAPK") {
+	if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_SIGNAPK") {
 		rule = java.SignapkRE
 		args["implicits"] = strings.Join(implicits.Strings(), ",")
 		args["outCommaList"] = signedOutputFile.String()
@@ -1025,7 +1047,7 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 		compressRule.Build("compressRule", "Generate unsigned compressed APEX file")
 
 		signedCompressedOutputFile := android.PathForModuleOut(ctx, a.Name()+imageCapexSuffix)
-		if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_SIGNAPK") {
+		if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_SIGNAPK") {
 			args["outCommaList"] = signedCompressedOutputFile.String()
 		}
 		ctx.Build(pctx, android.BuildParams{
@@ -1096,12 +1118,6 @@ func (a *apexBundle) getOverrideManifestPackageName(ctx android.ModuleContext) s
 }
 
 func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
-	if a.properties.IsCoverageVariant {
-		// Otherwise, we will have duplicated rules for coverage and
-		// non-coverage variants of the same APEX
-		return
-	}
-
 	depInfos := android.DepNameToDepInfoMap{}
 	a.WalkPayloadDeps(ctx, func(ctx android.BaseModuleContext, from, to android.ModuleProxy, externalDep bool) bool {
 		if from.Name() == to.Name() {
@@ -1148,14 +1164,7 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 
 	a.ApexBundleDepsInfo.BuildDepsInfoLists(ctx, a.MinSdkVersion(ctx).String(), depInfos)
 
-	ctx.Build(pctx, android.BuildParams{
-		Rule:   android.Phony,
-		Output: android.PathForPhony(ctx, a.Name()+"-deps-info"),
-		Inputs: []android.Path{
-			a.ApexBundleDepsInfo.FullListPath(),
-			a.ApexBundleDepsInfo.FlatListPath(),
-		},
-	})
+	ctx.Phony(a.Name()+"-deps-info", a.ApexBundleDepsInfo.FullListPath(), a.ApexBundleDepsInfo.FlatListPath())
 }
 
 func (a *apexBundle) buildLintReports(ctx android.ModuleContext) {

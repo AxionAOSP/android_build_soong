@@ -39,6 +39,10 @@ type EarlyModuleContext interface {
 	// reference to itself.
 	Module() Module
 
+	// Module returns the current module as a ModuleProxy.  It should rarely be necessary, as the
+	// module already has a reference to itself.
+	ModuleProxy() ModuleProxy
+
 	// ModuleName returns the name of the module.  This is generally the value that was returned by Module.Name() when
 	// the module was created, but may have been modified by calls to BottomUpMutatorContext.Rename.
 	ModuleName() string
@@ -144,6 +148,10 @@ func (e *earlyModuleContext) Readlink(path Path) string {
 func (e *earlyModuleContext) Module() Module {
 	module, _ := e.EarlyModuleContext.Module().(Module)
 	return module
+}
+
+func (e *earlyModuleContext) ModuleProxy() ModuleProxy {
+	return CreateModuleProxy(e.Module())
 }
 
 func (e *earlyModuleContext) Config() Config {

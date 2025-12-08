@@ -177,9 +177,11 @@ class ClientOptions : Options {
 
     var buildFileClassPaths: List<String> = emptyList()
 
-    var buildFileSources: List<String> = emptyList()
+    var buildFileFriendDirs: List<String> = emptyList()
 
     var buildFileJavaSources: List<String> = emptyList()
+
+    var buildFileSources: List<String> = emptyList()
 
     private var classpathSnapshotDir: String = "cpsnapshot"
     val classpathSnapshot: File

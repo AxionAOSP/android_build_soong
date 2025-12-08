@@ -1,6 +1,7 @@
 package incremental_javac_input_lib
 
 import (
+	"archive/zip"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,48 +23,97 @@ func TestGetUsages(t *testing.T) {
 		"file2.java":   {Usages: []string{"file3.java"}},
 		"file3.java":   {Usages: []string{}},
 		"fileAll.java": {Usages: []string{}, IsDependencyToAll: true},
+		"FooClass":     {Usages: []string{"file1.java", "file4.java"}},
+		"BarClass":     {Usages: []string{"file3.java"}},
+		"BazClass":     {Usages: []string{}},
 	}
 
 	testCases := []struct {
-		name          string
-		modifiedFiles []string
-		deletedFiles  []string
-		expected      []string
-		expectedAll   bool
+		name            string
+		modifiedFiles   []string
+		deletedFiles    []string
+		modifiedClasses []string
+		deletedClasses  []string
+		expected        []string
+		expectedAll     bool
 	}{
 		{
-			name:          "Basic",
-			modifiedFiles: []string{"file1.java"},
-			deletedFiles:  []string{"file2.java"},
-			expected:      []string{"file1.java", "file3.java", "file4.java"}, // file3 is used by both
-			expectedAll:   false,
+			name:            "Basic",
+			modifiedFiles:   []string{"file1.java"},
+			deletedFiles:    []string{"file2.java"},
+			modifiedClasses: []string{},
+			deletedClasses:  []string{},
+			expected:        []string{"file1.java", "file3.java", "file4.java"}, // file3 is used by both
+			expectedAll:     false,
 		},
 		{
-			name:          "Empty",
-			modifiedFiles: []string{},
-			deletedFiles:  []string{},
-			expected:      nil,
-			expectedAll:   false,
+			name:            "Empty",
+			modifiedFiles:   []string{},
+			deletedFiles:    []string{},
+			modifiedClasses: []string{},
+			deletedClasses:  []string{},
+			expected:        nil,
+			expectedAll:     false,
 		},
 		{
-			name:          "NonExistentFile",
-			modifiedFiles: []string{"nonexistent.java"},
-			deletedFiles:  []string{},
-			expected:      []string{"nonexistent.java"},
-			expectedAll:   false,
+			name:            "NonExistentFile",
+			modifiedFiles:   []string{"nonexistent.java"},
+			deletedFiles:    []string{},
+			modifiedClasses: []string{},
+			deletedClasses:  []string{},
+			expected:        []string{"nonexistent.java"},
+			expectedAll:     false,
 		},
 		{
-			name:          "DependencyToAll",
-			modifiedFiles: []string{"file1.java"},
-			deletedFiles:  []string{"fileAll.java"},
-			expected:      nil,
-			expectedAll:   true,
+			name:            "DependencyToAll",
+			modifiedFiles:   []string{"file1.java"},
+			deletedFiles:    []string{"fileAll.java"},
+			modifiedClasses: []string{},
+			deletedClasses:  []string{},
+			expected:        nil,
+			expectedAll:     true,
+		},
+		{
+			name:            "SingleClassChange",
+			modifiedFiles:   []string{},
+			deletedFiles:    []string{},
+			modifiedClasses: []string{"FooClass"},
+			deletedClasses:  []string{},
+			expected:        []string{"file1.java", "file4.java"},
+			expectedAll:     false,
+		},
+		{
+			name:            "TwoClassChange",
+			modifiedFiles:   []string{},
+			deletedFiles:    []string{},
+			modifiedClasses: []string{"FooClass", "BarClass"},
+			deletedClasses:  []string{},
+			expected:        []string{"file1.java", "file3.java", "file4.java"},
+			expectedAll:     false,
+		},
+		{
+			name:            "DeleteClassChange",
+			modifiedFiles:   []string{},
+			deletedFiles:    []string{},
+			modifiedClasses: []string{"BarClass"},
+			deletedClasses:  []string{},
+			expected:        []string{"file3.java"},
+			expectedAll:     false,
+		},
+		{
+			name:            "NoDependenciesClassChange",
+			modifiedFiles:   []string{},
+			deletedFiles:    []string{},
+			modifiedClasses: []string{"BazClass"},
+			deletedClasses:  []string{},
+			expected:        nil,
+			expectedAll:     false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, all := getUsages(usageMap, tc.modifiedFiles, tc.deletedFiles, true)
+			actual, all := getUsages(usageMap, tc.modifiedFiles, tc.deletedFiles, tc.modifiedClasses, tc.deletedClasses)
 			if all != tc.expectedAll {
 				t.Errorf("getUsages() all sources; expected %v, got %v", tc.expectedAll, all)
 			}
@@ -378,6 +428,35 @@ func TestGenerateIncrementalInput(t *testing.T) {
 		)
 		tf.savePriorState() // Save state if needed for subsequent tests
 	})
+
+	// --- Subtest: Incremental - CrossModuleDeps modified ---
+	t.Run("Incremental_CrossModuleDepsModified", func(t *testing.T) {
+		// Arrange: Modify cross-module jar.
+		// There is no way to modify zip files directly. Just move it somewhere and recreate it.
+		err := os.Rename(tf.CrossModuleJar, tf.CrossModuleJar+".tmp")
+		defer os.Rename(tf.CrossModuleJar+".tmp", tf.CrossModuleJar)
+		if err != nil {
+			t.Fatalf("Failed to move file %q: %v", tf.CrossModuleJar, err)
+		}
+		writeZip(t, tf.CrossModuleJar, tf.CrossModuleClass, "changed content")
+
+		// Changing a cross-module jar implies a change in headers
+		modifyFile(t, tf.HeaderJar, "Incremental_CrossModuleDepsModified")
+
+		// Act
+		tf.runGenerator()
+
+		// Assert: Check usages of deleted file in inc.rsp, and class files
+		// corresponding to deleted files in rem.rsp
+		checkOutput(
+			t,
+			tf.incOutputPath(),
+			fmt.Sprintf("%s", tf.JavaFile1), // usages of modified class
+			tf.remOutputPath(),
+			"",
+		)
+		tf.savePriorState() // Save state if needed for subsequent tests
+	})
 }
 
 func TestGenerateIncrementalInputPartialCompileOff(t *testing.T) {
@@ -429,19 +508,22 @@ func TestGenerateIncrementalInputPartialCompileOff(t *testing.T) {
 // --- Test Fixture Setup ---
 // Struct to hold common test file paths
 type testFixture struct {
-	t              *testing.T
-	tmpDir         string
-	ClassDir       string
-	SrcRspFile     string
-	DepsRspFile    string
-	JavacTargetJar string
-	JavaSrcDeps    string
-	HeadersRspFile string
-	JavaFile1      string
-	JavaFile2      string
-	JavaFile3      string
-	DepJar         string
-	HeaderJar      string
+	t                      *testing.T
+	tmpDir                 string
+	ClassDir               string
+	SrcRspFile             string
+	DepsRspFile            string
+	JavacTargetJar         string
+	JavaSrcDeps            string
+	HeadersRspFile         string
+	CrossModuleDepsRspFile string
+	JavaFile1              string
+	JavaFile2              string
+	JavaFile3              string
+	DepJar                 string
+	HeaderJar              string
+	CrossModuleJar         string
+	CrossModuleClass       string
 }
 
 // newTestFixture creates the temporary directory and necessary files
@@ -450,19 +532,22 @@ func newTestFixture(t *testing.T) *testFixture {
 
 	// Create dummy files needed for the tests
 	fixture := &testFixture{
-		t:              t,
-		tmpDir:         tmpDir,
-		ClassDir:       filepath.Join(tmpDir, "classes"),
-		SrcRspFile:     filepath.Join(tmpDir, "sources.rsp"),
-		DepsRspFile:    filepath.Join(tmpDir, "deps.rsp"),
-		JavacTargetJar: filepath.Join(tmpDir, "output.jar"),
-		JavaSrcDeps:    filepath.Join(tmpDir, "srcdeps.pb"), // Example proto file path
-		HeadersRspFile: filepath.Join(tmpDir, "localHeaders.rsp"),
-		JavaFile1:      filepath.Join(tmpDir, "src/com/example/ClassA.java"),
-		JavaFile2:      filepath.Join(tmpDir, "src/com/example/ClassC.java"),
-		JavaFile3:      filepath.Join(tmpDir, "src/org/another/ClassD.java"), // Example different package
-		DepJar:         filepath.Join(tmpDir, "deps.jar"),
-		HeaderJar:      filepath.Join(tmpDir, "headers.jar"),
+		t:                      t,
+		tmpDir:                 tmpDir,
+		ClassDir:               filepath.Join(tmpDir, "classes"),
+		SrcRspFile:             filepath.Join(tmpDir, "sources.rsp"),
+		DepsRspFile:            filepath.Join(tmpDir, "deps.rsp"),
+		JavacTargetJar:         filepath.Join(tmpDir, "output.jar"),
+		JavaSrcDeps:            filepath.Join(tmpDir, "srcdeps.pb"), // Example proto file path
+		HeadersRspFile:         filepath.Join(tmpDir, "localHeaders.rsp"),
+		CrossModuleDepsRspFile: filepath.Join(tmpDir, "crossmoduledeps.rsp"),
+		JavaFile1:              filepath.Join(tmpDir, "src/com/example/ClassA.java"),
+		JavaFile2:              filepath.Join(tmpDir, "src/com/example/ClassC.java"),
+		JavaFile3:              filepath.Join(tmpDir, "src/org/another/ClassD.java"), // Example different package
+		DepJar:                 filepath.Join(tmpDir, "deps.jar"),
+		HeaderJar:              filepath.Join(tmpDir, "headers.jar"),
+		CrossModuleJar:         filepath.Join(tmpDir, "crossmodule.jar"),
+		CrossModuleClass:       "Class.class",
 	}
 
 	// Create directories and initial file contents
@@ -476,13 +561,15 @@ func newTestFixture(t *testing.T) *testFixture {
 
 	writeFile(t, fixture.DepJar, "Dep jar")
 	writeFile(t, fixture.HeaderJar, "Header jar")
+	writeZip(t, fixture.CrossModuleJar, fixture.CrossModuleClass, "Cross Module Jar class contents")
 
 	writeFile(t, fixture.SrcRspFile, fmt.Sprintf("%s\n%s\n%s", fixture.JavaFile1, fixture.JavaFile2, fixture.JavaFile3))
 	writeFile(t, fixture.DepsRspFile, fmt.Sprintf("%s", fixture.DepJar))
 	writeFile(t, fixture.HeadersRspFile, fmt.Sprintf("%s", fixture.HeaderJar))
+	writeFile(t, fixture.CrossModuleDepsRspFile, fmt.Sprintf("%s", fixture.CrossModuleJar))
 	writeFile(t, fixture.JavacTargetJar, "Javac Jar")
 	writeFile(t, fixture.JavaSrcDeps, "")
-	createProtoFileWithActualPaths(t, fixture.JavaSrcDeps, fixture.JavaFile1, fixture.JavaFile2, fixture.JavaFile3)
+	createProtoFileWithActualPaths(t, fixture.JavaSrcDeps, fixture.JavaFile1, fixture.JavaFile2, fixture.JavaFile3, fixture.CrossModuleClass)
 
 	return fixture
 }
@@ -491,7 +578,7 @@ func newTestFixture(t *testing.T) *testFixture {
 func (tf *testFixture) runGenerator() {
 	// Small delay often needed for filesystem timestamp granularity
 	time.Sleep(15 * time.Millisecond)
-	err := GenerateIncrementalInput(tf.ClassDir, tf.SrcRspFile, tf.DepsRspFile, tf.JavacTargetJar, tf.JavaSrcDeps, tf.HeadersRspFile)
+	err := GenerateIncrementalInput(tf.ClassDir, tf.SrcRspFile, tf.DepsRspFile, tf.JavacTargetJar, tf.JavaSrcDeps, tf.HeadersRspFile, tf.CrossModuleDepsRspFile)
 	if err != nil {
 		tf.t.Fatalf("GenerateIncrementalInput() returned an error: %v", err)
 	}
@@ -544,10 +631,13 @@ func (tf *testFixture) savePriorState() {
 	depsState := tf.JavacTargetJar + ".deps.pc_state"
 	headerStateNew := tf.JavacTargetJar + ".headers.pc_state.new"
 	headerState := tf.JavacTargetJar + ".headers.pc_state"
+	crossModuleDepsStateNew := tf.JavacTargetJar + ".crossModuleDeps.pc_state.new"
+	crossModuleDepsState := tf.JavacTargetJar + ".crossModuleDeps.pc_state"
 
 	os.Rename(inputStateNew, inputState)
 	os.Rename(depsStateNew, depsState)
 	os.Rename(headerStateNew, headerState)
+	os.Rename(crossModuleDepsStateNew, crossModuleDepsState)
 }
 
 // --- File Create/Mod/Delete helpers ---
@@ -565,6 +655,31 @@ func writeFile(t *testing.T, filePath, content string) {
 	err := os.WriteFile(filePath, []byte(content), 0644)
 	if err != nil {
 		t.Fatalf("Failed to write file %q: %v", filePath, err)
+	}
+}
+
+func writeZip(t *testing.T, zipPath, filePath, content string) {
+	t.Helper()
+	zf, err := os.OpenFile(zipPath, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		t.Fatalf("Failed to create zip file to write to %q: %v", zipPath, err)
+	}
+
+	// Create a new zip archive.
+	w := zip.NewWriter(zf)
+
+	f, err := w.Create(filePath)
+	if err != nil {
+		t.Fatalf("Failed to add file to zip %q: %v", filePath, err)
+	}
+	_, err = f.Write([]byte(content))
+	if err != nil {
+		t.Fatalf("Failed to add contents to file inside of zip %q: %v", filePath, err)
+	}
+
+	err = w.Close()
+	if err != nil {
+		t.Fatalf("Failed to close and flush zip file %q: %v", zipPath, err)
 	}
 }
 
@@ -660,26 +775,29 @@ func createProtoFile(t *testing.T, filePath string) string {
 	return filePath
 }
 
-func createProtoFileWithActualPaths(t *testing.T, protoFilePath, javaFile1, javaFile2, javaFile3 string) string {
+func createProtoFileWithActualPaths(t *testing.T, protoFilePath, javaFile1, javaFile2, javaFile3, crossModuleClass string) string {
 	t.Helper()
 
 	dep1 := &dependency_proto.FileDependency{
-		FilePath:          proto.String(javaFile1),
-		FileDependencies:  []string{javaFile2, javaFile3},
-		IsDependencyToAll: proto.Bool(false),
-		GeneratedClasses:  []string{"src/com/example/ClassA", "src/com/example/ClassB"},
+		FilePath:             proto.String(javaFile1),
+		FileDependencies:     []string{javaFile2, javaFile3},
+		IsDependencyToAll:    proto.Bool(false),
+		GeneratedClasses:     []string{"src/com/example/ClassA", "src/com/example/ClassB"},
+		CrossModuleClassDeps: []string{crossModuleClass},
 	}
 	dep2 := &dependency_proto.FileDependency{
-		FilePath:          proto.String(javaFile2),
-		FileDependencies:  []string{},
-		IsDependencyToAll: proto.Bool(true),
-		GeneratedClasses:  []string{"src/com/example/ClassC"},
+		FilePath:             proto.String(javaFile2),
+		FileDependencies:     []string{},
+		IsDependencyToAll:    proto.Bool(true),
+		GeneratedClasses:     []string{"src/com/example/ClassC"},
+		CrossModuleClassDeps: []string{},
 	}
 	dep3 := &dependency_proto.FileDependency{
-		FilePath:          proto.String(javaFile3),
-		FileDependencies:  []string{},
-		IsDependencyToAll: proto.Bool(false),
-		GeneratedClasses:  []string{"org.another.ClassD"},
+		FilePath:             proto.String(javaFile3),
+		FileDependencies:     []string{},
+		IsDependencyToAll:    proto.Bool(false),
+		GeneratedClasses:     []string{"org.another.ClassD"},
+		CrossModuleClassDeps: []string{},
 	}
 
 	message := &dependency_proto.FileDependencyList{

@@ -20,6 +20,8 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 // This file contains support for using apex modules within an sdk.
 
 func init() {
@@ -36,6 +38,7 @@ func init() {
 	})
 }
 
+// @auto-generate: gob
 type apexSdkMemberType struct {
 	android.SdkMemberTypeBase
 }

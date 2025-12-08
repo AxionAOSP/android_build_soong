@@ -25,12 +25,14 @@ fun <O : Options> parseArgs(
     argumentParsers: List<Argument<out Any, O>>,
     stdoutPrinter: PrintStream,
     stderrPrinter: PrintStream,
+    usageText: String,
     additionalHelp: String? = null,
 ): Boolean {
     var matched: Boolean
     var hasError = false
     var showHelp = args.isEmpty()
     val iter = args.iterator()
+
     while (iter.hasNext()) {
         val arg = iter.next()
         matched = false
@@ -55,7 +57,7 @@ fun <O : Options> parseArgs(
     }
 
     if (showHelp) {
-        showArgumentHelp(argumentParsers, stdoutPrinter, additionalHelp)
+        showArgumentHelp(argumentParsers, stdoutPrinter, usageText, additionalHelp)
     }
 
     return !hasError
@@ -64,14 +66,13 @@ fun <O : Options> parseArgs(
 fun <O : Options> showArgumentHelp(
     argumentParsers: List<Argument<out Any, O>>,
     printer: PrintStream,
+    usageText: String,
     additionalHelp: String?,
 ) {
     var longest = -1
     val padding = 5
 
-    printer.println(
-        "Usage: kotlin-incremental-client <-root-dir> <dir> [options] [kotlinc options] [-- <source files>]"
-    )
+    printer.println(usageText)
     printer.println()
     for (parser in argumentParsers) {
         if (parser.argumentName.length > longest) {

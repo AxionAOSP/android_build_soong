@@ -73,7 +73,7 @@ type hiddenAPIModule interface {
 	android.Module
 	hiddenAPIIntf
 
-	MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel
+	MinSdkVersion(ctx android.MinSdkVersionFromValueContext) android.ApiLevel
 }
 
 type hiddenAPIIntf interface {

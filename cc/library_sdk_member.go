@@ -24,6 +24,8 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 // This file contains support for using cc library modules within an sdk.
 
 var sharedLibrarySdkMemberType = &librarySdkMemberType{
@@ -65,6 +67,7 @@ func init() {
 	android.RegisterSdkMemberType(staticAndSharedLibrarySdkMemberType)
 }
 
+// @auto-generate: gob
 type librarySdkMemberType struct {
 	android.SdkMemberTypeBase
 
@@ -379,9 +382,9 @@ func addPossiblyArchSpecificProperties(sdkModuleContext android.ModuleContext, b
 			if propertyInfo.copy {
 				if propertyInfo.dirs {
 					// When copying a directory glob and copy all the headers within it.
-					// TODO(jiyong) copy headers having other suffixes
 					headers, _ := sdkModuleContext.GlobWithDeps(inputPath+"/**/*.h", nil)
-					for _, file := range headers {
+					additionalHeaders, _ := sdkModuleContext.GlobWithDeps(inputPath+"/**/*.hpp", nil)
+					for _, file := range append(headers, additionalHeaders...) {
 						src := android.PathForSource(sdkModuleContext, file)
 
 						// The destination path in the snapshot is constructed from the snapshot relative path
@@ -577,7 +580,7 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 	}
 }
 
-func getRequiredMemberOutputFile(ctx android.SdkMemberContext, module android.ModuleOrProxy) android.Path {
+func getRequiredMemberOutputFile(ctx android.SdkMemberContext, module android.ModuleProxy) android.Path {
 	var path android.Path
 	if info, ok := android.OtherModuleProvider(ctx.SdkModuleContext(), module, LinkableInfoProvider); ok && info.OutputFile.Valid() {
 		path = info.OutputFile.Path()

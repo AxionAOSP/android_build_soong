@@ -12,27 +12,27 @@ func init() {
 	SymbolicOutputInfosGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(SymbolicOutputInfos) })
 }
 
-func (r SymbolicOutputInfo) Encode(buf *bytes.Buffer) error {
+func (r SymbolicOutputInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeInterface(buf, r.UnstrippedOutputFile); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.UnstrippedOutputFile); err != nil {
 		return err
 	}
 
-	if err = r.SymbolicOutputPath.Encode(buf); err != nil {
+	if err = r.SymbolicOutputPath.Encode(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.ElfMappingProtoPath.Encode(buf); err != nil {
+	if err = r.ElfMappingProtoPath.Encode(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *SymbolicOutputInfo) Decode(buf *bytes.Reader) error {
+func (r *SymbolicOutputInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if val2, err := gobtools.DecodeInterface(buf); err != nil {
+	if val2, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val2 == nil {
 		r.UnstrippedOutputFile = nil
@@ -40,11 +40,11 @@ func (r *SymbolicOutputInfo) Decode(buf *bytes.Reader) error {
 		r.UnstrippedOutputFile = val2.(Path)
 	}
 
-	if err = r.SymbolicOutputPath.Decode(buf); err != nil {
+	if err = r.SymbolicOutputPath.Decode(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.ElfMappingProtoPath.Decode(buf); err != nil {
+	if err = r.ElfMappingProtoPath.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -57,27 +57,33 @@ func (r SymbolicOutputInfo) GetTypeId() int16 {
 	return SymbolicOutputInfoGobRegId
 }
 
-func (r SymbolicOutputInfos) Encode(buf *bytes.Buffer) error {
+func (r SymbolicOutputInfos) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r))); err != nil {
-		return err
-	}
-	for val1 := 0; val1 < len(r); val1++ {
-		val2 := r[val1] == nil
-		if err = gobtools.EncodeSimple(buf, val2); err != nil {
+	if r == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
 		}
-		if !val2 {
-			if err = (*r[val1]).Encode(buf); err != nil {
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r))); err != nil {
+			return err
+		}
+		for val1 := 0; val1 < len(r); val1++ {
+			val2 := r[val1] == nil
+			if err = gobtools.EncodeSimple(buf, val2); err != nil {
 				return err
+			}
+			if !val2 {
+				if err = (*r[val1]).Encode(ctx, buf); err != nil {
+					return err
+				}
 			}
 		}
 	}
 	return err
 }
 
-func (r *SymbolicOutputInfos) Decode(buf *bytes.Reader) error {
+func (r *SymbolicOutputInfos) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val2 int32
@@ -85,7 +91,7 @@ func (r *SymbolicOutputInfos) Decode(buf *bytes.Reader) error {
 	if err != nil {
 		return err
 	}
-	if val2 > 0 {
+	if val2 != -1 {
 		(*r) = make([]*SymbolicOutputInfo, val2)
 		for val3 := 0; val3 < int(val2); val3++ {
 			var val5 bool
@@ -94,7 +100,7 @@ func (r *SymbolicOutputInfos) Decode(buf *bytes.Reader) error {
 			}
 			if !val5 {
 				var val4 SymbolicOutputInfo
-				if err = val4.Decode(buf); err != nil {
+				if err = val4.Decode(ctx, buf); err != nil {
 					return err
 				}
 				(*r)[val3] = &val4

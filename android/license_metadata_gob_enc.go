@@ -11,23 +11,23 @@ func init() {
 	LicenseMetadataInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(LicenseMetadataInfo) })
 }
 
-func (r LicenseMetadataInfo) Encode(buf *bytes.Buffer) error {
+func (r LicenseMetadataInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeInterface(buf, r.LicenseMetadataPath); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.LicenseMetadataPath); err != nil {
 		return err
 	}
 
-	if err = r.LicenseMetadataDepSet.EncodeInterface(buf); err != nil {
+	if err = r.LicenseMetadataDepSet.EncodeInterface(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *LicenseMetadataInfo) Decode(buf *bytes.Reader) error {
+func (r *LicenseMetadataInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if val2, err := gobtools.DecodeInterface(buf); err != nil {
+	if val2, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val2 == nil {
 		r.LicenseMetadataPath = nil
@@ -35,7 +35,7 @@ func (r *LicenseMetadataInfo) Decode(buf *bytes.Reader) error {
 		r.LicenseMetadataPath = val2.(Path)
 	}
 
-	if err = r.LicenseMetadataDepSet.DecodeInterface(buf); err != nil {
+	if err = r.LicenseMetadataDepSet.DecodeInterface(ctx, buf); err != nil {
 		return err
 	}
 

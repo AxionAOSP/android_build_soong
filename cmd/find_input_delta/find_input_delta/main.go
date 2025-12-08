@@ -34,6 +34,8 @@ func main() {
 	var inputs []string
 	var inspect bool
 	var err error
+	var version string
+	var tools []string
 
 	flag.StringVar(&top, "top", ".", "path to top of workspace")
 	flag.StringVar(&prior_state_file, "prior_state", "", "prior internal state file")
@@ -41,7 +43,12 @@ func main() {
 	flag.StringVar(&target, "target", "", "name of ninja output file for build action")
 	flag.StringVar(&inputs_file, "inputs_file", "", "file containing list of input files")
 	flag.StringVar(&template, "template", fid_lib.DefaultTemplate, "output template for FileList")
+	flag.StringVar(&version, "version", "", "version string to check for differences")
 	flag.BoolVar(&inspect, "inspect", false, "whether to inspect file contents")
+	flag.Func("tool", "tool binary to check for differences", func(s string) error {
+		tools = append(tools, s)
+		return nil
+	})
 
 	flag.Parse()
 
@@ -70,7 +77,7 @@ func main() {
 		inputs = append(inputs, fileSepRegex.FindAllString(string(data), -1)...)
 	}
 
-	file_list, err := fid_lib.GenerateFileList(target, prior_state_file, new_state_file, inputs, inspect, fid_lib.OsFs)
+	file_list, err := fid_lib.GenerateFileList(target, prior_state_file, new_state_file, version, tools, inputs, inspect, fid_lib.OsFs)
 	if err != nil {
 		panic(err)
 	}

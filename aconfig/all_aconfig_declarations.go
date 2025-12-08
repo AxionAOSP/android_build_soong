@@ -42,6 +42,10 @@ func AllAconfigDeclarationsFactory() android.SingletonModule {
 	return module
 }
 
+var aconfigFlagArtifactsDistGoals = []string{
+	"docs", "droid", "sdk", "release_config_metadata", "gms",
+}
+
 // AllAconfigDeclarationsInfo contains flag storage files containing all flags from all the modules
 // across the whole Android source tree. None of these files may be installed on the device.
 // They should only be used or consumed as artifacts from the build servers,
@@ -302,11 +306,9 @@ func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx a
 	}
 
 	for _, rcName := range this.sortedConfigNames() {
-		ctx.DistForGoal("droid", this.releaseMap[rcName].intermediateBinaryProtoPath)
-		for _, goal := range []string{"docs", "droid", "sdk"} {
-			ctx.DistForGoalWithFilename(goal, this.releaseMap[rcName].intermediateBinaryProtoPath, assembleFileName(rcName, "flags.pb"))
-			ctx.DistForGoalWithFilename(goal, this.releaseMap[rcName].intermediateTextProtoPath, assembleFileName(rcName, "flags.textproto"))
-		}
+		ctx.DistForGoals(aconfigFlagArtifactsDistGoals, this.releaseMap[rcName].intermediateBinaryProtoPath)
+		ctx.DistForGoalsWithFilename(aconfigFlagArtifactsDistGoals, this.releaseMap[rcName].intermediateBinaryProtoPath, assembleFileName(rcName, "flags.pb"))
+		ctx.DistForGoalsWithFilename(aconfigFlagArtifactsDistGoals, this.releaseMap[rcName].intermediateTextProtoPath, assembleFileName(rcName, "flags.textproto"))
 	}
 	ctx.DistForGoalWithFilename("sdk", this.finalizedFlags, "finalized-flags.txt")
 }

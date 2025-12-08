@@ -15,14 +15,15 @@
 package unbundled
 
 import (
-	"android/soong/android"
-	"android/soong/cc"
-	"android/soong/filesystem"
-	"android/soong/java"
 	"fmt"
 	"slices"
 
 	"github.com/google/blueprint"
+
+	"android/soong/android"
+	"android/soong/cc"
+	"android/soong/filesystem"
+	"android/soong/java"
 )
 
 var pctx = android.NewPackageContext("android/soong/unbundled")
@@ -102,7 +103,7 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		return
 	}
 
-	var appModules []android.ModuleOrProxy
+	var appModules []android.ModuleProxy
 	ctx.VisitDirectDepsProxyWithTag(unbundledDepTag, func(m android.ModuleProxy) {
 		appModules = append(appModules, m)
 	})
@@ -165,7 +166,7 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	// Dist symbols.zip
 	symbolsZip := android.PathForOutput(ctx, "unbundled_singleton", targetProductPrefix+"symbols.zip")
 	symbolsMapping := android.PathForOutput(ctx, "unbundled_singleton", targetProductPrefix+"symbols-mapping.textproto")
-	android.BuildSymbolsZip(ctx, appModules, symbolsZip, symbolsMapping)
+	android.BuildSymbolsZip(ctx, appModules, nil, symbolsZip, symbolsMapping)
 	ctx.DistForGoalWithFilenameTag("apps_only", symbolsZip, symbolsZip.Base())
 	ctx.DistForGoalWithFilenameTag("apps_only", symbolsMapping, symbolsMapping.Base())
 
@@ -192,26 +193,13 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	// Dist jacoco report jar
 	if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") {
 		jacocoZip := android.PathForModuleOut(ctx, "jacoco-report-classes-all.jar")
-		jacocoZipWithoutDeviceTests := android.PathForModuleOut(ctx, "jacoco-report-classes-all-without-device-tests.jar")
-		java.BuildJacocoZip(ctx, appModules, jacocoZipWithoutDeviceTests)
-		if ctx.Config().IsEnvTrue("JACOCO_PACKAGING_INCLUDE_DEVICE_TESTS") {
-			deviceTestsJacocoZip := java.DeviceTestsJacocoReportZip(ctx)
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   android.MergeZips,
-				Output: jacocoZip,
-				Inputs: []android.Path{
-					jacocoZipWithoutDeviceTests,
-					deviceTestsJacocoZip,
-				},
-			})
-		} else {
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   android.Cp,
-				Output: jacocoZip,
-				Input:  jacocoZipWithoutDeviceTests,
-			})
-		}
+		java.BuildJacocoZipWithPotentialDeviceTests(ctx, appModules, jacocoZip)
 		ctx.DistForGoal("apps_only", jacocoZip)
+	}
+
+	// Dist sboms
+	for _, app := range appModules {
+		android.BuildUnbundledSbom(ctx, app)
 	}
 
 	ctx.DistForGoal("apps_only", java.ApkCertsFile(ctx))

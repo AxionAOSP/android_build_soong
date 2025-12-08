@@ -64,6 +64,13 @@ func TestFlagDeclarationFactory(t *testing.T) {
 			expected:  nil,
 			err:       fmt.Errorf("has no workflow"),
 		},
+		{
+			name:      "badName",
+			protoPath: "build/release/flag_declarations/FOO.textproto",
+			data:      []byte(`name: "FOO" namespace: "soong_test" workflow: MANUAL`),
+			expected:  nil,
+			err:       fmt.Errorf("flag names must begin with 'RELEASE_'"),
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

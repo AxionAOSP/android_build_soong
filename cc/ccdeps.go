@@ -112,7 +112,7 @@ func (c *ccdepsGeneratorSingleton) GenerateBuildActions(ctx android.SingletonCon
 		Rule:   android.Touch,
 		Output: ccfpath,
 	})
-	ctx.DistForGoal("general-tests", c.outputPath)
+	ctx.DistForGoals([]string{"general-tests", "module-info"}, c.outputPath)
 }
 
 func parseCompilerCCParameters(ctx android.SingletonContext, params []string) ccParameters {

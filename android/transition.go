@@ -153,6 +153,13 @@ type IncomingTransitionContext interface {
 	// mutator is running.  This should be used sparingly, all uses will have to be removed in order
 	// to support creating variants on demand.
 	IsAddingDependency() bool
+
+	// HasMutatorFinished returns true if the given mutator has finished running.
+	// It will panic if given an invalid mutator name.
+	HasMutatorFinished(mutatorName string) bool
+
+	// OtherModulePropertyErrorf reports an error at the line number of a property in the given module definition.
+	OtherModulePropertyErrorf(module ModuleOrProxy, property string, fmt string, args ...interface{})
 }
 
 type OutgoingTransitionContext interface {
@@ -381,6 +388,14 @@ func (c *incomingTransitionContextImpl) ModuleErrorf(fmt string, args ...interfa
 
 func (c *incomingTransitionContextImpl) PropertyErrorf(property, fmt string, args ...interface{}) {
 	c.bp.PropertyErrorf(property, fmt, args)
+}
+
+func (c *incomingTransitionContextImpl) HasMutatorFinished(mutatorName string) bool {
+	return c.bp.HasMutatorFinished(mutatorName)
+}
+
+func (c *incomingTransitionContextImpl) OtherModulePropertyErrorf(module ModuleOrProxy, property string, fmt string, args ...interface{}) {
+	c.bp.OtherModulePropertyErrorf(module, property, fmt, args...)
 }
 
 // outgoingTransitionContextImpl wraps a blueprint.OutgoingTransitionContext to convert it to an

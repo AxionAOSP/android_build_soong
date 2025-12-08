@@ -15,6 +15,7 @@
 package codegen
 
 import (
+	"fmt"
 	"maps"
 
 	"android/soong/android"
@@ -110,6 +111,20 @@ func (adg *AconfigDeclarationsGroup) GenerateAndroidBuildActions(ctx android.Mod
 		ModeInfos:                    modeInfos,
 	})
 
+	combinedCacheOutputPath := android.PathForModuleOut(ctx, fmt.Sprintf("%s.pb", ctx.ModuleName()))
+	rule := android.NewRuleBuilder(pctx, ctx)
+	rule.Command().
+		BuiltTool("aconfig").
+		Text("dump-cache").
+		Flag("--dedup").
+		Flag("--format").
+		Text("protobuf").
+		FlagForEachInput("--cache ", intermediateCacheOutputPaths).
+		FlagWithOutput("--out ", combinedCacheOutputPath)
+
+	rule.Build("combine-proto", "combine proto files")
+
 	ctx.SetOutputFiles(intermediateCacheOutputPaths, "")
 	ctx.SetOutputFiles(javaSrcjars, ".srcjars")
+	ctx.SetOutputFiles(android.Paths{combinedCacheOutputPath}, ".combined_proto")
 }

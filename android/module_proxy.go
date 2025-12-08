@@ -11,3 +11,7 @@ type ModuleProxy struct {
 type ModuleOrProxy interface {
 	blueprint.ModuleOrProxy
 }
+
+func CreateModuleProxy(module Module) ModuleProxy {
+	return ModuleProxy{blueprint.CreateModuleProxy(module)}
+}

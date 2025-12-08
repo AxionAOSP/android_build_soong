@@ -11,6 +11,7 @@ bootstrap_go_package {
         "soong",
         "soong-android",
         "soong-cc",
+        "soong-java",
     ],
     srcs: [
         "ci_test_package_zip.go",

@@ -77,7 +77,7 @@ type symbolsContext interface {
 // Defines the build rules to generate the symbols.zip file and the merged elf mapping textproto
 // file. Modules in depModules that provide [SymbolInfosProvider] and are exported to make
 // will be listed in the symbols.zip and the merged proto file.
-func BuildSymbolsZip(ctx symbolsContext, depModules []ModuleOrProxy, symbolsZipFile, mergedMappingProtoFile WritablePath) (Paths, Paths) {
+func BuildSymbolsZip(ctx symbolsContext, depModules []ModuleProxy, extraSymbols *SymbolicOutputInfos, symbolsZipFile, mergedMappingProtoFile WritablePath) (Paths, Paths) {
 	var allSymbolicOutputPaths, allElfMappingProtoPaths Paths
 	for _, mod := range depModules {
 		if commonInfo, _ := OtherModuleProvider(ctx, mod, CommonModuleInfoProvider); commonInfo.SkipAndroidMkProcessing {
@@ -87,6 +87,10 @@ func BuildSymbolsZip(ctx symbolsContext, depModules []ModuleOrProxy, symbolsZipF
 			allSymbolicOutputPaths = append(allSymbolicOutputPaths, symbolInfos.SortedUniqueSymbolicOutputPaths()...)
 			allElfMappingProtoPaths = append(allElfMappingProtoPaths, symbolInfos.SortedUniqueElfMappingProtoPaths()...)
 		}
+	}
+	if extraSymbols != nil {
+		allSymbolicOutputPaths = append(allSymbolicOutputPaths, extraSymbols.SortedUniqueSymbolicOutputPaths()...)
+		allElfMappingProtoPaths = append(allElfMappingProtoPaths, extraSymbols.SortedUniqueElfMappingProtoPaths()...)
 	}
 	allSymbolicOutputPaths = SortedUniquePaths(allSymbolicOutputPaths)
 	allElfMappingProtoPaths = SortedUniquePaths(allElfMappingProtoPaths)

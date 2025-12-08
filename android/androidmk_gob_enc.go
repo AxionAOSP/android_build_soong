@@ -12,28 +12,34 @@ func init() {
 	AndroidMkInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(AndroidMkInfo) })
 }
 
-func (r AndroidMkProviderInfo) Encode(buf *bytes.Buffer) error {
+func (r AndroidMkProviderInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.PrimaryInfo.Encode(buf); err != nil {
+	if err = r.PrimaryInfo.Encode(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.ExtraInfo))); err != nil {
-		return err
-	}
-	for val1 := 0; val1 < len(r.ExtraInfo); val1++ {
-		if err = r.ExtraInfo[val1].Encode(buf); err != nil {
+	if r.ExtraInfo == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.ExtraInfo))); err != nil {
+			return err
+		}
+		for val1 := 0; val1 < len(r.ExtraInfo); val1++ {
+			if err = r.ExtraInfo[val1].Encode(ctx, buf); err != nil {
+				return err
+			}
 		}
 	}
 	return err
 }
 
-func (r *AndroidMkProviderInfo) Decode(buf *bytes.Reader) error {
+func (r *AndroidMkProviderInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.PrimaryInfo.Decode(buf); err != nil {
+	if err = r.PrimaryInfo.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -42,10 +48,10 @@ func (r *AndroidMkProviderInfo) Decode(buf *bytes.Reader) error {
 	if err != nil {
 		return err
 	}
-	if val3 > 0 {
+	if val3 != -1 {
 		r.ExtraInfo = make([]AndroidMkInfo, val3)
 		for val4 := 0; val4 < int(val3); val4++ {
-			if err = r.ExtraInfo[val4].Decode(buf); err != nil {
+			if err = r.ExtraInfo[val4].Decode(ctx, buf); err != nil {
 				return err
 			}
 		}
@@ -60,7 +66,7 @@ func (r AndroidMkProviderInfo) GetTypeId() int16 {
 	return AndroidMkProviderInfoGobRegId
 }
 
-func (r AndroidMkInfo) Encode(buf *bytes.Buffer) error {
+func (r AndroidMkInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeString(buf, r.Class); err != nil {
@@ -75,11 +81,7 @@ func (r AndroidMkInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	if err = r.OutputFile.Encode(buf); err != nil {
-		return err
-	}
-
-	if err = gobtools.EncodeSimple(buf, r.Disabled); err != nil {
+	if err = r.OutputFile.Encode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -87,80 +89,128 @@ func (r AndroidMkInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Required))); err != nil {
-		return err
-	}
-	for val1 := 0; val1 < len(r.Required); val1++ {
-		if err = gobtools.EncodeString(buf, r.Required[val1]); err != nil {
+	if r.Required == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
 		}
-	}
-
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Host_required))); err != nil {
-		return err
-	}
-	for val2 := 0; val2 < len(r.Host_required); val2++ {
-		if err = gobtools.EncodeString(buf, r.Host_required[val2]); err != nil {
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Required))); err != nil {
 			return err
 		}
-	}
-
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Target_required))); err != nil {
-		return err
-	}
-	for val3 := 0; val3 < len(r.Target_required); val3++ {
-		if err = gobtools.EncodeString(buf, r.Target_required[val3]); err != nil {
-			return err
-		}
-	}
-
-	if err = gobtools.EncodeSimple(buf, int32(len(r.HeaderStrings))); err != nil {
-		return err
-	}
-	for val4 := 0; val4 < len(r.HeaderStrings); val4++ {
-		if err = gobtools.EncodeString(buf, r.HeaderStrings[val4]); err != nil {
-			return err
-		}
-	}
-
-	if err = gobtools.EncodeSimple(buf, int32(len(r.FooterStrings))); err != nil {
-		return err
-	}
-	for val5 := 0; val5 < len(r.FooterStrings); val5++ {
-		if err = gobtools.EncodeString(buf, r.FooterStrings[val5]); err != nil {
-			return err
-		}
-	}
-
-	if err = gobtools.EncodeSimple(buf, int32(len(r.EntryMap))); err != nil {
-		return err
-	}
-	for k, v := range r.EntryMap {
-		if err = gobtools.EncodeString(buf, k); err != nil {
-			return err
-		}
-		if err = gobtools.EncodeSimple(buf, int32(len(v))); err != nil {
-			return err
-		}
-		for val6 := 0; val6 < len(v); val6++ {
-			if err = gobtools.EncodeString(buf, v[val6]); err != nil {
+		for val1 := 0; val1 < len(r.Required); val1++ {
+			if err = gobtools.EncodeString(buf, r.Required[val1]); err != nil {
 				return err
 			}
 		}
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.EntryOrder))); err != nil {
-		return err
-	}
-	for val7 := 0; val7 < len(r.EntryOrder); val7++ {
-		if err = gobtools.EncodeString(buf, r.EntryOrder[val7]); err != nil {
+	if r.Host_required == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Host_required))); err != nil {
+			return err
+		}
+		for val2 := 0; val2 < len(r.Host_required); val2++ {
+			if err = gobtools.EncodeString(buf, r.Host_required[val2]); err != nil {
+				return err
+			}
+		}
+	}
+
+	if r.Target_required == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
+			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Target_required))); err != nil {
+			return err
+		}
+		for val3 := 0; val3 < len(r.Target_required); val3++ {
+			if err = gobtools.EncodeString(buf, r.Target_required[val3]); err != nil {
+				return err
+			}
+		}
+	}
+
+	if r.HeaderStrings == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
+			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.HeaderStrings))); err != nil {
+			return err
+		}
+		for val4 := 0; val4 < len(r.HeaderStrings); val4++ {
+			if err = gobtools.EncodeString(buf, r.HeaderStrings[val4]); err != nil {
+				return err
+			}
+		}
+	}
+
+	if r.FooterStrings == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
+			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.FooterStrings))); err != nil {
+			return err
+		}
+		for val5 := 0; val5 < len(r.FooterStrings); val5++ {
+			if err = gobtools.EncodeString(buf, r.FooterStrings[val5]); err != nil {
+				return err
+			}
+		}
+	}
+
+	if r.EntryMap == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
+			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.EntryMap))); err != nil {
+			return err
+		}
+		for k, v := range r.EntryMap {
+			if err = gobtools.EncodeString(buf, k); err != nil {
+				return err
+			}
+			if v == nil {
+				if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
+					return err
+				}
+			} else {
+				if err = gobtools.EncodeSimple(buf, int32(len(v))); err != nil {
+					return err
+				}
+				for val6 := 0; val6 < len(v); val6++ {
+					if err = gobtools.EncodeString(buf, v[val6]); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	if r.EntryOrder == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
+			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.EntryOrder))); err != nil {
+			return err
+		}
+		for val7 := 0; val7 < len(r.EntryOrder); val7++ {
+			if err = gobtools.EncodeString(buf, r.EntryOrder[val7]); err != nil {
+				return err
+			}
 		}
 	}
 	return err
 }
 
-func (r *AndroidMkInfo) Decode(buf *bytes.Reader) error {
+func (r *AndroidMkInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeString(buf, &r.Class)
@@ -178,12 +228,7 @@ func (r *AndroidMkInfo) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	if err = r.OutputFile.Decode(buf); err != nil {
-		return err
-	}
-
-	err = gobtools.DecodeSimple[bool](buf, &r.Disabled)
-	if err != nil {
+	if err = r.OutputFile.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -192,104 +237,104 @@ func (r *AndroidMkInfo) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	var val8 int32
-	err = gobtools.DecodeSimple[int32](buf, &val8)
+	var val7 int32
+	err = gobtools.DecodeSimple[int32](buf, &val7)
 	if err != nil {
 		return err
 	}
-	if val8 > 0 {
-		r.Required = make([]string, val8)
-		for val9 := 0; val9 < int(val8); val9++ {
-			err = gobtools.DecodeString(buf, &r.Required[val9])
+	if val7 != -1 {
+		r.Required = make([]string, val7)
+		for val8 := 0; val8 < int(val7); val8++ {
+			err = gobtools.DecodeString(buf, &r.Required[val8])
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	var val12 int32
-	err = gobtools.DecodeSimple[int32](buf, &val12)
+	var val11 int32
+	err = gobtools.DecodeSimple[int32](buf, &val11)
 	if err != nil {
 		return err
 	}
-	if val12 > 0 {
-		r.Host_required = make([]string, val12)
-		for val13 := 0; val13 < int(val12); val13++ {
-			err = gobtools.DecodeString(buf, &r.Host_required[val13])
+	if val11 != -1 {
+		r.Host_required = make([]string, val11)
+		for val12 := 0; val12 < int(val11); val12++ {
+			err = gobtools.DecodeString(buf, &r.Host_required[val12])
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	var val16 int32
-	err = gobtools.DecodeSimple[int32](buf, &val16)
+	var val15 int32
+	err = gobtools.DecodeSimple[int32](buf, &val15)
 	if err != nil {
 		return err
 	}
-	if val16 > 0 {
-		r.Target_required = make([]string, val16)
-		for val17 := 0; val17 < int(val16); val17++ {
-			err = gobtools.DecodeString(buf, &r.Target_required[val17])
+	if val15 != -1 {
+		r.Target_required = make([]string, val15)
+		for val16 := 0; val16 < int(val15); val16++ {
+			err = gobtools.DecodeString(buf, &r.Target_required[val16])
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	var val20 int32
-	err = gobtools.DecodeSimple[int32](buf, &val20)
+	var val19 int32
+	err = gobtools.DecodeSimple[int32](buf, &val19)
 	if err != nil {
 		return err
 	}
-	if val20 > 0 {
-		r.HeaderStrings = make([]string, val20)
-		for val21 := 0; val21 < int(val20); val21++ {
-			err = gobtools.DecodeString(buf, &r.HeaderStrings[val21])
+	if val19 != -1 {
+		r.HeaderStrings = make([]string, val19)
+		for val20 := 0; val20 < int(val19); val20++ {
+			err = gobtools.DecodeString(buf, &r.HeaderStrings[val20])
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	var val24 int32
-	err = gobtools.DecodeSimple[int32](buf, &val24)
+	var val23 int32
+	err = gobtools.DecodeSimple[int32](buf, &val23)
 	if err != nil {
 		return err
 	}
-	if val24 > 0 {
-		r.FooterStrings = make([]string, val24)
-		for val25 := 0; val25 < int(val24); val25++ {
-			err = gobtools.DecodeString(buf, &r.FooterStrings[val25])
+	if val23 != -1 {
+		r.FooterStrings = make([]string, val23)
+		for val24 := 0; val24 < int(val23); val24++ {
+			err = gobtools.DecodeString(buf, &r.FooterStrings[val24])
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	var val27 int32
-	err = gobtools.DecodeSimple[int32](buf, &val27)
+	var val26 int32
+	err = gobtools.DecodeSimple[int32](buf, &val26)
 	if err != nil {
 		return err
 	}
-	if val27 > 0 {
-		r.EntryMap = make(map[string][]string, val27)
-		for val28 := 0; val28 < int(val27); val28++ {
+	if val26 != -1 {
+		r.EntryMap = make(map[string][]string, val26)
+		for val27 := 0; val27 < int(val26); val27++ {
 			var k string
 			var v []string
 			err = gobtools.DecodeString(buf, &k)
 			if err != nil {
 				return err
 			}
-			var val31 int32
-			err = gobtools.DecodeSimple[int32](buf, &val31)
+			var val30 int32
+			err = gobtools.DecodeSimple[int32](buf, &val30)
 			if err != nil {
 				return err
 			}
-			if val31 > 0 {
-				v = make([]string, val31)
-				for val32 := 0; val32 < int(val31); val32++ {
-					err = gobtools.DecodeString(buf, &v[val32])
+			if val30 != -1 {
+				v = make([]string, val30)
+				for val31 := 0; val31 < int(val30); val31++ {
+					err = gobtools.DecodeString(buf, &v[val31])
 					if err != nil {
 						return err
 					}
@@ -299,15 +344,15 @@ func (r *AndroidMkInfo) Decode(buf *bytes.Reader) error {
 		}
 	}
 
-	var val35 int32
-	err = gobtools.DecodeSimple[int32](buf, &val35)
+	var val34 int32
+	err = gobtools.DecodeSimple[int32](buf, &val34)
 	if err != nil {
 		return err
 	}
-	if val35 > 0 {
-		r.EntryOrder = make([]string, val35)
-		for val36 := 0; val36 < int(val35); val36++ {
-			err = gobtools.DecodeString(buf, &r.EntryOrder[val36])
+	if val34 != -1 {
+		r.EntryOrder = make([]string, val34)
+		for val35 := 0; val35 < int(val34); val35++ {
+			err = gobtools.DecodeString(buf, &r.EntryOrder[val35])
 			if err != nil {
 				return err
 			}

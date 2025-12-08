@@ -15,10 +15,11 @@
 package java
 
 import (
-	"android/soong/android"
 	"fmt"
 	"slices"
 	"strings"
+
+	"android/soong/android"
 
 	"github.com/google/blueprint"
 )
@@ -59,9 +60,6 @@ func (a *apkCertsSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	ctx.VisitAllModuleProxies(func(m android.ModuleProxy) {
 		commonInfo, ok := android.OtherModuleProvider(ctx, m, android.CommonModuleInfoProvider)
 		if !ok || commonInfo.SkipAndroidMkProcessing {
-			return
-		}
-		if info, ok := android.OtherModuleProvider(ctx, m, android.HideApexVariantFromMakeProvider); ok && info.HideApexVariantFromMake {
 			return
 		}
 

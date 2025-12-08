@@ -20,10 +20,11 @@ bootstrap_go_package {
     name: "soong-cmd-release_config-lib",
     pkgPath: "android/soong/cmd/release_config/release_config_lib",
     deps: [
+        "blueprint-pathtools",
+        "golang-protobuf-proto",
         "golang-protobuf-encoding-prototext",
         "golang-protobuf-reflect-protoreflect",
         "golang-protobuf-runtime-protoimpl",
-        "blueprint-pathtools",
         "soong-android",
         "soong-cmd-release_config-proto",
     ],

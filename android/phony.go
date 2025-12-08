@@ -16,6 +16,8 @@ package android
 
 import (
 	"fmt"
+	"runtime"
+	"sort"
 	"strings"
 	"sync"
 
@@ -24,34 +26,18 @@ import (
 
 //go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
 
-var phonyMapOnceKey = NewOnceKey("phony")
-
 type phonyMap map[string]Paths
 
 var phonyMapLock sync.Mutex
 
 // @auto-generate: gob
-type ModulePhonyInfo struct {
-	Phonies map[string]Paths
+type PhonyInfo struct {
+	Phonies phonyMap
 }
 
-var ModulePhonyProvider = blueprint.NewProvider[ModulePhonyInfo]()
+var ModulePhonyProvider = blueprint.NewProvider[PhonyInfo]()
 
-func getSingletonPhonyMap(config Config) phonyMap {
-	return config.Once(phonyMapOnceKey, func() interface{} {
-		return make(phonyMap)
-	}).(phonyMap)
-}
-
-func addSingletonPhony(config Config, name string, deps ...Path) {
-	if name == "" {
-		panic("Phony name cannot be the empty string")
-	}
-	phonyMap := getSingletonPhonyMap(config)
-	phonyMapLock.Lock()
-	defer phonyMapLock.Unlock()
-	phonyMap[name] = append(phonyMap[name], deps...)
-}
+var SingletonPhonyProvider = blueprint.NewSingletonProvider[PhonyInfo]()
 
 type phonySingleton struct {
 	phonyMap  phonyMap
@@ -61,7 +47,7 @@ type phonySingleton struct {
 var _ SingletonMakeVarsProvider = (*phonySingleton)(nil)
 
 func (p *phonySingleton) GenerateBuildActions(ctx SingletonContext) {
-	p.phonyMap = getSingletonPhonyMap(ctx.Config())
+	p.phonyMap = make(phonyMap)
 	ctx.VisitAllModuleProxies(func(m ModuleProxy) {
 		if info, ok := OtherModuleProvider(ctx, m, ModulePhonyProvider); ok {
 			for k, v := range info.Phonies {
@@ -70,9 +56,59 @@ func (p *phonySingleton) GenerateBuildActions(ctx SingletonContext) {
 		}
 	})
 
-	p.phonyList = SortedKeys(p.phonyMap)
-	for _, phony := range p.phonyList {
-		p.phonyMap[phony] = SortedUniquePaths(p.phonyMap[phony])
+	ctx.VisitAllSingletons(func(s blueprint.SingletonProxy) {
+		if info, ok := OtherSingletonProvider(ctx, s, SingletonPhonyProvider); ok {
+			for k, v := range info.Phonies {
+				p.phonyMap[k] = append(p.phonyMap[k], v...)
+			}
+		}
+	})
+
+	// We will sort phonyList in parallel with other stuff later, but for now copy it into
+	// a slice in series so that we don't read and write to phonyMap concurrently.
+	p.phonyList = make([]string, 0, len(p.phonyMap))
+	for phony := range p.phonyMap {
+		p.phonyList = append(p.phonyList, phony)
+	}
+
+	type phonyDef struct {
+		name string
+		deps Paths
+	}
+
+	sortChan := make(chan phonyDef, len(p.phonyMap))
+	resultsChan := make(chan phonyDef)
+	var wg sync.WaitGroup
+
+	// Sorting the phony deps in parallel saves about 2 seconds. Nothing runs in parallel with
+	// the phony singleton so it's time off of wall clock.
+	for i := 0; i < 2*runtime.NumCPU(); i++ {
+		wg.Add(1)
+		go func() {
+			for toSort := range sortChan {
+				toSort.deps = SortedUniquePaths(toSort.deps)
+				resultsChan <- toSort
+			}
+			wg.Done()
+		}()
+	}
+
+	go func() {
+		sort.Strings(p.phonyList)
+		wg.Wait()
+		close(resultsChan)
+	}()
+
+	for phony, deps := range p.phonyMap {
+		sortChan <- phonyDef{
+			name: phony,
+			deps: deps,
+		}
+	}
+	close(sortChan)
+
+	for result := range resultsChan {
+		p.phonyMap[result.name] = result.deps
 	}
 
 	if !ctx.Config().KatiEnabled() {
@@ -117,4 +153,8 @@ func (p phonySingleton) MakeVars(ctx MakeVarsContext) {
 
 func phonySingletonFactory() Singleton {
 	return &phonySingleton{}
+}
+
+func (p *phonySingleton) IncrementalSupported() bool {
+	return true
 }

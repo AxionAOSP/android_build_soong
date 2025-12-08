@@ -11,19 +11,19 @@ func init() {
 	binarySdkMemberTypeGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(binarySdkMemberType) })
 }
 
-func (r binarySdkMemberType) Encode(buf *bytes.Buffer) error {
+func (r binarySdkMemberType) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.SdkMemberTypeBase.Encode(buf); err != nil {
+	if err = r.SdkMemberTypeBase.Encode(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *binarySdkMemberType) Decode(buf *bytes.Reader) error {
+func (r *binarySdkMemberType) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.SdkMemberTypeBase.Decode(buf); err != nil {
+	if err = r.SdkMemberTypeBase.Decode(ctx, buf); err != nil {
 		return err
 	}
 

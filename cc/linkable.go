@@ -82,8 +82,10 @@ type VersionedLinkableInterface interface {
 
 	// SetStl sets the stl property for CC modules. Does not panic if for other module types.
 	SetStl(string)
-	SetSdkVersion(string)
+	SetSdkVersion(*string)
 	SetMinSdkVersion(version string)
+	SetSdkAndPlatformVariantVisibleToMake()
+	SetSdkVariant()
 	ApexSdkVersion() android.ApiLevel
 	ImplementationModuleNameForMake() string
 
@@ -200,7 +202,7 @@ type LinkableInterface interface {
 	SubName() string
 
 	SdkVersion() string
-	MinSdkVersion() string
+	MinSdkVersion(ctx android.ConfigurableEvaluatorContext) string
 	AlwaysSdk() bool
 	IsSdkVariant() bool
 	Multilib() string
@@ -323,6 +325,11 @@ func StaticDepTag(wholeStatic bool) blueprint.DependencyTag {
 	return libraryDependencyTag{Kind: staticLibraryDependency, wholeStatic: wholeStatic}
 }
 
+// NdkSharedLibDepTag returns the dependency tag for NDK sharedlibs
+func NdkSharedLibDepTag(version string) blueprint.DependencyTag {
+	return libraryDependencyTag{Kind: sharedLibraryDependency, ndk: true, makeSuffix: "." + version}
+}
+
 // IsWholeStaticLib whether a dependency tag is a whole static library dependency.
 func IsWholeStaticLib(depTag blueprint.DependencyTag) bool {
 	if tag, ok := depTag.(libraryDependencyTag); ok {
@@ -355,6 +362,7 @@ var SharedLibraryInfoProvider = blueprint.NewProvider[SharedLibraryInfo]()
 // SharedStubLibrary is a struct containing information about a stub shared library.
 // Stub libraries are used for cross-APEX dependencies; when a library is to depend on a shared
 // library in another APEX, it must depend on the stub version of that library.
+// @auto-generate: gob
 type SharedStubLibrary struct {
 	// The version of the stub (corresponding to the stable version of the shared library being
 	// stubbed).
@@ -367,6 +375,7 @@ type SharedStubLibrary struct {
 // which are dependencies of a library.
 // Stub libraries are used for cross-APEX dependencies; when a library is to depend on a shared
 // library in another APEX, it must depend on the stub version of that library.
+// @auto-generate: gob
 type SharedLibraryStubsInfo struct {
 	SharedStubLibraries []SharedStubLibrary
 
@@ -396,6 +405,7 @@ type StaticLibraryInfo struct {
 var StaticLibraryInfoProvider = blueprint.NewProvider[StaticLibraryInfo]()
 
 // HeaderLibraryInfo is a marker provider that identifies a module as a header library.
+// @auto-generate: gob
 type HeaderLibraryInfo struct {
 }
 
@@ -404,6 +414,7 @@ var HeaderLibraryInfoProvider = blueprint.NewProvider[HeaderLibraryInfo]()
 
 // FlagExporterInfo is a provider to propagate transitive library information
 // pertaining to exported include paths and flags.
+// @auto-generate: gob
 type FlagExporterInfo struct {
 	IncludeDirs       android.Paths // Include directories to be included with -I
 	SystemIncludeDirs android.Paths // System include directories to be included with -isystem

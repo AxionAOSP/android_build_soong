@@ -573,7 +573,7 @@ func IsValid(ctx android.ConfigurableEvaluatorContext, fuzzModule FuzzModule) bo
 
 // TODO(b/397766191): Change the signature to take ModuleProxy
 // Please only access the module's internal data through providers.
-func (s *FuzzPackager) PackageArtifacts(ctx android.SingletonContext, module android.ModuleOrProxy, fuzzModule *FuzzPackagedModuleInfo, archDir android.OutputPath, builder *android.RuleBuilder) []FileToZip {
+func (s *FuzzPackager) PackageArtifacts(ctx android.SingletonContext, module android.ModuleProxy, fuzzModule *FuzzPackagedModuleInfo, archDir android.OutputPath, builder *android.RuleBuilder) []FileToZip {
 	// Package the corpora into a zipfile.
 	var files []FileToZip
 	if len(fuzzModule.Corpus) > 0 {

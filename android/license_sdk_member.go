@@ -20,6 +20,8 @@ import (
 	"github.com/google/blueprint"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 // Contains support for adding license modules to an sdk.
 
 func init() {
@@ -27,6 +29,7 @@ func init() {
 }
 
 // licenseSdkMemberType determines how a license module is added to the sdk.
+// @auto-generate: gob
 type licenseSdkMemberType struct {
 	SdkMemberTypeBase
 }

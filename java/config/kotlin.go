@@ -27,6 +27,7 @@ var (
 
 func init() {
 	pctx.HostBinToolVariable("KotlinIncrementalClientBinary", "kotlin-incremental-client")
+	pctx.HostBinToolVariable("KotlinJarSnapshotterBinary", "kotlin-jar-snapshotter")
 	pctx.SourcePathVariable("KotlincCmd", "external/kotlinc/bin/kotlinc")
 	pctx.SourcePathVariable("KotlinCompilerJar", "external/kotlinc/lib/kotlin-compiler.jar")
 	pctx.SourcePathVariable("KotlinPreloaderJar", "external/kotlinc/lib/kotlin-preloader.jar")
@@ -46,6 +47,9 @@ func init() {
 		"-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
 		"-J--add-opens=java.base/sun.net.www.protocol.jar=ALL-UNNAMED",
 	}, " "))
+
+	pctx.StaticVariable("KotlincHeapSize", "8192M")
+	pctx.StaticVariable("KotlincHeapFlags", "-J-Xmx${KotlincHeapSize}")
 
 	// These flags silence "Illegal reflective access" warnings when running kotlinc in OpenJDK9+
 	pctx.StaticVariable("KotlincSuppressJDK9Warnings", strings.Join([]string{

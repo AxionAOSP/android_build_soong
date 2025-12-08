@@ -137,7 +137,7 @@ func (binary *binaryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 
-func (binary *binaryDecorator) compilerProps() []interface{} {
+func (binary *binaryDecorator) compilerProps() []any {
 	return append(binary.baseCompiler.compilerProps(),
 		&binary.Properties,
 		&binary.stripper.StripProperties)
@@ -185,9 +185,9 @@ func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps Path
 		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
 		binary.stripper.StripExecutableOrSharedLib(ctx, outputFile, strippedOutputFile)
 
-		binary.baseCompiler.strippedOutputFile = android.OptionalPathForPath(strippedOutputFile)
+		binary.strippedOutputFile = android.OptionalPathForPath(strippedOutputFile)
 	}
-	binary.baseCompiler.unstrippedOutputFile = outputFile
+	binary.unstrippedOutputFile = outputFile
 
 	ret.kytheFile = TransformSrcToBinary(ctx, crateRootPath, deps, flags, outputFile).kytheFile
 	return ret
@@ -204,9 +204,9 @@ func (binary *binaryDecorator) autoDep(ctx android.BottomUpMutatorContext) autoD
 	}
 }
 
-func (binary *binaryDecorator) stdLinkage(device bool) RustLinkage {
+func (binary *binaryDecorator) stdLinkage(device bool) StdLinkage {
 	if binary.preferRlib() {
-		return RlibLinkage
+		return RlibStd
 	}
 	return binary.baseCompiler.stdLinkage(device)
 }

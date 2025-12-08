@@ -1429,13 +1429,7 @@ func handleMissingDexBootFile(ctx android.ModuleContext, module android.ModuleOr
 	if deferReportingMissingBootDexJar(ctx, module) {
 		// Create an error rule that pretends to create the output file but will actually fail if it
 		// is run.
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.ErrorRule,
-			Output: fake,
-			Args: map[string]string{
-				"error": fmt.Sprintf("missing boot dex jar dependency for %s: %s", module, reason),
-			},
-		})
+		android.ErrorRule(ctx, fake, fmt.Sprintf("missing boot dex jar dependency for %s: %s", module, reason))
 	} else {
 		ctx.ModuleErrorf("module %s does not provide a dex jar: %s", module, reason)
 	}

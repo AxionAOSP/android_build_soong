@@ -11,7 +11,7 @@ func init() {
 	TestModuleInformationGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(TestModuleInformation) })
 }
 
-func (r TestModuleInformation) Encode(buf *bytes.Buffer) error {
+func (r TestModuleInformation) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeSimple(buf, r.TestOnly); err != nil {
@@ -24,7 +24,7 @@ func (r TestModuleInformation) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *TestModuleInformation) Decode(buf *bytes.Reader) error {
+func (r *TestModuleInformation) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeSimple[bool](buf, &r.TestOnly)

@@ -94,8 +94,9 @@ class BuildFileArgument : StringArgument<ClientOptions>() {
 
         opts.buildFileModuleName = parser.moduleName
         opts.buildFileClassPaths = parser.classpaths
-        opts.buildFileSources = parser.sources
+        opts.buildFileFriendDirs = parser.friendDirs
         opts.buildFileJavaSources = parser.javaSources
+        opts.buildFileSources = parser.sources
         if (parser.outputDirName != null) {
             opts.outputDirName = parser.outputDirName!!
         }

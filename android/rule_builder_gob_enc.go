@@ -11,10 +11,10 @@ func init() {
 	RuleBuilderInstallGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(RuleBuilderInstall) })
 }
 
-func (r RuleBuilderInstall) Encode(buf *bytes.Buffer) error {
+func (r RuleBuilderInstall) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeInterface(buf, r.From); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.From); err != nil {
 		return err
 	}
 
@@ -24,10 +24,10 @@ func (r RuleBuilderInstall) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *RuleBuilderInstall) Decode(buf *bytes.Reader) error {
+func (r *RuleBuilderInstall) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if val2, err := gobtools.DecodeInterface(buf); err != nil {
+	if val2, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val2 == nil {
 		r.From = nil

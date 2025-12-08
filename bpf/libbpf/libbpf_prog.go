@@ -53,7 +53,7 @@ var (
 	libbpfProgStripRule = pctx.AndroidStaticRule("libbpfProgStripRule",
 		blueprint.RuleParams{
 			Command: `$stripCmd --strip-unneeded --remove-section=.rel.BTF ` +
-				`--remove-section=.rel.BTF.ext --remove-section=.BTF.ext $in -o $out`,
+				`--remove-section=.rel.BTF.ext $in -o $out`,
 			CommandDeps: []string{"$stripCmd"},
 		},
 		"stripCmd")
@@ -112,6 +112,8 @@ type libbpfProg struct {
 var _ android.ImageInterface = (*libbpfProg)(nil)
 
 func (libbpf *libbpfProg) ImageMutatorBegin(ctx android.ImageInterfaceContext) {}
+
+func (libbpf *libbpfProg) ImageMutatorSupported() bool { return true }
 
 func (libbpf *libbpfProg) VendorVariantNeeded(ctx android.ImageInterfaceContext) bool {
 	return proptools.Bool(libbpf.properties.Vendor)
@@ -197,6 +199,7 @@ func (libbpf *libbpfProg) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		} else if depTag == cc.HeaderDepTag() {
 			depExporterInfo, _ := android.OtherModuleProvider(ctx, dep, cc.FlagExporterInfoProvider)
 			for _, dir := range depExporterInfo.IncludeDirs {
+				cFlagsDeps = append(cFlagsDeps, depExporterInfo.Deps...)
 				cflags = append(cflags, "-I "+dir.String())
 			}
 		}
@@ -248,6 +251,16 @@ func (libbpf *libbpfProg) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	}
 
 	ctx.SetOutputFiles(libbpf.objs, "")
+
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"FAKE"}
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
+	moduleInfoJSON.ExtraRequired = []string{}
+	name := libbpf.ModuleBase.Name()
+	for _, obj := range libbpf.objs {
+		objName := name + "_" + obj.Base()
+		moduleInfoJSON.ExtraRequired = append(moduleInfoJSON.ExtraRequired, objName)
+	}
 }
 
 func (libbpf *libbpfProg) AndroidMk() android.AndroidMkData {

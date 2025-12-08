@@ -1469,12 +1469,12 @@ func TestPathForModuleSrc(t *testing.T) {
 			bp: `
 			test {
 				name: "foo",
-				src: "//other:b",
-				srcs: ["//other:c"],
+				src: "//other:d",
+				srcs: ["//other:e"],
 			}`,
 			errorHandler: FixtureExpectsAllErrorsToMatchAPattern([]string{
-				`"foo" depends on undefined module "//other:b"`,
-				`"foo" depends on undefined module "//other:c"`,
+				`"foo" depends on undefined module "//other:d"`,
+				`"foo" depends on undefined module "//other:e"`,
 			}),
 		},
 		{

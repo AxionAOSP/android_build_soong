@@ -16,6 +16,7 @@ package config
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"android/soong/android"
@@ -26,12 +27,21 @@ import (
 var (
 	pctx = android.NewPackageContext("android/soong/rust/config")
 
-	RustDefaultVersion = "1.84.1"
+	RustDefaultVersion = "1.88.0"
 	RustDefaultBase    = "prebuilts/rust/"
 	DefaultEdition     = "2021"
 	Stdlibs            = []string{
 		"libstd",
 	}
+	Corelibs = []string{
+		"libcore.rust_sysroot",
+		"libcompiler_builtins.rust_sysroot",
+		"liballoc.rust_sysroot",
+	}
+
+	// Rust versions usually look like "1.88.0", but might also get a
+	// letter or non-numeric suffix when testing (i.e. "1.88.0.test")
+	RustVersionRe = regexp.MustCompile(`^(\d+\.\d+\.\d+).*$`)
 
 	// Mapping between Soong internal arch types and std::env constants.
 	// Required as Rust uses aarch64 when Soong uses arm64.
@@ -42,6 +52,7 @@ var (
 		android.X86_64: "x86_64",
 	}
 
+	// Flags that go to rustc and rustdoc invocations
 	GlobalRustFlags = []string{
 		// Allow `--extern force:foo` for dylib support
 		"-Z unstable-options",
@@ -56,6 +67,7 @@ var (
 		"--color=always",
 		"-Z dylib-lto",
 		"-Z link-native-libraries=no",
+		"-Z force-unstable-if-unmarked",
 
 		// cfg flag to indicate that we are building in AOSP with Soong
 		"--cfg soong",
@@ -106,7 +118,7 @@ func RustPath(ctx android.PathContext) string {
 	if override := ctx.Config().Getenv("RUST_PREBUILTS_BASE"); override != "" {
 		RustBase = override
 	}
-	return fmt.Sprintf("%s/%s/%s", RustBase, HostPrebuiltTag(ctx.Config()), GetRustVersion(ctx))
+	return fmt.Sprintf("%s/%s/%s", RustBase, HostPrebuiltTag(ctx.Config()), GetRustPrebuiltsVersion(ctx))
 }
 
 func init() {
@@ -172,12 +184,21 @@ func HostPrebuiltTag(config android.Config) string {
 }
 
 func getRustVersionPctx(ctx android.PackageVarContext) string {
-	return GetRustVersion(ctx)
+	return GetRustPrebuiltsVersion(ctx)
 }
 
-func GetRustVersion(ctx android.PathContext) string {
+func GetRustPrebuiltsVersion(ctx android.PathContext) string {
 	if override := ctx.Config().Getenv("RUST_PREBUILTS_VERSION"); override != "" {
 		return override
 	}
 	return RustDefaultVersion
+}
+
+func GetRustVersion(ctx android.PathContext) string {
+	ver := GetRustPrebuiltsVersion(ctx)
+	// Only get the numeric part of the version string
+	if matches := RustVersionRe.FindStringSubmatch(ver); len(matches) > 1 {
+		return matches[1]
+	}
+	panic("Invalid GetRustPrebuiltsVersion: " + ver)
 }

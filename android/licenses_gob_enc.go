@@ -12,7 +12,7 @@ func init() {
 	LicensesInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(LicensesInfo) })
 }
 
-func (r applicableLicensesProperty) Encode(buf *bytes.Buffer) error {
+func (r applicableLicensesProperty) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeString(buf, r.name); err != nil {
@@ -24,19 +24,25 @@ func (r applicableLicensesProperty) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	if !val1 {
-		if err = gobtools.EncodeSimple(buf, int32(len((*r.licensesProperty)))); err != nil {
-			return err
-		}
-		for val2 := 0; val2 < len((*r.licensesProperty)); val2++ {
-			if err = gobtools.EncodeString(buf, (*r.licensesProperty)[val2]); err != nil {
+		if (*r.licensesProperty) == nil {
+			if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 				return err
+			}
+		} else {
+			if err = gobtools.EncodeSimple(buf, int32(len((*r.licensesProperty)))); err != nil {
+				return err
+			}
+			for val2 := 0; val2 < len((*r.licensesProperty)); val2++ {
+				if err = gobtools.EncodeString(buf, (*r.licensesProperty)[val2]); err != nil {
+					return err
+				}
 			}
 		}
 	}
 	return err
 }
 
-func (r *applicableLicensesProperty) Decode(buf *bytes.Reader) error {
+func (r *applicableLicensesProperty) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeString(buf, &r.name)
@@ -55,7 +61,7 @@ func (r *applicableLicensesProperty) Decode(buf *bytes.Reader) error {
 		if err != nil {
 			return err
 		}
-		if val5 > 0 {
+		if val5 != -1 {
 			val2 = make([]string, val5)
 			for val6 := 0; val6 < int(val5); val6++ {
 				err = gobtools.DecodeString(buf, &val2[val6])
@@ -76,21 +82,27 @@ func (r applicableLicensesProperty) GetTypeId() int16 {
 	return applicableLicensesPropertyGobRegId
 }
 
-func (r LicensesInfo) Encode(buf *bytes.Buffer) error {
+func (r LicensesInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Licenses))); err != nil {
-		return err
-	}
-	for val1 := 0; val1 < len(r.Licenses); val1++ {
-		if err = gobtools.EncodeString(buf, r.Licenses[val1]); err != nil {
+	if r.Licenses == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Licenses))); err != nil {
+			return err
+		}
+		for val1 := 0; val1 < len(r.Licenses); val1++ {
+			if err = gobtools.EncodeString(buf, r.Licenses[val1]); err != nil {
+				return err
+			}
 		}
 	}
 	return err
 }
 
-func (r *LicensesInfo) Decode(buf *bytes.Reader) error {
+func (r *LicensesInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val2 int32
@@ -98,7 +110,7 @@ func (r *LicensesInfo) Decode(buf *bytes.Reader) error {
 	if err != nil {
 		return err
 	}
-	if val2 > 0 {
+	if val2 != -1 {
 		r.Licenses = make([]string, val2)
 		for val3 := 0; val3 < int(val2); val3++ {
 			err = gobtools.DecodeString(buf, &r.Licenses[val3])

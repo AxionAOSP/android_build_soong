@@ -92,18 +92,19 @@ func (m *dexpreoptSystemserverCheck) DepsMutator(ctx android.BottomUpMutatorCont
 }
 
 func (m *dexpreoptSystemserverCheck) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	global := dexpreopt.GetGlobalConfig(ctx)
 	targets := ctx.Config().Targets[android.Android]
 
 	ctx.VisitDirectDepsProxyWithTag(systemServerJarDepTag, func(systemServerJar android.ModuleProxy) {
 		partition := "system"
 		commonInfo := android.OtherModulePointerProviderOrDefault(ctx, systemServerJar, android.CommonModuleInfoProvider)
 		if commonInfo.SystemExtSpecific && ctx.Config().InstallApexSystemServerDexpreoptSamePartition() {
-			partition = ctx.DeviceConfig().SystemExtPath() // system_ext
+			// A system_ext-specific module could be on the system_ext partition at "system_ext" or the system
+			// partition at "system/system_ext".
+			partition = ctx.DeviceConfig().SystemExtPath()
 		}
 		var dexLocation string
 		if javaInfo, ok := android.OtherModuleProvider(ctx, systemServerJar, JavaInfoProvider); ok {
-			dexLocation = dexpreopt.GetSystemServerDexLocation(ctx, global, javaInfo.Stem)
+			dexLocation = dexpreopt.GetSystemServerDexInstallLocation(ctx, javaInfo.Stem)
 		} else {
 			ctx.PropertyErrorf("dexpreopt_systemserver_check", "%v does not have JavaInfo", systemServerJar.Name())
 		}

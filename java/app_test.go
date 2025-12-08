@@ -2480,7 +2480,7 @@ func TestCertificates(t *testing.T) {
 			android.AssertPathRelativeToTopEquals(t, "certificates pem", test.expectedCertificate+".x509.pem", certificate.Pem)
 
 			signapk := foo.Output("foo.apk")
-			if signapk.Rule != android.ErrorRule {
+			if !android.IsErrorRule(signapk.Rule) {
 				signCertificateFlags := signapk.Args["certificates"]
 				expectedFlags := certificate.Pem.String() + " " + certificate.Key.String()
 				android.AssertStringEquals(t, "certificates flags", expectedFlags, signCertificateFlags)
@@ -4412,7 +4412,7 @@ func TestAppMissingCertificateAllowMissingDependencies(t *testing.T) {
 
 	foo := result.ModuleForTests(t, "foo", "android_common")
 	fooApk := foo.Output("foo.apk")
-	if fooApk.Rule != android.ErrorRule {
+	if !android.IsErrorRule(fooApk.Rule) {
 		t.Fatalf("expected ErrorRule for foo.apk, got %s", fooApk.Rule.String())
 	}
 	android.AssertStringDoesContain(t, "expected error rule message", fooApk.Args["error"], "missing dependencies: missing_certificate\n")
@@ -4642,56 +4642,56 @@ func TestPrivappAllowlistAndroidMk(t *testing.T) {
 	overrideApp := result.ModuleForTests(t, "foo", "android_common_bar")
 
 	baseAndroidApp := baseApp.Module().(*AndroidApp)
-	baseEntries := android.AndroidMkEntriesForTest(t, result.TestContext, baseAndroidApp)[0]
+	baseEntries := android.AndroidMkInfoForTest(t, result.TestContext, baseAndroidApp)
 	android.AssertStringMatches(
 		t,
 		"androidmk has incorrect LOCAL_SOONG_INSTALLED_MODULE; expected to find foo.apk",
-		baseEntries.EntryMap["LOCAL_SOONG_INSTALLED_MODULE"][0],
+		baseEntries.PrimaryInfo.EntryMap["LOCAL_SOONG_INSTALLED_MODULE"][0],
 		"\\S+foo.apk",
 	)
 	android.AssertStringMatches(
 		t,
 		"androidmk has incorrect LOCAL_SOONG_INSTALL_PAIRS; expected to it to include foo.apk",
-		baseEntries.EntryMap["LOCAL_SOONG_INSTALL_PAIRS"][0],
+		baseEntries.PrimaryInfo.EntryMap["LOCAL_SOONG_INSTALL_PAIRS"][0],
 		"\\S+foo.apk",
 	)
 	android.AssertStringMatches(
 		t,
 		"androidmk has incorrect LOCAL_SOONG_INSTALL_PAIRS; expected to it to include app",
-		baseEntries.EntryMap["LOCAL_SOONG_INSTALL_PAIRS"][0],
+		baseEntries.PrimaryInfo.EntryMap["LOCAL_SOONG_INSTALL_PAIRS"][0],
 		"\\S+foo.apk:\\S+/target/product/test_device/system/priv-app/foo/foo.apk",
 	)
 	android.AssertStringMatches(
 		t,
 		"androidmk has incorrect LOCAL_SOONG_INSTALL_PAIRS; expected to it to include privapp_allowlist",
-		baseEntries.EntryMap["LOCAL_SOONG_INSTALL_PAIRS"][0],
+		baseEntries.PrimaryInfo.EntryMap["LOCAL_SOONG_INSTALL_PAIRS"][0],
 		"privapp_allowlist_com.android.foo.xml:\\S+/target/product/test_device/system/etc/permissions/foo.xml",
 	)
 
 	overrideAndroidApp := overrideApp.Module().(*AndroidApp)
-	overrideEntries := android.AndroidMkEntriesForTest(t, result.TestContext, overrideAndroidApp)[0]
+	overrideEntries := android.AndroidMkInfoForTest(t, result.TestContext, overrideAndroidApp)
 	android.AssertStringMatches(
 		t,
 		"androidmk has incorrect LOCAL_SOONG_INSTALLED_MODULE; expected to find bar.apk",
-		overrideEntries.EntryMap["LOCAL_SOONG_INSTALLED_MODULE"][0],
+		overrideEntries.PrimaryInfo.EntryMap["LOCAL_SOONG_INSTALLED_MODULE"][0],
 		"\\S+bar.apk",
 	)
 	android.AssertStringMatches(
 		t,
 		"androidmk has incorrect LOCAL_SOONG_INSTALL_PAIRS; expected to it to include bar.apk",
-		overrideEntries.EntryMap["LOCAL_SOONG_INSTALL_PAIRS"][0],
+		overrideEntries.PrimaryInfo.EntryMap["LOCAL_SOONG_INSTALL_PAIRS"][0],
 		"\\S+bar.apk",
 	)
 	android.AssertStringMatches(
 		t,
 		"androidmk has incorrect LOCAL_SOONG_INSTALL_PAIRS; expected to it to include app",
-		overrideEntries.EntryMap["LOCAL_SOONG_INSTALL_PAIRS"][0],
+		overrideEntries.PrimaryInfo.EntryMap["LOCAL_SOONG_INSTALL_PAIRS"][0],
 		"\\S+bar.apk:\\S+/target/product/test_device/system/priv-app/bar/bar.apk",
 	)
 	android.AssertStringMatches(
 		t,
 		"androidmk has incorrect LOCAL_SOONG_INSTALL_PAIRS; expected to it to include privapp_allowlist",
-		overrideEntries.EntryMap["LOCAL_SOONG_INSTALL_PAIRS"][0],
+		overrideEntries.PrimaryInfo.EntryMap["LOCAL_SOONG_INSTALL_PAIRS"][0],
 		"\\S+soong/.intermediates/foo/android_common_bar/privapp_allowlist_com.google.android.foo.xml:\\S+/target/product/test_device/system/etc/permissions/bar.xml",
 	)
 }

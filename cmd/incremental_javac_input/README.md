@@ -21,25 +21,40 @@ of java files to be passed for incremental javac compilation.
 
 ## Inputs
 * rsp file, containing list of java source files separated by whitespace.
-* deps file, containing the cross-module dependencies for javac.
+* deps file, containing the dependencies for javac.
 * javacTarget path to the output jar of javac
 * srcDepsProto, path to a proto file representing dependencies across java source files.
-* localHeaderJars *(optional)* rsp file containing space separated header jar path(s) for java sources.
+* localHeaderJars rsp file containing space separated header jar path(s) for java sources.
+* crossModuleJarList *(optional)* rsp file containing space separated jar path(s) for dependencies
+  compiled along side this jar (i.e. kotlin)
+
 
 ## Output
 * [javacTarget].inc.rsp file, representing list of java source files for incremental compilation.
-* [javacTarget].rem.rsp file, representing the list of .class files whose sources were removed and hence should be cleaned.
-* [javacTarget].input.pc_state.new temp state file, representing the current state of all java sources.
-* [javacTarget].deps.pc_state.new temp state file, representing the current state of cross-module dependencies.
-* [javacTarget].headers.pc_state.new temp state file, representing the current state of java source headers.
+* [javacTarget].rem.rsp file, representing the list of .class files whose sources were removed and
+  hence should be cleaned.
+* [javacTarget].input.pc_state.new temp state file, representing the current state of all java
+  sources.
+* [javacTarget].deps.pc_state.new temp state file, representing the current state of dependencies.
+* [javacTarget].headers.pc_state.new temp state file, representing the current state of java source
+  headers.
+* [javacTarget].crossModuleDeps.pc_state.new temp state file, representing the current state of
+  cross-module dependencies.
 
 ## Usage
 ```
-incremental_javac_input --srcs [srcRspFile] --deps [depsRspFile] --javacTarget [javacTargetPath] --srcDepsProto [srcDepsProtoPath] --localHeaderJars [localHeaderJarsRspFile]
+incremental_javac_input \
+--srcs <srcRspFile> \
+--deps <depsRspFile> \
+--javacTarget <javacTargetPath> \
+--srcDepsProto <srcDepsProtoPath> \
+--localHeaderJars <localHeaderJarsRspFile> \
+[--crossModuleJarList <crossModuleJarsRspFile>]
 ```
 
 ## Notes
 * This tool internally references the core logic of [find_input_delta] tool.
 * All outputs are relative to the javacTarget path
 * Same sources, deps, headers when used for different targets will output different results.
-* Once javac succeeds, the temp state files should be saved as current state files, to prepare for next iteration.
+* Once javac succeeds, the temp state files should be saved as current state files, to prepare for
+  next iteration.

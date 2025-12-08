@@ -93,3 +93,33 @@ func TestLibbpfProgVendor(t *testing.T) {
 		t.Errorf("%q is not found in %q", expected, androidMk)
 	}
 }
+
+func TestLibbpfProgGeneratedHeaderLib(t *testing.T) {
+	bp := `
+		libbpf_prog {
+			name: "bpf.bpf",
+			srcs: ["bpf.c"],
+			header_libs: ["foo_headers"],
+		}
+
+		cc_library_headers {
+			name: "foo_headers",
+			generated_headers: ["gen_headers"],
+			export_generated_headers: ["gen_headers"],
+		}
+
+		genrule {
+			name: "gen_headers",
+			out: ["gen.h"],
+			cmd: "touch $(out)",
+		}
+	`
+
+	result := prepareForLibbpfProgTest.RunTestWithBp(t, bp)
+
+	bpfCc := result.ModuleForTests(t, "bpf.bpf", "android_arm64_armv8-a").Rule("libbpfProgCcRule")
+	android.AssertPathsRelativeToTopEquals(t, "expected implicit deps", []string{
+		"out/soong/.intermediates/libbpf_headers/libbpf_headers/gen/foo.h",
+		"out/soong/.intermediates/gen_headers/gen/gen.h",
+	}, bpfCc.Implicits)
+}

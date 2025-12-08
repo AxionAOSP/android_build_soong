@@ -45,17 +45,6 @@ license_kind {
     ],
 }
 
-// Deprecated. All users of the following license should be changed to
-// BSD-Binary-Only and it should be removed.
-license_kind {
-    name: "BSD-Like-Binary-Only",
-    conditions: [
-        "notice",
-        "by_exception_only",
-        "proprietary",
-    ],
-}
-
 license_kind {
     name: "SPDX-license-identifier-0BSD",
     conditions: ["permissive"],
@@ -346,6 +335,12 @@ license_kind {
     name: "SPDX-license-identifier-Beerware",
     conditions: ["notice"],
     url: "https://spdx.org/licenses/Beerware.html",
+}
+
+license_kind {
+    name: "SPDX-license-identifier-bzip2-1.0.6",
+    conditions: ["notice"],
+    url: "https://spdx.org/licenses/bzip2-1.0.6.html",
 }
 
 license_kind {

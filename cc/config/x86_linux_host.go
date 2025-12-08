@@ -55,6 +55,8 @@ var (
 		"--gcc-toolchain=${LinuxGccRoot}",
 
 		"-Wl,--compress-debug-sections=zstd",
+
+		"-Wl,--build-id=md5",
 	}
 
 	linuxGlibcLdflags = []string{

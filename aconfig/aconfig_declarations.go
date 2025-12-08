@@ -96,7 +96,9 @@ func (module *DeclarationsModule) DepsMutator(ctx android.BottomUpMutatorContext
 	if len(valuesFromConfig) > 0 {
 		ctx.AddDependency(ctx.Module(), implicitValuesTag, valuesFromConfig...)
 	}
-	for rcName, valueSets := range ctx.Config().ReleaseAconfigExtraReleaseConfigsValueSets() {
+	extraValueSetsMap := ctx.Config().ReleaseAconfigExtraReleaseConfigsValueSets()
+	for _, rcName := range android.SortedKeys(extraValueSetsMap) {
+		valueSets := extraValueSetsMap[rcName]
 		if len(valueSets) > 0 {
 			ctx.AddDependency(ctx.Module(), implicitValuesTagType{ReleaseConfig: rcName}, valueSets...)
 		}
@@ -183,13 +185,10 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 		}
 
 		forceReadOnly := ctx.Config().GetBuildFlagBool("RELEASE_CONFIG_FORCE_READ_ONLY")
-		var allowReadWrite bool
-		if requireAllReadOnly, ok := ctx.Config().GetBuildFlag("RELEASE_ACONFIG_REQUIRE_ALL_READ_ONLY"); ok {
-			// The build flag (RELEASE_ACONFIG_REQUIRE_ALL_READ_ONLY) is the negation of the aconfig flag
-			// (allow-read-write) for historical reasons.
-			// Bool build flags are always "" for false, and generally "true" for true.
-			allowReadWrite = requireAllReadOnly == ""
-		}
+		// The build flag (RELEASE_ACONFIG_REQUIRE_ALL_READ_ONLY) is the negation of the aconfig flag
+		// (allow-read-write) for historical reasons.
+		allowReadWrite := !ctx.Config().GetBuildFlagBool("RELEASE_ACONFIG_REQUIRE_ALL_READ_ONLY")
+
 		inputFiles := make([]android.Path, len(declarationFiles))
 		copy(inputFiles, declarationFiles)
 		inputFiles = append(inputFiles, valuesFiles[config]...)

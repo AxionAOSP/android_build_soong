@@ -21,7 +21,7 @@ import (
 )
 
 func init() {
-	android.InitRegistrationContext.RegisterSingletonType("cc_misc_disted_files", ccMiscDistedFilesSingletonFactory)
+	android.InitRegistrationContext.RegisterParallelSingletonType("cc_misc_disted_files", ccMiscDistedFilesSingletonFactory)
 }
 
 func ccMiscDistedFilesSingletonFactory() android.Singleton {

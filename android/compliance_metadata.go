@@ -131,22 +131,24 @@ var (
 // methods to get/set properties' values.
 // @auto-generate: gob
 type ComplianceMetadataInfo struct {
-	properties             map[string]string
-	filesContained         []string
-	prebuiltFilesCopied    []string
-	platformGeneratedFiles []string
-	productCopyFiles       []string
-	kernelModuleCopyFiles  []string
+	properties                       map[string]string
+	filesContained                   []string
+	buildOutputPathsOfFilesContained []string
+	prebuiltFilesCopied              []string
+	platformGeneratedFiles           []string
+	productCopyFiles                 []string
+	kernelModuleCopyFiles            []string
 }
 
 func NewComplianceMetadataInfo() *ComplianceMetadataInfo {
 	return &ComplianceMetadataInfo{
-		properties:             map[string]string{},
-		filesContained:         make([]string, 0),
-		prebuiltFilesCopied:    make([]string, 0),
-		platformGeneratedFiles: make([]string, 0),
-		kernelModuleCopyFiles:  make([]string, 0),
-		productCopyFiles:       make([]string, 0),
+		properties:                       map[string]string{},
+		filesContained:                   make([]string, 0),
+		buildOutputPathsOfFilesContained: make([]string, 0),
+		prebuiltFilesCopied:              make([]string, 0),
+		platformGeneratedFiles:           make([]string, 0),
+		kernelModuleCopyFiles:            make([]string, 0),
+		productCopyFiles:                 make([]string, 0),
 	}
 }
 
@@ -167,6 +169,10 @@ func (c *ComplianceMetadataInfo) SetFilesContained(files []string) {
 
 func (c *ComplianceMetadataInfo) GetFilesContained() []string {
 	return c.filesContained
+}
+
+func (c *ComplianceMetadataInfo) SetBuildOutputPathsOfFilesContained(files []string) {
+	c.buildOutputPathsOfFilesContained = files
 }
 
 func (c *ComplianceMetadataInfo) SetPrebuiltFilesCopied(files []string) {
@@ -199,6 +205,15 @@ func (c *ComplianceMetadataInfo) SetKernelModuleCopyFiles(files []string) {
 
 func (c *ComplianceMetadataInfo) GetKernelModuleCopyFiles() []string {
 	return c.kernelModuleCopyFiles
+}
+
+func (c *ComplianceMetadataInfo) AddBuiltFiles(files ...string) {
+	builtFiles := []string{}
+	builtFilesPropValue := c.getStringValue(ComplianceMetadataProp.BUILT_FILES)
+	builtFiles = append(builtFiles, strings.Split(builtFilesPropValue, " ")...)
+	builtFiles = append(builtFiles, files...)
+	builtFiles = SortedUniqueStrings(builtFiles)
+	c.SetListValue(ComplianceMetadataProp.BUILT_FILES, builtFiles)
 }
 
 func (c *ComplianceMetadataInfo) getStringValue(propertyName string) string {
@@ -265,6 +280,13 @@ func buildComplianceMetadataProvider(ctx *moduleContext, m *ModuleBase) {
 			}
 		}
 		complianceMetadataInfo.SetListValue(ComplianceMetadataProp.INSTALLED_FILES, FirstUniqueStrings(installed.Strings()))
+
+		// BUILT_FILES
+		builtFiles := ctx.GetOutputFiles().DefaultOutputFiles.Strings()
+		for _, paths := range ctx.GetOutputFiles().TaggedOutputFiles {
+			builtFiles = append(builtFiles, paths.Strings()...)
+		}
+		ctx.ComplianceMetadataInfo().AddBuiltFiles(builtFiles...)
 	}
 	ctx.setProvider(ComplianceMetadataProvider, complianceMetadataInfo)
 }
@@ -279,17 +301,17 @@ func RegisterComplianceMetadataSingleton(ctx RegistrationContext) {
 
 var (
 	// sqlite3 command line tool
-	sqlite3 = pctx.HostBinToolVariable("sqlite3", "sqlite3")
+	sqlite3 = pctx.HostBinToolVariable("sqlite3_noicu", "sqlite3_noicu")
 
 	// Command to import .csv files to sqlite3 database
 	importCsv = pctx.AndroidStaticRule("importCsv",
 		blueprint.RuleParams{
 			Command: `rm -rf $out && ` +
-				`${sqlite3} $out ".import --csv $in modules" && ` +
-				`${sqlite3} $out ".import --csv ${make_metadata} make_metadata" && ` +
-				`${sqlite3} $out ".import --csv ${make_modules} make_modules"`,
-			CommandDeps: []string{"${sqlite3}"},
-		}, "make_metadata", "make_modules")
+				`cat $out.rsp | tr ' ' '\n' | while read -r file || [ -n "$$file" ]; do ${sqlite3_noicu} $out ".import --csv $${file} $$(basename $${file} .csv)"; done`,
+			CommandDeps:    []string{"${sqlite3_noicu}"},
+			Rspfile:        `$out.rsp`,
+			RspfileContent: `$in`,
+		})
 )
 
 func complianceMetadataSingletonFactory() Singleton {
@@ -329,10 +351,11 @@ func (c *complianceMetadataSingleton) GenerateBuildActions(ctx SingletonContext)
 
 		moduleType := ctx.ModuleType(module)
 		if moduleType == "package" {
+			packageInfo := OtherModuleProviderOrDefault(ctx, module, PackageInfoProvider)
 			metadataMap := map[string]string{
 				ComplianceMetadataProp.NAME:                            ctx.ModuleName(module),
 				ComplianceMetadataProp.MODULE_TYPE:                     ctx.ModuleType(module),
-				ComplianceMetadataProp.PKG_DEFAULT_APPLICABLE_LICENSES: strings.Join(commonInfo.PrimaryLicensesProperty.getStrings(), " "),
+				ComplianceMetadataProp.PKG_DEFAULT_APPLICABLE_LICENSES: strings.Join(packageInfo.PrimaryLicenses, " "),
 			}
 			rowId = rowId + 1
 			metadata := []string{strconv.Itoa(rowId)}
@@ -355,15 +378,17 @@ func (c *complianceMetadataSingleton) GenerateBuildActions(ctx SingletonContext)
 	csvWriter.Flush()
 
 	deviceProduct := ctx.Config().DeviceProduct()
-	modulesCsv := PathForOutput(ctx, "compliance-metadata", deviceProduct, "soong-modules.csv")
+	modulesCsv := PathForOutput(ctx, "compliance-metadata", deviceProduct, "modules.csv")
 	WriteFileRuleVerbatim(ctx, modulesCsv, buffer.String())
 
 	// Metadata generated in Make
-	makeMetadataCsv := PathForOutput(ctx, "compliance-metadata", deviceProduct, "make-metadata.csv")
-	makeModulesCsv := PathForOutput(ctx, "compliance-metadata", deviceProduct, "make-modules.csv")
+	makeMetadataCsv := PathForOutput(ctx, "compliance-metadata", deviceProduct, "make_metadata.csv")
+	makeModulesCsv := PathForOutput(ctx, "compliance-metadata", deviceProduct, "make_modules.csv")
 
 	productOutPath := filepath.Join(ctx.Config().OutDir(), "target", "product", String(ctx.Config().productVariables.DeviceName))
+	productInstalledFilesCsvHeaders := "installed_file,module_path,is_soong_module,is_prebuilt_make_module,product_copy_files,kernel_module_copy_files,is_platform_generated,static_libs,whole_static_libs,license_text"
 	if !ctx.Config().KatiEnabled() {
+		WriteFileRuleVerbatim(ctx, makeModulesCsv, "name,module_path,module_class,module_type,static_libs,whole_static_libs,built_files,installed_files")
 		ctx.VisitAllModuleProxies(func(module ModuleProxy) {
 			// In soong-only build the installed file list is from android_device module
 			if androidDeviceInfo, ok := OtherModuleProvider(ctx, module, AndroidDeviceInfoProvider); ok && androidDeviceInfo.Main_device {
@@ -391,9 +416,8 @@ func (c *complianceMetadataSingleton) GenerateBuildActions(ctx SingletonContext)
 							destToProductCopyFiles[pair[1]] = pcf
 						}
 
-						csvHeaders := "installed_file,module_path,is_soong_module,is_prebuilt_make_module,product_copy_files,kernel_module_copy_files,is_platform_generated,static_libs,whole_static_libs,license_text"
 						csvContent := make([]string, 0, len(allFiles)+1)
-						csvContent = append(csvContent, csvHeaders)
+						csvContent = append(csvContent, productInstalledFilesCsvHeaders)
 						for _, file := range allFiles {
 							if _, ok := prebuiltFilesSrcDest[file]; ok {
 								srcDestPair := prebuiltFilesSrcDest[file]
@@ -408,9 +432,7 @@ func (c *complianceMetadataSingleton) GenerateBuildActions(ctx SingletonContext)
 								csvContent = append(csvContent, file+",,Y,,,,,,,")
 							}
 						}
-
 						WriteFileRuleVerbatim(ctx, makeMetadataCsv, strings.Join(csvContent, "\n"))
-						WriteFileRuleVerbatim(ctx, makeModulesCsv, "name,module_path,module_class,module_type,static_libs,whole_static_libs,built_files,installed_files")
 					}
 					return
 				}
@@ -418,20 +440,47 @@ func (c *complianceMetadataSingleton) GenerateBuildActions(ctx SingletonContext)
 		})
 	}
 
+	// Compliance metadata for mainline modules in unbundled build.
+	moduleMetadataCsvFiles := []Path{}
+	if ctx.Config().HasUnbundledBuildApps() {
+		unbundledApps := ctx.Config().UnbundledBuildApps()
+		moduleInstalledFilesCsvHeaders := "installed_file,build_output_path"
+		ctx.VisitAllModuleProxies(func(module ModuleProxy) {
+			if !slices.Contains(unbundledApps, module.Name()) {
+				return
+			}
+			if metadataInfo, ok := OtherModuleProvider(ctx, module, ComplianceMetadataProvider); ok && len(metadataInfo.filesContained) > 0 {
+				csvContent := make([]string, 0, len(metadataInfo.filesContained)+1)
+				csvContent = append(csvContent, moduleInstalledFilesCsvHeaders)
+				for i, file := range metadataInfo.filesContained {
+					csvContent = append(csvContent, file+","+metadataInfo.buildOutputPathsOfFilesContained[i])
+				}
+				moduleMetadataCsv := PathForOutput(ctx, "compliance-metadata", deviceProduct, module.Name()+".csv")
+				moduleMetadataCsvFiles = append(moduleMetadataCsvFiles, moduleMetadataCsv)
+				WriteFileRuleVerbatim(ctx, moduleMetadataCsv, strings.Join(csvContent, "\n"))
+			}
+			return
+		})
+		if !ctx.Config().KatiEnabled() {
+			WriteFileRuleVerbatim(ctx, makeMetadataCsv, productInstalledFilesCsvHeaders)
+		}
+	}
+
 	// Import metadata from Make and Soong to sqlite3 database
 	complianceMetadataDb := PathForOutput(ctx, "compliance-metadata", deviceProduct, "compliance-metadata.db")
+
+	inputs := []Path{
+		modulesCsv,
+		makeMetadataCsv,
+		makeModulesCsv,
+	}
+	if ctx.Config().HasUnbundledBuildApps() {
+		inputs = append(inputs, moduleMetadataCsvFiles...)
+	}
 	ctx.Build(pctx, BuildParams{
-		Rule:  importCsv,
-		Input: modulesCsv,
-		Implicits: []Path{
-			makeMetadataCsv,
-			makeModulesCsv,
-		},
+		Rule:   importCsv,
+		Inputs: inputs,
 		Output: complianceMetadataDb,
-		Args: map[string]string{
-			"make_metadata": makeMetadataCsv.String(),
-			"make_modules":  makeModulesCsv.String(),
-		},
 	})
 
 	// Phony rule "compliance-metadata.db". "m compliance-metadata.db" to create the compliance metadata database.

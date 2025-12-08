@@ -61,15 +61,36 @@ func GatherRequiredDepsForTest() string {
 			sysroot: true,
 		}
 		rust_prebuilt_library {
-			name: "libcore.sysroot",
+			name: "libcore.rust_sysroot",
 			crate_name: "core",
 			rlib: {
 				srcs: ["libcore/libcore.rlib"],
 			},
 			dylib: {
-				srcs: ["libcore/libcore.so"],
+				enabled: false
 			},
-			host_supported: true,
+			sysroot: true,
+		}
+		rust_prebuilt_library {
+			name: "libcompiler_builtins.rust_sysroot",
+			crate_name: "core",
+			rlib: {
+				srcs: ["libcompiler_builtins/libcompiler_builtins.rlib"],
+			},
+			dylib: {
+				enabled: false
+			},
+			sysroot: true,
+		}
+		rust_prebuilt_library {
+			name: "liballoc.rust_sysroot",
+			crate_name: "core",
+			rlib: {
+				srcs: ["liballoc/liballoc.rlib"],
+			},
+			dylib: {
+				enabled: false
+			},
 			sysroot: true,
 		}
 		//////////////////////////////

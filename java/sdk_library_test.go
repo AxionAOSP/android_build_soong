@@ -133,8 +133,10 @@ func TestJavaSdkLibrary(t *testing.T) {
 	expectedFooExportedComponents := []string{
 		"foo-removed.api.combined.public.latest",
 		"foo-removed.api.combined.system.latest",
+		"foo-removed.api.combined.test.latest",
 		"foo.api.combined.public.latest",
 		"foo.api.combined.system.latest",
+		"foo.api.combined.test.latest",
 		"foo.stubs",
 		"foo.stubs.exportable",
 		"foo.stubs.exportable.system",
@@ -992,6 +994,7 @@ func testJavaSdkLibraryImport_Preferred(t *testing.T, prefer string, preparer an
 	// Make sure that dependencies on child modules use the prebuilt when preferred.
 	CheckModuleDependencies(t, result.TestContext, "combined", "android_common", []string{
 		// Each use of :sdklib{...} adds a dependency onto prebuilt_sdklib.
+		`AndroidGlobalLintChecker`,
 		`prebuilt_sdklib`,
 		`prebuilt_sdklib.stubs`,
 		`prebuilt_sdklib.stubs.source`,

@@ -22,6 +22,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,6 +38,7 @@ type cipdProxy struct {
 	cmd      *Cmd
 	wg       sync.WaitGroup
 	stopping atomic.Bool
+	unixsock string
 }
 
 func cipdPath(config Config) string {
@@ -44,6 +46,11 @@ func cipdPath(config Config) string {
 }
 
 func shouldRunCIPDProxy(config Config) bool {
+	if runtime.GOOS == "darwin" {
+		// Disable CIPD proxy on Mac until we have it working, see b/425932171.
+		return false
+	}
+
 	cipdPath := cipdPath(config)
 	_, err := os.Stat(cipdPath)
 	return err == nil
@@ -52,41 +59,51 @@ func shouldRunCIPDProxy(config Config) bool {
 func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 	ctx.Status.Status("Starting CIPD proxy server...")
 
-	cipdArgs := []string{"proxy", "-proxy-policy", cipdProxyPolicyPath}
+	unixsock := absPath(ctx, filepath.Join(config.SoongOutDir(), "cipd_proxy.sock"))
+	if _, err := os.Stat(unixsock); err == nil {
+		ctx.Verbosef("%s was not cleaned up from the last build, deleting it.", unixsock)
+		if err := os.Remove(unixsock); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	cipdArgs := []string{
+		"proxy", "-proxy-policy", cipdProxyPolicyPath,
+		"-log-level", "warning",
+		"-unix-socket", unixsock,
+	}
 	adcFlagAdded := false
 
-	if config.UseRBE() {
-		// Determine RBE authentication mechanism and propagate to CIPD flags.
-		authType, authValue := config.rbeAuth()
-		switch authType {
-		case "RBE_credential_file":
-			cipdArgs = append(cipdArgs, "-service-account-json", authValue)
-		case "RBE_credentials_helper", "RBE_use_google_prod_creds":
-			helperPath := filepath.Join(config.rbeDir(), "credshelper")
+	// Determine RBE authentication mechanism and propagate to CIPD flags.
+	// Some build configurations like ABFS may disable RBE for compilation while
+	// still relying on RBE auth config being present.
+	authType, authValue := config.rbeAuth()
+	switch authType {
+	case "RBE_credential_file":
+		cipdArgs = append(cipdArgs, "-service-account-json", authValue)
+	case "RBE_credentials_helper", "RBE_use_google_prod_creds":
+		helperPath := filepath.Join(config.rbeDir(), "credshelper")
 
-			var credHelperArgsParts []string
-			// RBE_credentials_helper_args contains space-separated arguments for the helper
-			// and need to be formatted as repeated 'args:"..."' for the -credential-helper spec.
-			// e.g. "--f=foo --b=bar" -> 'args:"--f=foo" args:"--b=bar"'.
-			if rbeArgsStr, ok := config.environ.Get("RBE_credentials_helper_args"); ok && rbeArgsStr != "" {
-				argList := strings.Fields(rbeArgsStr)
-				for _, arg := range argList {
-					credHelperArgsParts = append(credHelperArgsParts, fmt.Sprintf("args:%q", arg))
-				}
-			} else {
-				credHelperArgsParts = append(credHelperArgsParts, fmt.Sprintf("args:%q", "--auth_source=automaticAuth"))
-				credHelperArgsParts = append(credHelperArgsParts, fmt.Sprintf("args:%q", "--gcert_refresh_timeout=20"))
+		var credHelperArgsParts []string
+		// RBE_credentials_helper_args contains space-separated arguments for the helper
+		// and need to be formatted as repeated 'args:"..."' for the -credential-helper spec.
+		// e.g. "--f=foo --b=bar" -> 'args:"--f=foo" args:"--b=bar"'.
+		if rbeArgsStr, ok := config.environ.Get("RBE_credentials_helper_args"); ok && rbeArgsStr != "" {
+			argList := strings.Fields(rbeArgsStr)
+			for _, arg := range argList {
+				credHelperArgsParts = append(credHelperArgsParts, fmt.Sprintf("args:%q", arg))
 			}
-			helperSpec := fmt.Sprintf("protocol:RECLIENT exec:'%s' %s", helperPath, strings.Join(credHelperArgsParts, " "))
-			cipdArgs = append(cipdArgs, "-credential-helper", helperSpec)
-		case "RBE_use_application_default_credentials", "RBE_use_gce_credentials":
-			fallthrough
-		default:
-			cipdArgs = append(cipdArgs, "-application-default-credentials=always")
-			adcFlagAdded = true
+		} else {
+			credHelperArgsParts = append(credHelperArgsParts, fmt.Sprintf("args:%q", "--auth_source=automaticAuth"))
+			credHelperArgsParts = append(credHelperArgsParts, fmt.Sprintf("args:%q", "--gcert_refresh_timeout=20"))
 		}
-	} else {
-		ctx.Printf("No RBE configuration detected. You may need to use application default credentials.")
+		helperSpec := fmt.Sprintf("protocol:RECLIENT exec:'%s' %s", helperPath, strings.Join(credHelperArgsParts, " "))
+		cipdArgs = append(cipdArgs, "-credential-helper", helperSpec)
+	case "RBE_use_application_default_credentials", "RBE_use_gce_credentials":
+		fallthrough
+	default:
+		cipdArgs = append(cipdArgs, "-application-default-credentials=always")
+		adcFlagAdded = true
 	}
 
 	if !adcFlagAdded {
@@ -102,9 +119,9 @@ func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 	}
 
 	cipdCmd := fmt.Sprintf("cipd %s", strings.Join(cipdArgs, " "))
-	ctx.Printf("Starting CIPD proxy server with: %s", cipdCmd)
+	ctx.Verbosef("Starting CIPD proxy server with: %s", cipdCmd)
 
-	cmd := Command(ctx, config, "cipd", cipdPath(config), cipdArgs...)
+	cmd := Command(ctx, config, nil, "cipd", cipdPath(config), cipdArgs...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		log.Fatal(err)
@@ -117,7 +134,7 @@ func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 	if err := cmd.Start(); err != nil {
 		log.Fatal(err)
 	}
-	cp := cipdProxy{cmd: cmd}
+	cp := cipdProxy{cmd: cmd, unixsock: unixsock}
 	cp.wg.Add(1)
 	go func() {
 		// Log any error output from cipd until it exits.
@@ -154,16 +171,22 @@ func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 		}
 		if strings.HasPrefix(l, cipdProxyUrlKey) {
 			proxyUrl := strings.TrimSpace(l[len(cipdProxyUrlKey)+1:])
+			if proxyUrl != "unix://"+unixsock {
+				log.Fatalf("unexpected unix socket returned by cipd proxy: %s, expected unix://%s", proxyUrl, unixsock)
+			}
 			config.environ.Set(cipdProxyUrlKey, proxyUrl)
-			ctx.Println("Started CIPD proxy listening on", proxyUrl)
+			ctx.Verbosef("Started CIPD proxy listening on", proxyUrl)
 			break
 		}
 	}
 	return &cp
 }
 
-func (c *cipdProxy) Stop() {
+func (c *cipdProxy) Stop(ctx Context) {
 	c.stopping.Store(true)
 	c.cmd.Process.Kill()
 	c.wg.Wait()
+	if err := os.Remove(c.unixsock); err != nil {
+		ctx.Printf("failed to clean up cipd proxy socket %s.\n", c.unixsock)
+	}
 }

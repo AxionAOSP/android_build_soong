@@ -50,11 +50,12 @@ class ArgumentTest {
                 argParsers,
                 PrintStream(stdoutStreamCaptor),
                 PrintStream(stderrStreamCaptor),
+                "usage",
             )
 
         assertThat(result).isTrue()
         assertThat(opts.passThroughArgs).isEqualTo(listOf("foo", "bar", "baz"))
-        assertThat(stdoutStreamCaptor.toString()).startsWith("Usage: ")
+        assertThat(stdoutStreamCaptor.toString()).startsWith("usage\n")
         assertThat(stderrStreamCaptor.toString()).isEmpty()
     }
 
@@ -79,6 +80,7 @@ class ArgumentTest {
                 argParsers,
                 PrintStream(stdoutStreamCaptor),
                 PrintStream(stderrStreamCaptor),
+                "usage",
             )
 
         assertThat(result).isFalse()

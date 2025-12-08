@@ -21,25 +21,46 @@ import (
 
 	"android/soong/cc"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 	"android/soong/rust/config"
 )
 
-type RustLinkage int
+type StdLinkage int
 
 const (
-	DylibLinkage RustLinkage = iota
-	RlibLinkage
+	NoCore StdLinkage = iota
+	RlibCore
+	RlibStd
+	DylibStd
 )
+
+func (linkage StdLinkage) variation() blueprint.Variation {
+	return blueprint.Variation{Mutator: "rust_stdlinkage", Variation: linkage.variationName()}
+}
+
+func (linkage StdLinkage) variationName() string {
+	switch linkage {
+	case NoCore:
+		return ""
+	case RlibCore:
+		return "rlib-core"
+	case RlibStd:
+		return "rlib-std"
+	case DylibStd:
+		return "dylib-std"
+	}
+	panic(fmt.Errorf("unknown linkage type %v", linkage))
+}
 
 type compiler interface {
 	compilerFlags(ctx ModuleContext, flags Flags) Flags
 	cfgFlags(ctx ModuleContext, flags Flags) Flags
 	featureFlags(ctx ModuleContext, flags Flags) Flags
 	baseCompilerProps() BaseCompilerProperties
-	compilerProps() []interface{}
+	compilerProps() []any
 	compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput
 	compilerDeps(ctx DepsContext, deps Deps) Deps
 	crateName() string
@@ -69,7 +90,7 @@ type compiler interface {
 	Disabled() bool
 	SetDisabled()
 
-	stdLinkage(device bool) RustLinkage
+	stdLinkage(device bool) StdLinkage
 	noStdlibs() bool
 
 	unstrippedOutputFilePath() android.Path
@@ -122,7 +143,7 @@ type BaseCompilerProperties struct {
 	// the module name with ":", for example ":libfoo_bindgen"
 	//
 	// If no source file is defined, a single generated source module can be defined to be used as the main source.
-	Srcs []string `android:"path,arch_variant"`
+	Srcs proptools.Configurable[[]string] `android:"path,arch_variant"`
 
 	// Entry point that is passed to rustc to begin the compilation. E.g. main.rs or lib.rs.
 	// When this property is set,
@@ -294,10 +315,6 @@ func (compiler *baseCompiler) noStdlibs() bool {
 	return Bool(compiler.Properties.No_stdlibs)
 }
 
-func (compiler *baseCompiler) coverageOutputZipPath() android.OptionalPath {
-	panic("baseCompiler does not implement coverageOutputZipPath()")
-}
-
 func (compiler *baseCompiler) preferRlib() bool {
 	return Bool(compiler.Properties.Prefer_rlib)
 }
@@ -314,14 +331,14 @@ func (compiler *baseCompiler) Aliases() map[string]string {
 	return aliases
 }
 
-func (compiler *baseCompiler) stdLinkage(device bool) RustLinkage {
-	// For devices, we always link stdlibs in as dylibs by default.
+func (compiler *baseCompiler) stdLinkage(device bool) StdLinkage {
 	if compiler.preferRlib() {
-		return RlibLinkage
+		// For devices, we always link stdlibs in as dylibs by default.
+		return RlibStd
 	} else if device {
-		return DylibLinkage
+		return DylibStd
 	} else {
-		return RlibLinkage
+		return RlibStd
 	}
 }
 
@@ -357,8 +374,8 @@ func (compiler *baseCompiler) inData() bool {
 	return compiler.location == InstallInData
 }
 
-func (compiler *baseCompiler) compilerProps() []interface{} {
-	return []interface{}{&compiler.Properties}
+func (compiler *baseCompiler) compilerProps() []any {
+	return []any{&compiler.Properties}
 }
 
 func (compiler *baseCompiler) baseCompilerProps() BaseCompilerProperties {
@@ -484,7 +501,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 }
 
 func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
-	panic(fmt.Errorf("baseCrater doesn't know how to crate things!"))
+	panic(fmt.Errorf("baseCrater doesn't know how to crate things"))
 }
 
 func (compiler *baseCompiler) rustdoc(ctx ModuleContext, flags Flags,
@@ -645,19 +662,19 @@ func (compiler *baseCompiler) relativeInstallPath() string {
 
 func (compiler *baseCompiler) crateRootPath(ctx ModuleContext) android.Path {
 	if compiler.Properties.Crate_root == nil {
-		return srcPathFromModuleSrcs(ctx, compiler.Properties.Srcs)
+		return srcPathFromModuleSrcs(ctx, compiler.Properties.Srcs.GetOrDefault(ctx, nil))
 	} else {
 		return android.PathForModuleSrc(ctx, *compiler.Properties.Crate_root)
 	}
 }
 
 func (compiler *baseCompiler) crateSources(ctx ModuleContext) android.Paths {
-	crateSources := android.PathsForModuleSrc(ctx, compiler.Properties.Srcs)
+	crateSources := android.PathsForModuleSrc(ctx, compiler.Properties.Srcs.GetOrDefault(ctx, nil))
 
 	// By default use an expansive set of required sources.
-	// Check for UseRBE here since this isn't necessary for local builds and can
+	// Check for UseREWrapper here since this isn't necessary for local builds and can
 	// break some tests as the MockFS doesn't support globbing in all instances.
-	if BoolDefault(compiler.Properties.Use_expansive_default_srcs, true) && ctx.Config().IsEnvTrue("RBE_RUST") {
+	if BoolDefault(compiler.Properties.Use_expansive_default_srcs, true) && ctx.Config().IsEnvTrue("RBE_RUST") && ctx.Config().IsEnvTrue("USE_REWRAPPER") {
 		crateSources = append(crateSources, android.PathsForModuleSrc(ctx,
 			[]string{
 				"*.md",

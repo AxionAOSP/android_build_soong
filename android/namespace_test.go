@@ -385,6 +385,13 @@ func TestImportingNonexistentNamespace(t *testing.T) {
 	GroupFixturePreparers(
 		prepareForTestWithNamespace,
 		dirBpToPreparer(map[string]string{
+			// Add a folder called a_nonexistent_namespace with a bp file, as sometimes
+			// that tricks the import even though there's no namespace in this bp file.
+			"a_nonexistent_namespace": `
+				test_module {
+					name: "unused",
+				}
+			`,
 			"dir1": `
 				soong_namespace {
 					imports: ["a_nonexistent_namespace"]
@@ -398,6 +405,32 @@ func TestImportingNonexistentNamespace(t *testing.T) {
 	).
 		// should complain about the missing namespace and not complain about the unresolvable dependency
 		ExtendWithErrorHandler(FixtureExpectsOneErrorPattern(`\Qdir1/Android.bp:2:5: module "soong_namespace": namespace a_nonexistent_namespace does not exist\E`)).
+		RunTest(t)
+}
+
+func TestCantImportSubdirOfNamespace(t *testing.T) {
+	GroupFixturePreparers(
+		prepareForTestWithNamespace,
+		dirBpToPreparer(map[string]string{
+			"dir1": `
+				soong_namespace{}
+
+				test_module {
+					name: "b",
+				}
+			`,
+			"dir2": `
+				soong_namespace {
+					imports: ["dir1/foo"]
+				}
+				test_module {
+					name: "a",
+					deps: ["b"]
+				}
+			`,
+		}),
+	).
+		ExtendWithErrorHandler(FixtureExpectsOneErrorPattern(`\Qdir2/Android.bp:2:5: module "soong_namespace": namespace dir1/foo does not exist\E`)).
 		RunTest(t)
 }
 

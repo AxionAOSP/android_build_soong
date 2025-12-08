@@ -51,5 +51,6 @@ func (l *llvmCoverageToolsZipSingleton) GenerateBuildActions(ctx android.Singlet
 		FlagWithInput("-f ", llvmCov)
 	builder.Build("llvm_coverage_tools_zip", "llvm coverage tools zip")
 
-	ctx.DistForGoals([]string{"droidcore-unbundled", "apps_only"}, llvmCoverageToolsZip)
+	ctx.Phony("llvm_coverage_tools_zip", llvmCoverageToolsZip)
+	ctx.DistForGoals([]string{"droidcore-unbundled", "apps_only", "llvm_coverage_tools_zip"}, llvmCoverageToolsZip)
 }

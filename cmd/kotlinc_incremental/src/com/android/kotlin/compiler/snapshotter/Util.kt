@@ -19,6 +19,6 @@ package com.android.kotlin.compiler.snapshotter
 import java.io.File
 
 fun fileToSnapshotFile(file: File): File {
-    val snName = file.name.replace(".", "_") + "-snapshot.bin"
+    val snName = file.nameWithoutExtension + ".snapshot.bin"
     return File(file.parentFile, snName)
 }

@@ -124,9 +124,11 @@ func TestDefaultsAllowMissingDependencies(t *testing.T) {
 	missingDefaults := result.ModuleForTests(t, "missing_defaults", "").Output("out")
 	missingTransitiveDefaults := result.ModuleForTests(t, "missing_transitive_defaults", "").Output("out")
 
-	AssertSame(t, "missing_defaults rule", ErrorRule, missingDefaults.Rule)
+	if !IsErrorRule(missingDefaults.Rule) {
+		t.Errorf("missing_defaults rule was not an error rule")
+	}
 
-	AssertStringEquals(t, "missing_defaults", "module missing_defaults missing dependencies: missing\n", missingDefaults.Args["error"])
+	AssertStringEquals(t, "missing_defaults", "'module missing_defaults missing dependencies: missing\n'", missingDefaults.Args["error"])
 
 	// TODO: missing transitive defaults is currently not handled
 	_ = missingTransitiveDefaults

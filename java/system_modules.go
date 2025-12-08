@@ -14,8 +14,6 @@
 package java
 
 import (
-	"fmt"
-	"io"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -197,28 +195,19 @@ func (system *SystemModules) ComponentDepsMutator(ctx android.BottomUpMutatorCon
 	ctx.AddVariationDependencies(nil, systemModulesLibsTag, system.properties.Libs...)
 }
 
-func (system *SystemModules) AndroidMk() android.AndroidMkData {
-	return android.AndroidMkData{
-		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
-			fmt.Fprintln(w)
-
-			makevar := "SOONG_SYSTEM_MODULES_" + name
-			fmt.Fprintln(w, makevar, ":=$=", system.outputDir.String())
-			fmt.Fprintln(w)
-
-			makevar = "SOONG_SYSTEM_MODULES_LIBS_" + name
-			fmt.Fprintln(w, makevar, ":=$=", strings.Join(system.properties.Libs, " "))
-			fmt.Fprintln(w)
-
-			makevar = "SOONG_SYSTEM_MODULES_DEPS_" + name
-			fmt.Fprintln(w, makevar, ":=$=", strings.Join(system.outputDeps.Strings(), " "))
-			fmt.Fprintln(w)
-
-			fmt.Fprintln(w, name+":", "$("+makevar+")")
-			fmt.Fprintln(w, ".PHONY:", name)
-			// TODO(b/151177513): Licenses: Doesn't go through base_rules. May have to generate meta_lic and meta_module here.
-		},
+func (system *SystemModules) PrepareAndroidMKProviderInfo(config android.Config) *android.AndroidMkProviderInfo {
+	info := &android.AndroidMkProviderInfo{}
+	info.PrimaryInfo = android.AndroidMkInfo{
+		Class:      "SYSTEM_MODULES",
+		Include:    "$(BUILD_SYSTEM)/soong_system_modules.mk",
+		OutputFile: android.OptionalPathForPath(system.outputDir),
 	}
+	info.PrimaryInfo.SetPath("LOCAL_SOONG_SYSTEM_MODULES_DIR", system.outputDir)
+	info.PrimaryInfo.AddStrings("LOCAL_SOONG_SYSTEM_MODULES_LIBS", system.properties.Libs...)
+	info.PrimaryInfo.AddPaths("LOCAL_SOONG_SYSTEM_MODULES_DEPS", system.outputDeps)
+	// TODO(b/151177513): Licenses: Doesn't go through base_rules. May have to generate meta_lic and meta_module here.
+
+	return info
 }
 
 // A prebuilt version of java_system_modules. It does not import the

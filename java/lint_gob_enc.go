@@ -12,47 +12,47 @@ func init() {
 	LintInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(LintInfo) })
 }
 
-func (r LintInfo) Encode(buf *bytes.Buffer) error {
+func (r LintInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeInterface(buf, r.HTML); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.HTML); err != nil {
 		return err
 	}
 
-	if err = gobtools.EncodeInterface(buf, r.Text); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.Text); err != nil {
 		return err
 	}
 
-	if err = gobtools.EncodeInterface(buf, r.XML); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.XML); err != nil {
 		return err
 	}
 
-	if err = gobtools.EncodeInterface(buf, r.ReferenceBaseline); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.ReferenceBaseline); err != nil {
 		return err
 	}
 
-	if err = r.TransitiveHTML.EncodeInterface(buf); err != nil {
+	if err = r.TransitiveHTML.EncodeInterface(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.TransitiveText.EncodeInterface(buf); err != nil {
+	if err = r.TransitiveText.EncodeInterface(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.TransitiveXML.EncodeInterface(buf); err != nil {
+	if err = r.TransitiveXML.EncodeInterface(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.TransitiveBaseline.EncodeInterface(buf); err != nil {
+	if err = r.TransitiveBaseline.EncodeInterface(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *LintInfo) Decode(buf *bytes.Reader) error {
+func (r *LintInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if val2, err := gobtools.DecodeInterface(buf); err != nil {
+	if val2, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val2 == nil {
 		r.HTML = nil
@@ -60,7 +60,7 @@ func (r *LintInfo) Decode(buf *bytes.Reader) error {
 		r.HTML = val2.(android.Path)
 	}
 
-	if val4, err := gobtools.DecodeInterface(buf); err != nil {
+	if val4, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val4 == nil {
 		r.Text = nil
@@ -68,7 +68,7 @@ func (r *LintInfo) Decode(buf *bytes.Reader) error {
 		r.Text = val4.(android.Path)
 	}
 
-	if val6, err := gobtools.DecodeInterface(buf); err != nil {
+	if val6, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val6 == nil {
 		r.XML = nil
@@ -76,7 +76,7 @@ func (r *LintInfo) Decode(buf *bytes.Reader) error {
 		r.XML = val6.(android.Path)
 	}
 
-	if val8, err := gobtools.DecodeInterface(buf); err != nil {
+	if val8, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val8 == nil {
 		r.ReferenceBaseline = nil
@@ -84,19 +84,19 @@ func (r *LintInfo) Decode(buf *bytes.Reader) error {
 		r.ReferenceBaseline = val8.(android.Path)
 	}
 
-	if err = r.TransitiveHTML.DecodeInterface(buf); err != nil {
+	if err = r.TransitiveHTML.DecodeInterface(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.TransitiveText.DecodeInterface(buf); err != nil {
+	if err = r.TransitiveText.DecodeInterface(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.TransitiveXML.DecodeInterface(buf); err != nil {
+	if err = r.TransitiveXML.DecodeInterface(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.TransitiveBaseline.DecodeInterface(buf); err != nil {
+	if err = r.TransitiveBaseline.DecodeInterface(ctx, buf); err != nil {
 		return err
 	}
 

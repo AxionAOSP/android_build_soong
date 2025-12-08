@@ -89,8 +89,8 @@ func (benchmark *benchmarkDecorator) autoDep(ctx android.BottomUpMutatorContext)
 	return rlibAutoDep
 }
 
-func (benchmark *benchmarkDecorator) stdLinkage(device bool) RustLinkage {
-	return RlibLinkage
+func (benchmark *benchmarkDecorator) stdLinkage(device bool) StdLinkage {
+	return RlibStd
 }
 
 func (benchmark *benchmarkDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
@@ -107,7 +107,7 @@ func (benchmark *benchmarkDecorator) compilerDeps(ctx DepsContext, deps Deps) De
 	return deps
 }
 
-func (benchmark *benchmarkDecorator) compilerProps() []interface{} {
+func (benchmark *benchmarkDecorator) compilerProps() []any {
 	return append(benchmark.binaryDecorator.compilerProps(), &benchmark.Properties)
 }
 
@@ -123,7 +123,7 @@ func (benchmark *benchmarkDecorator) install(ctx ModuleContext) {
 
 	// default relative install path is module name
 	if !Bool(benchmark.Properties.No_named_install_directory) {
-		benchmark.baseCompiler.relative = ctx.ModuleName()
+		benchmark.relative = ctx.ModuleName()
 	} else if String(benchmark.baseCompiler.Properties.Relative_install_path) == "" {
 		ctx.PropertyErrorf("no_named_install_directory", "Module install directory may only be disabled if relative_install_path is set")
 	}

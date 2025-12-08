@@ -226,6 +226,8 @@ func (l *linter) deps(ctx android.BottomUpMutatorContext) {
 		extraCheckModules = append(extraCheckModules, strings.Split(extraCheckModulesEnv, ",")...)
 	}
 
+	extraCheckModules = append(extraCheckModules, "AndroidGlobalLintChecker")
+
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(),
 		extraLintCheckTag, extraCheckModules...)
 }
@@ -411,9 +413,6 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		}
 	}
 
-	l.extraLintCheckJars = append(l.extraLintCheckJars, android.PathForSource(ctx,
-		"prebuilts/cmdline-tools/AndroidGlobalLintChecker.jar"))
-
 	var baseline android.OptionalPath
 	if l.properties.Lint.Baseline_filename != nil {
 		baseline = android.OptionalPathForPath(android.PathForModuleSrc(ctx, *l.properties.Lint.Baseline_filename))
@@ -439,7 +438,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 			android.PathForModuleOut(ctx, "lint.sbox.textproto")).
 		SandboxInputs()
 
-	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_LINT") {
+	if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_LINT") {
 		pool := ctx.Config().GetenvWithDefault("RBE_LINT_POOL", "java16")
 		rule.Remoteable(android.RemoteRuleSupports{RBE: true})
 		rule.Rewrapper(&remoteexec.REParams{
@@ -483,7 +482,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	cmd := rule.Command()
 
-	cmd.Flag(`JAVA_OPTS="-Xmx4096m --add-opens java.base/java.util=ALL-UNNAMED"`).
+	cmd.Flag(`JAVA_OPTS="-Xmx8192m --add-opens java.base/java.util=ALL-UNNAMED"`).
 		FlagWithArg("ANDROID_SDK_HOME=", lintPaths.homeDir.String()).
 		FlagWithInput("SDK_ANNOTATIONS=", annotationsZipPath).
 		FlagWithInput("LINT_OPTS=-DLINT_API_DATABASE=", apiVersionsXMLPath)

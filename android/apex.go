@@ -573,7 +573,7 @@ func AvailableToSameApexes(mod1, mod2 ApexModule) bool {
 // variant.
 func UpdateUniqueApexVariationsForDeps(mctx BottomUpMutatorContext, am ApexModule) {
 	// If any of the dependencies requires unique apex variations, so does this module.
-	mctx.VisitDirectDeps(func(dep Module) {
+	mctx.visitDirectDeps(func(dep Module) {
 		if depApexModule, ok := dep.(ApexModule); ok {
 			if IsDepInSameApex(mctx, am, depApexModule) &&
 				(depApexModule.UniqueApexVariations() ||
@@ -683,7 +683,7 @@ type WalkPayloadDepsFunc func(ctx BaseModuleContext, do PayloadDepsCallback)
 // ModuleWithMinSdkVersionCheck represents a module that implements min_sdk_version checks
 type ModuleWithMinSdkVersionCheck interface {
 	Module
-	MinSdkVersion(ctx EarlyModuleContext) ApiLevel
+	MinSdkVersion(ctx MinSdkVersionFromValueContext) ApiLevel
 	CheckMinSdkVersion(ctx ModuleContext)
 }
 
@@ -740,6 +740,7 @@ type MinSdkVersionFromValueContext interface {
 	Config() Config
 	DeviceConfig() DeviceConfig
 	ModuleErrorContext
+	ConfigurableEvaluatorContext
 }
 
 // Returns nil (success) if this module should support the given sdk version. Returns an

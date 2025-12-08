@@ -145,11 +145,13 @@ func (p *platformCompatConfig) GenerateAndroidBuildActions(ctx android.ModuleCon
 	})
 }
 
-func (p *platformCompatConfig) AndroidMkEntries() []android.AndroidMkEntries {
-	return []android.AndroidMkEntries{android.AndroidMkEntries{
+func (p *platformCompatConfig) PrepareAndroidMKProviderInfo(config android.Config) *android.AndroidMkProviderInfo {
+	info := &android.AndroidMkProviderInfo{}
+	info.PrimaryInfo = android.AndroidMkInfo{
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(p.configFile),
-	}}
+	}
+	return info
 }
 
 func PlatformCompatConfigFactory() android.Module {

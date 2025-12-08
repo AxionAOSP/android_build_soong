@@ -22,10 +22,12 @@ func GenerateIncrementalInput(jarFilePath, outputDir, packageOutputDir, dexTarge
 	var chPackagePaths []string
 	includeAllPackages := false
 
-	addF, delF, chF := findInputDelta([]string{jarFilePath}, inputPcState, dexTarget, true)
+	version := ""
+	tools := []string{}
+	addF, delF, chF := findInputDelta(version, tools, []string{jarFilePath}, inputPcState, dexTarget, true)
 
 	depsList := readRspFile(deps)
-	addD, delD, chD := findInputDelta(depsList, depsPcState, dexTarget, false)
+	addD, delD, chD := findInputDelta(version, tools, depsList, depsPcState, dexTarget, false)
 
 	// If we are not doing a partial compile, we can just return all packages in the incremental list.
 	if !usePartialCompile() {
@@ -159,9 +161,9 @@ func writePackagePathsToRspFile(filePath string, packagePaths []string) {
 
 // Computes the diff of the inputs provided, saving the temp state in the
 // priorStateFile.
-func findInputDelta(inputs []string, priorStateFile, target string, inspect bool) ([]string, []string, []string) {
+func findInputDelta(version string, tools, inputs []string, priorStateFile, target string, inspect bool) ([]string, []string, []string) {
 	newStateFile := priorStateFile + ".new"
-	fileList, err := fid_lib.GenerateFileList(target, priorStateFile, newStateFile, inputs, inspect, fid_lib.OsFs)
+	fileList, err := fid_lib.GenerateFileList(target, priorStateFile, newStateFile, version, tools, inputs, inspect, fid_lib.OsFs)
 	if err != nil {
 		panic(err)
 	}

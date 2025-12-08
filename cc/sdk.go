@@ -102,26 +102,25 @@ func (sdkTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, variation
 	}
 
 	switch m := ctx.Module().(type) {
-	case LinkableInterface:
-		ccModule, isCcModule := ctx.Module().(*Module)
+	case VersionedLinkableInterface:
 		if m.AlwaysSdk() {
 			if variation != "sdk" {
 				ctx.ModuleErrorf("tried to create variation %q for module with AlwaysSdk set, expected \"sdk\"", variation)
 			}
 
-			ccModule.Properties.IsSdkVariant = true
+			m.SetSdkVariant()
 		} else if m.UseSdk() || m.SplitPerApiLevel() {
 			if variation == "" {
 				// Clear the sdk_version property for the platform (non-SDK) variant so later code
 				// doesn't get confused by it.
-				ccModule.Properties.Sdk_version = nil
+				m.SetSdkVersion(nil)
 			} else {
 				// Mark the SDK variant.
-				ccModule.Properties.IsSdkVariant = true
+				m.SetSdkVariant()
 
 				// SDK variant never gets installed because the variant is to be embedded in
 				// APKs, not to be installed to the platform.
-				ccModule.Properties.PreventInstall = true
+				m.SetPreventInstall()
 			}
 
 			if ctx.Config().HasUnbundledBuildApps() {
@@ -129,21 +128,19 @@ func (sdkTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, variation
 					// For an unbundled apps build, hide the platform variant from Make
 					// so that other Make modules don't link against it, but against the
 					// SDK variant.
-					ccModule.Properties.HideFromMake = true
+					m.SetHideFromMake()
 				}
 			} else {
 				if variation == "sdk" {
 					// For a platform build, mark the SDK variant so that it gets a ".sdk" suffix when
 					// exposed to Make.
-					ccModule.Properties.SdkAndPlatformVariantVisibleToMake = true
+					m.SetSdkAndPlatformVariantVisibleToMake()
 				}
 			}
 		} else {
-			if isCcModule {
-				// Clear the sdk_version property for modules that don't have an SDK variant so
-				// later code doesn't get confused by it.
-				ccModule.Properties.Sdk_version = nil
-			}
+			// Clear the sdk_version property for modules that don't have an SDK variant so
+			// later code doesn't get confused by it.
+			m.SetSdkVersion(nil)
 		}
 	}
 }

@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package android
+package testsuites
 
 import (
+	"android/soong/android"
 	"testing"
 )
 
 func TestBuildTestList(t *testing.T) {
 	t.Parallel()
-	ctx := GroupFixturePreparers(
+	ctx := android.GroupFixturePreparers(
 		prepareForFakeTestSuite,
-		FixtureRegisterWithContext(func(ctx RegistrationContext) {
+		android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
 			ctx.RegisterParallelSingletonType("testsuites", testSuiteFilesFactory)
 		}),
 	).RunTestWithBp(t, `
@@ -61,7 +62,7 @@ host/testcases/Test2/Test21/Test21.config
 `,
 	}
 	for file, want := range wantContents {
-		got := ContentFromFileRuleForTests(t, ctx.TestContext, config.Output(file))
+		got := android.ContentFromFileRuleForTests(t, ctx.TestContext, config.Output(file))
 
 		if want != got {
 			t.Errorf("want %q, got %q", want, got)
@@ -70,34 +71,33 @@ host/testcases/Test2/Test21/Test21.config
 }
 
 type fake_module struct {
-	ModuleBase
+	android.ModuleBase
 	props struct {
 		Outputs     []string
 		Test_suites []string
 	}
 }
 
-func fakeTestSuiteFactory() Module {
+func fakeTestSuiteFactory() android.Module {
 	module := &fake_module{}
-	base := module.base()
-	module.AddProperties(&base.nameProperties, &module.props)
-	InitAndroidModule(module)
+	module.AddProperties(&module.props)
+	android.InitAndroidModule(module)
 	return module
 }
 
-var prepareForFakeTestSuite = GroupFixturePreparers(
-	FixtureRegisterWithContext(func(ctx RegistrationContext) {
+var prepareForFakeTestSuite = android.GroupFixturePreparers(
+	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("fake_module", fakeTestSuiteFactory)
 	}),
 )
 
-func (f *fake_module) GenerateAndroidBuildActions(ctx ModuleContext) {
+func (f *fake_module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	for _, output := range f.props.Outputs {
-		f := PathForModuleOut(ctx, output)
+		f := android.PathForModuleOut(ctx, output)
 		ctx.InstallFile(pathForTestCases(ctx), output, f)
 	}
 
-	SetProvider(ctx, TestSuiteInfoProvider, TestSuiteInfo{
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
 		TestSuites: f.TestSuites(),
 	})
 }

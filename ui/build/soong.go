@@ -202,6 +202,9 @@ func (pb PrimaryBuilderFactory) primaryBuilderInvocation(config Config) bootstra
 	commonArgs := make([]string, 0, 0)
 
 	commonArgs = append(commonArgs, "--kati_suffix", config.KatiSuffix())
+	if !config.SkipKati() {
+		commonArgs = append(commonArgs, "--kati_enabled")
+	}
 
 	if !pb.config.skipSoongTests {
 		commonArgs = append(commonArgs, "-t")
@@ -295,8 +298,8 @@ func bootstrapEpochCleanup(ctx Context, config Config) {
 }
 
 func bootstrapBlueprint(ctx Context, config Config) {
-	ctx.BeginTrace(metrics.RunSoong, "blueprint bootstrap")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.RunSoong, "blueprint bootstrap")
+	defer e.End()
 
 	st := ctx.Status.StartTool()
 	defer st.Finish()
@@ -524,14 +527,19 @@ func fixOutDirSymlinks(ctx Context, config Config, outDir string) error {
 			// No previous working directory recorded, nothing to do.
 			return nil
 		}
+		ctx.Println(fmt.Sprintf("Failed to read pcwd: %v", err))
 		return err
 	}
+
 	prevCWD = strings.Trim(string(pcwd), "\n")
 
-	if prevCWD == cwd {
-		// We are in the same source dir, nothing to update.
+	if prevCWD == cwd || prevCWD == "" {
+		// We are in the same source dir, or prevCWD came up empty for some reason,
+		// so nothing to update.
 		return nil
 	}
+
+	ctx.Println(fmt.Sprintf("CWD directory changed from %v to %v, updating output symlinks", prevCWD, cwd))
 
 	symlinkWg.Add(1)
 	if err := updateSymlinks(ctx, outDir, prevCWD, cwd, newUpdateSemaphore()); err != nil {
@@ -539,6 +547,7 @@ func fixOutDirSymlinks(ctx Context, config Config, outDir string) error {
 	}
 	symlinkWg.Wait()
 	ctx.Println(fmt.Sprintf("Updated %d/%d symlinks in dir %v", numUpdated, numFound, outDir))
+
 	return nil
 }
 
@@ -564,8 +573,8 @@ func migrateOutputSymlinks(ctx Context, config Config) error {
 }
 
 func runSoong(ctx Context, config Config, enforceNoSoongOutput bool) {
-	ctx.BeginTrace(metrics.RunSoong, "soong")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.RunSoong, "soong")
+	defer e.End()
 
 	if err := migrateOutputSymlinks(ctx, config); err != nil {
 		ctx.Fatalf("failed to migrate output directory to current TOP dir: %v", err)
@@ -584,9 +593,6 @@ func runSoong(ctx Context, config Config, enforceNoSoongOutput bool) {
 	soongBuildEnv.Set("TOP", os.Getenv("TOP"))
 	soongBuildEnv.Set("LOG_DIR", config.LogsDir())
 
-	// Never pass SOONG_HONOR_USE_PARTIAL_COMPILE to Soong.
-	soongBuildEnv.Unset("SOONG_HONOR_USE_PARTIAL_COMPILE")
-
 	// For Soong bootstrapping tests
 	if os.Getenv("ALLOW_MISSING_DEPENDENCIES") == "true" {
 		soongBuildEnv.Set("ALLOW_MISSING_DEPENDENCIES", "true")
@@ -598,8 +604,8 @@ func runSoong(ctx Context, config Config, enforceNoSoongOutput bool) {
 	}
 
 	func() {
-		ctx.BeginTrace(metrics.RunSoong, "environment check")
-		defer ctx.EndTrace()
+		e := ctx.BeginTrace(metrics.RunSoong, "environment check")
+		defer e.End()
 
 		checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(soongBuildTag))
 
@@ -613,8 +619,8 @@ func runSoong(ctx Context, config Config, enforceNoSoongOutput bool) {
 	}()
 
 	ninja := func(targets ...string) {
-		ctx.BeginTrace(metrics.RunSoong, "bootstrap")
-		defer ctx.EndTrace()
+		e := ctx.BeginTrace(metrics.RunSoong, "bootstrap")
+		defer e.End()
 
 		fifo := filepath.Join(config.OutDir(), ".ninja_fifo")
 		nr := status.NewNinjaReader(ctx, ctx.Status.StartTool(), fifo)
@@ -681,7 +687,7 @@ func runSoong(ctx Context, config Config, enforceNoSoongOutput bool) {
 
 			ninjaArgs = append(ninjaArgs, targets...)
 
-			cmd := Command(ctx, config, "soong bootstrap",
+			cmd := Command(ctx, config, e, "soong bootstrap",
 				ninjaCmd, ninjaArgs...)
 
 			var ninjaEnv Environment
@@ -689,6 +695,9 @@ func runSoong(ctx Context, config Config, enforceNoSoongOutput bool) {
 			// This is currently how the command line to invoke soong_build finds the
 			// root of the source tree and the output root
 			ninjaEnv.Set("TOP", os.Getenv("TOP"))
+			SetupLitePath(ctx, config, "")
+			ninjaPath, _ := config.Environment().Get("PATH")
+			ninjaEnv.Set("PATH", ninjaPath)
 
 			cmd.Environment = &ninjaEnv
 			cmd.Sandbox = soongSandbox
@@ -762,8 +771,8 @@ func runSoong(ctx Context, config Config, enforceNoSoongOutput bool) {
 // globs, it only reruns globs whose dependencies are newer than the
 // time in the ".globs_time" file.
 func checkGlobs(ctx Context, finalOutFile string) error {
-	ctx.BeginTrace(metrics.RunSoong, "check_globs")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.RunSoong, "check_globs")
+	defer e.End()
 	st := ctx.Status.StartTool()
 	st.Status("Running globs...")
 	defer st.Finish()
@@ -965,8 +974,8 @@ func loadSoongBuildMetrics(ctx Context, config Config, oldTimestamp time.Time) {
 }
 
 func runMicrofactory(ctx Context, config Config, name string, pkg string, mapping map[string]string) {
-	ctx.BeginTrace(metrics.RunSoong, name)
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.RunSoong, name)
+	defer e.End()
 	cfg := microfactory.Config{TrimPath: absPath(ctx, ".")}
 	for pkgPrefix, pathPrefix := range mapping {
 		cfg.Map(pkgPrefix, pathPrefix)

@@ -15,8 +15,6 @@
 package build_flags
 
 import (
-	"fmt"
-
 	"android/soong/android"
 )
 
@@ -47,6 +45,7 @@ func (this *allBuildFlagDeclarationsSingleton) GenerateBuildActions(ctx android.
 	var flagsFiles android.Paths
 	// Find all of the release_config_contribution modules
 	var contributionDirs android.Paths
+	var contributionPaths android.Paths
 	ctx.VisitAllModuleProxies(func(module android.ModuleProxy) {
 		decl, ok := android.OtherModuleProvider(ctx, module, BuildFlagDeclarationsProviderKey)
 		if ok {
@@ -56,6 +55,7 @@ func (this *allBuildFlagDeclarationsSingleton) GenerateBuildActions(ctx android.
 		contrib, ok := android.OtherModuleProvider(ctx, module, ReleaseConfigContributionsProviderKey)
 		if ok {
 			contributionDirs = append(contributionDirs, contrib.ContributionDir)
+			contributionPaths = append(contributionPaths, contrib.ContributionPaths...)
 		}
 	})
 
@@ -88,7 +88,7 @@ func (this *allBuildFlagDeclarationsSingleton) GenerateBuildActions(ctx android.
 	this.configsBinaryProtoPath = basePath.Join(ctx, "all_release_config_contributions.pb")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        allReleaseConfigContributionsRule,
-		Inputs:      contributionDirs,
+		Inputs:      contributionPaths,
 		Output:      this.configsBinaryProtoPath,
 		Description: "all_release_config_contributions",
 		Args: map[string]string{
@@ -101,7 +101,7 @@ func (this *allBuildFlagDeclarationsSingleton) GenerateBuildActions(ctx android.
 	this.configsTextProtoPath = basePath.Join(ctx, "all_release_config_contributions.textproto")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        allReleaseConfigContributionsRule,
-		Inputs:      contributionDirs,
+		Inputs:      contributionPaths,
 		Output:      this.configsTextProtoPath,
 		Description: "all_release_config_contributions_textproto",
 		Args: map[string]string{
@@ -155,25 +155,4 @@ func (this *allBuildFlagDeclarationsSingleton) GenerateBuildActions(ctx android.
 	ctx.DistForGoalsWithFilename(buildFlagArtifactsDistGoals, this.configsBinaryProtoPath, "build_flags/all_release_config_contributions.pb")
 	ctx.DistForGoalsWithFilename(buildFlagArtifactsDistGoals, this.configsTextProtoPath, "build_flags/all_release_config_contributions.textproto")
 
-	if ctx.Config().HasDeviceProduct() {
-		flagsDir := android.PathForOutput(ctx, "release-config")
-		baseAllRelease := fmt.Sprintf("all_release_configs-%s", ctx.Config().DeviceProduct())
-
-		distAllReleaseConfigsArtifact := func(ext string) {
-			ctx.DistForGoalsWithFilename(
-				buildFlagArtifactsDistGoals,
-				flagsDir.Join(ctx, fmt.Sprintf("%s.%s", baseAllRelease, ext)),
-				fmt.Sprintf("build_flags/all_release_configs.%s", ext),
-			)
-		}
-
-		distAllReleaseConfigsArtifact("pb")
-		distAllReleaseConfigsArtifact("textproto")
-		distAllReleaseConfigsArtifact("json")
-		ctx.DistForGoalWithFilename(
-			"droid",
-			flagsDir.Join(ctx, fmt.Sprintf("inheritance_graph-%s.dot", ctx.Config().DeviceProduct())),
-			fmt.Sprintf("build_flags/inheritance_graph-%s.dot", ctx.Config().DeviceProduct()),
-		)
-	}
 }

@@ -194,7 +194,7 @@ type prebuiltSubdirProperties struct {
 	Relative_install_path *string `android:"arch_variant"`
 }
 
-type prebuiltRootProperties struct {
+type PrebuiltRootProperties struct {
 	// Install this module to the root directory, without partition subdirs.  When this module is
 	// added to PRODUCT_PACKAGES, this module will be installed to $PRODUCT_OUT/root, which will
 	// then be copied to the root of system.img. When this module is packaged by other modules like
@@ -223,7 +223,7 @@ type PrebuiltEtc struct {
 
 	// rootProperties is used to return the value of the InstallInRoot() method. Currently, only
 	// prebuilt_avb and prebuilt_root modules use this.
-	rootProperties prebuiltRootProperties
+	rootProperties PrebuiltRootProperties
 
 	subdirProperties prebuiltSubdirProperties
 
@@ -297,21 +297,28 @@ func (p *PrebuiltEtc) InstallInRecovery() bool {
 	return p.InRecovery()
 }
 
+func (p *PrebuiltEtc) InstallInOdm() bool {
+	return p.ModuleBase.DeviceSpecific()
+}
+
 var _ android.ImageInterface = (*PrebuiltEtc)(nil)
 
 func (p *PrebuiltEtc) ImageMutatorBegin(ctx android.ImageInterfaceContext) {}
 
+func (p *PrebuiltEtc) ImageMutatorSupported() bool { return true }
+
 func (p *PrebuiltEtc) VendorVariantNeeded(ctx android.ImageInterfaceContext) bool {
-	return false
+	return p.InstallInVendor() || p.InstallInOdm()
 }
 
 func (p *PrebuiltEtc) ProductVariantNeeded(ctx android.ImageInterfaceContext) bool {
-	return false
+	return p.InstallInProduct()
 }
 
 func (p *PrebuiltEtc) CoreVariantNeeded(ctx android.ImageInterfaceContext) bool {
-	return !p.ModuleBase.InstallInRecovery() && !p.ModuleBase.InstallInRamdisk() &&
-		!p.ModuleBase.InstallInVendorRamdisk() && !p.ModuleBase.InstallInDebugRamdisk()
+	return !p.InstallInRecovery() && !p.InstallInRamdisk() &&
+		!p.InstallInVendorRamdisk() && !p.InstallInDebugRamdisk() &&
+		!p.InstallInVendor() && !p.InstallInProduct() && !p.InstallInOdm()
 }
 
 func (p *PrebuiltEtc) RamdiskVariantNeeded(ctx android.ImageInterfaceContext) bool {
@@ -633,6 +640,7 @@ func (p *PrebuiltEtc) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.AddStrings("LOCAL_MODULE_SYMLINKS", p.properties.Symlinks...)
 				}
 				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !p.Installable())
+				entries.AddStrings("LOCAL_OVERRIDES_MODULES", p.Overrides()...)
 			},
 		},
 	}}

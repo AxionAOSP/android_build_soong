@@ -26,11 +26,15 @@ import org.jetbrains.kotlin.buildtools.api.jvm.ClassSnapshotGranularity
 
 private val ARGUMENT_PARSERS = listOf(JarArgument(), HelpArgument())
 
+val USAGE_TEXT = """
+        Usage: kotlin-jar-snapshotter -jar=<jarfile>
+    """.trimIndent()
+
 fun main(args: Array<String>) {
     val opts = SnapshotterOptions()
     ARGUMENT_PARSERS.forEach { it.setupDefault(opts) }
 
-    if (!parseArgs(args, opts, ARGUMENT_PARSERS, System.out, System.err)) {
+    if (!parseArgs(args, opts, ARGUMENT_PARSERS, System.out, System.err, USAGE_TEXT)) {
         exitProcess(-1)
     }
 

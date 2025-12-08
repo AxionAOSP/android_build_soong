@@ -8,62 +8,74 @@ import (
 )
 
 func init() {
-	ModulePhonyInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ModulePhonyInfo) })
+	PhonyInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(PhonyInfo) })
 }
 
-func (r ModulePhonyInfo) Encode(buf *bytes.Buffer) error {
+func (r PhonyInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Phonies))); err != nil {
-		return err
-	}
-	for k, v := range r.Phonies {
-		if err = gobtools.EncodeString(buf, k); err != nil {
+	if r.Phonies == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
 		}
-		if err = gobtools.EncodeSimple(buf, int32(len(v))); err != nil {
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Phonies))); err != nil {
 			return err
 		}
-		for val1 := 0; val1 < len(v); val1++ {
-			if err = gobtools.EncodeInterface(buf, v[val1]); err != nil {
+		for k, v := range r.Phonies {
+			if err = gobtools.EncodeString(buf, k); err != nil {
 				return err
+			}
+			if v == nil {
+				if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
+					return err
+				}
+			} else {
+				if err = gobtools.EncodeSimple(buf, int32(len(v))); err != nil {
+					return err
+				}
+				for val1 := 0; val1 < len(v); val1++ {
+					if err = gobtools.EncodeInterface(ctx, buf, v[val1]); err != nil {
+						return err
+					}
+				}
 			}
 		}
 	}
 	return err
 }
 
-func (r *ModulePhonyInfo) Decode(buf *bytes.Reader) error {
+func (r *PhonyInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	var val1 int32
-	err = gobtools.DecodeSimple[int32](buf, &val1)
+	var val2 int32
+	err = gobtools.DecodeSimple[int32](buf, &val2)
 	if err != nil {
 		return err
 	}
-	if val1 > 0 {
-		r.Phonies = make(map[string]Paths, val1)
-		for val2 := 0; val2 < int(val1); val2++ {
+	if val2 != -1 {
+		r.Phonies = make(map[string]Paths, val2)
+		for val3 := 0; val3 < int(val2); val3++ {
 			var k string
 			var v Paths
 			err = gobtools.DecodeString(buf, &k)
 			if err != nil {
 				return err
 			}
-			var val6 int32
-			err = gobtools.DecodeSimple[int32](buf, &val6)
+			var val7 int32
+			err = gobtools.DecodeSimple[int32](buf, &val7)
 			if err != nil {
 				return err
 			}
-			if val6 > 0 {
-				v = make([]Path, val6)
-				for val7 := 0; val7 < int(val6); val7++ {
-					if val9, err := gobtools.DecodeInterface(buf); err != nil {
+			if val7 != -1 {
+				v = make([]Path, val7)
+				for val8 := 0; val8 < int(val7); val8++ {
+					if val10, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 						return err
-					} else if val9 == nil {
-						v[val7] = nil
+					} else if val10 == nil {
+						v[val8] = nil
 					} else {
-						v[val7] = val9.(Path)
+						v[val8] = val10.(Path)
 					}
 				}
 			}
@@ -74,8 +86,8 @@ func (r *ModulePhonyInfo) Decode(buf *bytes.Reader) error {
 	return err
 }
 
-var ModulePhonyInfoGobRegId int16
+var PhonyInfoGobRegId int16
 
-func (r ModulePhonyInfo) GetTypeId() int16 {
-	return ModulePhonyInfoGobRegId
+func (r PhonyInfo) GetTypeId() int16 {
+	return PhonyInfoGobRegId
 }
