@@ -31,7 +31,7 @@ var (
 		"armv8-a":            {"-march=armv8-a"},
 		"armv8-a-branchprot": {"-march=armv8-a"},
 		"armv8-2a":           {"-march=armv8.2-a"},
-		"armv8-2a-dotprod":   {"-march=armv8.2-a+dotprod"},
+		"armv8-2a-dotprod":   {"-march=armv8.2-a+lse+fp16+dotprod"},
 		"armv8-5a":           {"-march=armv8.5-a"},
 		"armv8-7a":           {"-march=armv8.7-a"},
 		"armv9-a":            {"-march=armv9-a"},
@@ -63,14 +63,10 @@ var (
 			"-mcpu=cortex-a55",
 		},
 		"cortex-a75": []string{
-			// Use the cortex-a55 since it is similar to the little
-			// core (cortex-a55) and is sensitive to ordering.
-			"-mcpu=cortex-a55",
+			"-mcpu=cortex-a75+crypto+crc",
 		},
 		"cortex-a76": []string{
-			// Use the cortex-a55 since it is similar to the little
-			// core (cortex-a55) and is sensitive to ordering.
-			"-mcpu=cortex-a55",
+			"-mcpu=cortex-a76+crypto+crc",
 		},
 		"kryo": []string{
 			"-mcpu=kryo",
@@ -113,6 +109,7 @@ func init() {
 
 	pctx.StaticVariable("Arm64CortexA53Cflags", strings.Join(arm64CpuVariantCflags["cortex-a53"], " "))
 	pctx.StaticVariable("Arm64CortexA55Cflags", strings.Join(arm64CpuVariantCflags["cortex-a55"], " "))
+	pctx.StaticVariable("Arm64CortexA76Cflags", strings.Join(arm64CpuVariantCflags["cortex-a76"], " "))
 	pctx.StaticVariable("Arm64KryoCflags", strings.Join(arm64CpuVariantCflags["kryo"], " "))
 	pctx.StaticVariable("Arm64ExynosM1Cflags", strings.Join(arm64CpuVariantCflags["exynos-m1"], " "))
 	pctx.StaticVariable("Arm64ExynosM2Cflags", strings.Join(arm64CpuVariantCflags["exynos-m2"], " "))
@@ -127,7 +124,7 @@ var (
 		"cortex-a72": "${config.Arm64CortexA53Cflags}",
 		"cortex-a73": "${config.Arm64CortexA53Cflags}",
 		"cortex-a75": "${config.Arm64CortexA55Cflags}",
-		"cortex-a76": "${config.Arm64CortexA55Cflags}",
+		"cortex-a76": "${config.Arm64CortexA76Cflags}",
 		"kryo":       "${config.Arm64KryoCflags}",
 		"kryo385":    "${config.Arm64CortexA53Cflags}",
 		"exynos-m1":  "${config.Arm64ExynosM1Cflags}",
