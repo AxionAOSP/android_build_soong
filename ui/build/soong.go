@@ -226,6 +226,11 @@ func (pb PrimaryBuilderFactory) primaryBuilderInvocation(config Config) bootstra
 
 	commonArgs = append(commonArgs, "-l", filepath.Join(pb.config.FileListDir(), "Android.bp.list"))
 	invocationEnv := make(map[string]string)
+	for _, key := range []string{"GOMEMLIMIT", "GOGC"} {
+		if value, ok := pb.config.Environment().Get(key); ok && value != "" {
+			invocationEnv[key] = value
+		}
+	}
 	if pb.debugPort != "" {
 		//debug mode
 		commonArgs = append(commonArgs, "--delve_listen", pb.debugPort,
