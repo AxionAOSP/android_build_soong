@@ -315,5 +315,5 @@ org\.ifaa\.android\.manager.*
 com.camera.camera2.extensions.*
 
 ###################################################
-# Xiaomi Extensions
-com.xiaomi.extensions.*
+# Xiaomi adds
+com\.xiaomi\..*
