@@ -123,6 +123,7 @@ type configImpl struct {
 	ensureAllowlistIntegrity            bool // For CI builds - make sure modules are mixed-built
 	runCIPDProxyServer                  bool
 	runCIPDProxyServerControlledByFlags bool
+	skipGlobs                           bool
 
 	// From the product config
 	katiArgs        []string
@@ -1018,6 +1019,8 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.skipSoongTests = false
 		} else if arg == "--skip-metrics-upload" {
 			c.skipMetricsUpload = true
+		} else if arg == "--skip-globs" {
+			c.skipGlobs = true
 		} else if arg == "--mk-metrics" {
 			c.reportMkMetrics = true
 		} else if strings.HasPrefix(arg, "--ninja_weight_source=") {
@@ -1209,6 +1212,14 @@ func (c *configImpl) SoongBuildInvocationNeeded() bool {
 
 	// build.ninja doesn't need to be generated
 	return false
+}
+
+func (c *configImpl) SkipGlobs() bool {
+	return c.skipGlobs || c.environ.IsEnvTrue("SOONG_SKIP_GLOBS") || c.environ.IsEnvTrue("SKIP_NINJA_GLOBS") || c.environ.IsEnvTrue("SKIP_GLOBS")
+}
+
+func (c *configImpl) SetSkipGlobs(skip bool) {
+	c.skipGlobs = skip
 }
 
 func (c *configImpl) OutDir() string {

@@ -726,18 +726,29 @@ func runSoong(ctx Context, config Config, enforceNoSoongOutput bool) {
 
 	if config.SoongBuildInvocationNeeded() {
 		// This build generates <builddir>/build.ninja, which is used later by build/soong/ui/build/build.go#Build().
-		targets = append(targets, config.SoongNinjaFile())
+		soongNinjaFile := config.SoongNinjaFile()
+		if config.SkipGlobs() {
+			if ok, _ := fileExists(soongNinjaFile); ok {
+				ctx.Println("Skipping Soong ninja generation (skipGlobs is active)")
+			} else {
+				targets = append(targets, soongNinjaFile)
+			}
+		} else {
+			targets = append(targets, soongNinjaFile)
+		}
 	}
 
 	for _, target := range targets {
-		if err := checkGlobs(ctx, target); err != nil {
+		if err := checkGlobs(ctx, config, target); err != nil {
 			ctx.Fatalf("Error checking globs: %s", err.Error())
 		}
 	}
 
 	beforeSoongTimestamp := time.Now()
 
-	ninja(targets...)
+	if len(targets) > 0 {
+		ninja(targets...)
+	}
 
 	loadSoongBuildMetrics(ctx, config, beforeSoongTimestamp)
 
@@ -775,7 +786,11 @@ func runSoong(ctx Context, config Config, enforceNoSoongOutput bool) {
 // with the time that they ran at every build. When soong_ui checks
 // globs, it only reruns globs whose dependencies are newer than the
 // time in the ".globs_time" file.
-func checkGlobs(ctx Context, finalOutFile string) error {
+func checkGlobs(ctx Context, config Config, finalOutFile string) error {
+	if config.SkipGlobs() {
+		return nil
+	}
+
 	e := ctx.BeginTrace(metrics.RunSoong, "check_globs")
 	defer e.End()
 	st := ctx.Status.StartTool()
