@@ -28,7 +28,8 @@ var (
 func init() {
 	pctx.HostBinToolVariable("KotlinIncrementalClientBinary", "kotlin-incremental-client")
 	pctx.HostBinToolVariable("KotlinJarSnapshotterBinary", "kotlin-jar-snapshotter")
-	pctx.SourcePathVariable("KotlincCmd", "external/kotlinc/bin/kotlinc")
+	pctx.SourcePathVariableWithEnvOverride("KotlincCmd", "external/kotlinc/bin/kotlinc", "ALTERNATE_KOTLINC")
+	pctx.SourcePathVariableWithEnvOverride("KaptCmd", "external/kotlinc/bin/kotlinc", "ALTERNATE_KAPT")
 	pctx.SourcePathVariable("KotlinCompilerJar", "external/kotlinc/lib/kotlin-compiler.jar")
 	pctx.SourcePathVariable("KotlinPreloaderJar", "external/kotlinc/lib/kotlin-preloader.jar")
 	pctx.SourcePathVariable("KotlinReflectJar", "external/kotlinc/lib/kotlin-reflect.jar")

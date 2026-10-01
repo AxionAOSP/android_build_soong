@@ -429,7 +429,7 @@ var kaptStubs = pctx.AndroidRemoteStaticRule("kaptStubs", android.RemoteRuleSupp
 			`${config.GenKotlinBuildFileCmd} --classpath "$classpath" $friendPathsArg --name "$name"` +
 			` --srcs "$out.rsp" --srcs "$srcJarDir/list"` +
 			` $commonSrcFilesArg --out "$kotlinBuildFile" && ` +
-			`${config.KotlincCmd} ${config.KotlincGlobalFlags} ` +
+			`${config.KaptCmd} ${config.KotlincGlobalFlags} ` +
 			`${config.KaptSuppressJDK9Warnings} ${config.KotlincSuppressJDK9Warnings} ` +
 			`${config.JavacHeapFlags} $kotlincFlags ` +
 			`-Xplugin=${config.KotlinKaptJar} ` +
@@ -446,7 +446,7 @@ var kaptStubs = pctx.AndroidRemoteStaticRule("kaptStubs", android.RemoteRuleSupp
 			`rm -rf "$srcJarDir"`,
 		CommandDeps: []string{
 			"${config.FindInputDeltaCmd}",
-			"${config.KotlincCmd}",
+			"${config.KaptCmd}",
 			"${config.KotlinCompilerJar}",
 			"${config.KotlinKaptJar}",
 			"${config.GenKotlinBuildFileCmd}",

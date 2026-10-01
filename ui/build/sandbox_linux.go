@@ -343,6 +343,22 @@ func (c *Cmd) wrapSandbox() {
 		}
 	}
 
+	for _, jvmExec := range []string{os.Getenv("JVMCACHE_EXEC"), os.Getenv("ALTERNATE_JAVAC"), os.Getenv("ALTERNATE_KOTLINC"), os.Getenv("ALTERNATE_KAPT"), os.Getenv("ALTERNATE_D8"), os.Getenv("ALTERNATE_R8"), os.Getenv("ALTERNATE_TURBINE"), "prebuilts/jvmcache/linux-x86/bin/jvmcache"} {
+		if jvmExec != "" {
+			bytes, err := exec.Command(jvmExec, "-k", "cache_dir").Output()
+			if err == nil {
+				dir := strings.TrimSpace(string(bytes))
+				if dir != "" {
+					sandboxArgs = append(sandboxArgs, "-B", dir)
+				}
+			}
+			break
+		}
+	}
+	if jvmcacheDir := os.Getenv("JVMCACHE_DIR"); jvmcacheDir != "" {
+		sandboxArgs = append(sandboxArgs, "-B", jvmcacheDir)
+	}
+
 	// Stop nsjail from parsing arguments
 	sandboxArgs = append(sandboxArgs, "--")
 

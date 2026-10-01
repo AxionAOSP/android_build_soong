@@ -235,6 +235,17 @@ func runNinja(ctx Context, config Config, ninjaArgs []string) {
 			"CCACHE_BASEDIR",
 			"CCACHE_CPP2",
 			"CCACHE_DIR",
+			"JVMCACHE_DIR",
+			"JVMCACHE_CONFIG",
+			"JVMCACHE_VERBOSE",
+			"JVMCACHE_MAX_SIZE",
+			"USE_JVMCACHE",
+			"ALTERNATE_JAVAC",
+			"ALTERNATE_KOTLINC",
+			"ALTERNATE_KAPT",
+			"ALTERNATE_D8",
+			"ALTERNATE_R8",
+			"ALTERNATE_TURBINE",
 
 			// LLVM compiler wrapper options
 			"TOOLCHAIN_RUSAGE_OUTPUT",

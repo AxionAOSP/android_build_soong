@@ -311,6 +311,19 @@ func parseAvailableEnv() map[string]string {
 func main() {
 	flag.Parse()
 
+	if topDir == "" || topDir == "/" {
+		if envTop := os.Getenv("TOP"); envTop != "" && envTop != "/" {
+			topDir = envTop
+		} else if envTop := os.Getenv("ANDROID_BUILD_TOP"); envTop != "" && envTop != "/" {
+			topDir = envTop
+		} else if exe, err := os.Executable(); err == nil {
+			cand := filepath.Clean(filepath.Join(filepath.Dir(exe), "../../../.."))
+			if _, err := os.Stat(filepath.Join(cand, "build/soong")); err == nil {
+				topDir = cand
+			}
+		}
+	}
+
 	if cmdlineArgs.Memprofile == "" {
 		// Go enables memory profile collection automatically if any references
 		// are linked in to the binary.

@@ -190,6 +190,15 @@ func (p PackageContext) HostBinToolVariable(name, path string) blueprint.Variabl
 	})
 }
 
+func (p PackageContext) HostBinToolVariableWithEnvOverride(name, path, env string) blueprint.Variable {
+	return p.VariableFunc(name, func(ctx PackageVarContext) string {
+		if override := ctx.Config().Getenv(env); override != "" {
+			return override
+		}
+		return proptools.NinjaAndShellEscape(ctx.Config().HostToolPath(ctx, path).String())
+	})
+}
+
 // HostJNIToolVariable returns a Variable whose value is the path to a host tool
 // in the lib directory for host targets. It may only be called during a Go
 // package's initialization - either from the init() function or as part of a

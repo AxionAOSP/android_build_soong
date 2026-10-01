@@ -175,8 +175,8 @@ func init() {
 	pctx.HostBinToolVariable("ZipSyncCmd", "zipsync")
 	pctx.HostBinToolVariable("SplitZipCmd", "split_zips")
 	pctx.HostBinToolVariable("ApiCheckCmd", "apicheck")
-	pctx.HostBinToolVariable("D8Cmd", "d8")
-	pctx.HostBinToolVariable("R8Cmd", "r8")
+	pctx.HostBinToolVariableWithEnvOverride("D8Cmd", "d8", "ALTERNATE_D8")
+	pctx.HostBinToolVariableWithEnvOverride("R8Cmd", "r8", "ALTERNATE_R8")
 	pctx.HostBinToolVariable("ExtractR8RulesCmd", "extract-r8-rules")
 	pctx.HostBinToolVariable("ResourceShrinkerCmd", "resourceshrinker")
 	pctx.HostBinToolVariable("TraceReferencesCmd", "tracereferences")
@@ -189,6 +189,12 @@ func init() {
 		} else {
 			return ctx.Config().HostJavaToolPath(ctx, turbine).String()
 		}
+	})
+	pctx.VariableFunc("TurbineCmd", func(ctx android.PackageVarContext) string {
+		if override := ctx.Config().Getenv("ALTERNATE_TURBINE"); override != "" {
+			return override
+		}
+		return "${JavaCmd} ${JavaVmFlags} -jar ${TurbineJar}"
 	})
 
 	pctx.HostJavaToolVariable("JarjarCmd", "jarjar.jar")
